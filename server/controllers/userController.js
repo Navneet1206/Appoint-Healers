@@ -1,16 +1,13 @@
 import User from '../models/userModel.js';
-import nodemailer from 'nodemailer';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwtUtils.js';
 import { AppError } from '../middleware/errorMiddleware.js';
 import dotenv from 'dotenv';
 import twilio from 'twilio';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 
-// Initialize Twilio client
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-// Configure email transporter
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: parseInt(process.env.EMAIL_PORT),
@@ -21,25 +18,20 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Cookie options
 const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-// Helper function to send tokens
 const sendTokenResponse = (user, statusCode, res) => {
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
-
   user.refreshToken = refreshToken;
   user.save({ validateBeforeSave: false });
-
   res.cookie('accessToken', accessToken, cookieOptions);
   res.cookie('refreshToken', refreshToken, cookieOptions);
-
   res.status(statusCode).json({
     status: 'success',
     accessToken,
@@ -51,26 +43,29 @@ const sendTokenResponse = (user, statusCode, res) => {
       phone: user.phone,
       dateOfBirth: user.dateOfBirth,
       role: user.role,
-      emailVerified: user.emailVerified,
-      phoneVerified: user.phoneVerified,
     },
   });
 };
 
-// Generate OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// @desc    Register user with OTPs
-// @route   POST /api/auth/user/register
-// @access  Public
 export const registerUser = async (req, res, next) => {
   try {
     const { email, password, firstName, lastName, phone, dateOfBirth } = req.body;
 
+    // Validate required fields
     if (!email || !password || !firstName || !lastName || !phone || !dateOfBirth) {
       return next(new AppError('All fields are required', 400));
     }
 
+    // Validate phone number: Must start with +91 and have 10 digits
+    const phoneRegex = /^\+91[0-9]{10}$/;
+    if (!phoneRegex.test(phone)) {
+      console.log('Invalid phone number:', phone); // Debugging
+      return next(new AppError('Phone number must be a valid 10-digit number starting with +91 (e.g., +919876543210)', 400));
+    }
+
+    // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
       return next(new AppError('User already exists with this email', 400));
@@ -78,8 +73,6 @@ export const registerUser = async (req, res, next) => {
 
     const emailOTP = generateOTP();
     const phoneOTP = generateOTP();
-    console.log('Generated Email OTP:', emailOTP);
-    console.log('Generated Phone OTP:', phoneOTP);
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
 
     const user = await User.create({
@@ -87,7 +80,7 @@ export const registerUser = async (req, res, next) => {
       password,
       firstName,
       lastName,
-      phone,
+      phone, // Save as +91xxxxxxxxxx
       dateOfBirth,
       role: 'user',
       emailVerified: false,
@@ -98,20 +91,23 @@ export const registerUser = async (req, res, next) => {
       phoneOTPExpires: otpExpiration,
     });
 
+    console.log('User created:', user);
+    console.log('Generated Email OTP:', emailOTP);
+    console.log('Generated Phone OTP:', phoneOTP);
+
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: email,
       subject: 'Verify Your Email - SAVAYAS HEALS',
-      html: `...`,
+      html: `<p>Your OTP is ${emailOTP}. It expires in 30 minutes.</p>`,
     };
-
     await transporter.sendMail(mailOptions);
     console.log('Email OTP sent to:', email);
 
     await twilioClient.messages.create({
       body: `Your SAVAYAS HEALS verification OTP is ${phoneOTP}. It expires in 30 minutes.`,
       from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone,
+      to: phone, // Must be in +91xxxxxxxxxx format
     });
     console.log('Phone OTP sent to:', phone);
 
@@ -127,10 +123,7 @@ export const registerUser = async (req, res, next) => {
 export const verifyEmail = async (req, res, next) => {
   try {
     const { otp } = req.body;
-
-    if (!otp || otp.length !== 6) {
-      return next(new AppError('Invalid OTP. Must be 6 digits.', 400));
-    }
+    console.log('Received Email OTP:', otp); // Yeh log add kar
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -149,23 +142,19 @@ export const verifyEmail = async (req, res, next) => {
     user.emailOTP = undefined;
     user.emailOTPExpires = undefined;
     await user.save();
+    console.log('Email verified for user:', user.email); // Yeh log add kar
 
     res.json({ message: 'Email verified successfully' });
   } catch (error) {
+    console.error('Verify email error:', error); // Yeh log check kar
     next(error);
   }
 };
 
-// @desc    Verify phone OTP
-// @route   POST /api/users/verify/phone
-// @access  Private
 export const verifyPhone = async (req, res, next) => {
   try {
     const { otp } = req.body;
-
-    if (!otp || otp.length !== 6) {
-      return next(new AppError('Invalid OTP. Must be 6 digits.', 400));
-    }
+    console.log('Received Phone OTP:', otp); // Yeh log add kar
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -184,12 +173,16 @@ export const verifyPhone = async (req, res, next) => {
     user.phoneOTP = undefined;
     user.phoneOTPExpires = undefined;
     await user.save();
+    console.log('Phone verified for user:', user.email); // Yeh log add kar
 
     res.json({ message: 'Phone verified successfully' });
   } catch (error) {
+    console.error('Verify phone error:', error); // Yeh log check kar
     next(error);
   }
 };
+
+
 
 // @desc    Resend email OTP
 // @route   POST /api/users/resend/email-otp

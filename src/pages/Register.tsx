@@ -39,13 +39,14 @@ const Register: React.FC = () => {
 
   const onSubmit: SubmitHandler<RegisterFormData> = async (data) => {
     try {
-      console.log('Form Data Submitted:', data);
+      const phoneWithPrefix = `+91${data.phone}`; // Changed from +1 to +91
+      console.log('Form Data Submitted:', { ...data, phone: phoneWithPrefix });
       await registerUser({
         email: data.email,
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
-        phone: `+1${data.phone}`, // Adjust country code as needed
+        phone: phoneWithPrefix,
         dateOfBirth: data.dateOfBirth,
       });
       navigate('/verify');
@@ -53,6 +54,7 @@ const Register: React.FC = () => {
       console.error('Registration error:', err);
     }
   };
+  
 
   const nextStep = () => {
     if (step < totalSteps) {
@@ -181,70 +183,78 @@ const Register: React.FC = () => {
               </div>
             )}
 
-            {step === 2 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Contact Information</h3>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Email Address
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="john.doe@example.com"
-                    className="form-input mt-1 block w-full"
-                    {...register('email', {
-                      required: 'Email is required',
-                      pattern: {
-                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                        message: 'Invalid email address',
-                      },
-                    })}
-                  />
-                  {errors.email && (
-                    <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                    Phone Number
-                  </label>
-                  <input
-                    id="phone"
-                    type="tel"
-                    placeholder="1234567890"
-                    className="form-input mt-1 block w-full"
-                    {...register('phone', {
-                      required: 'Phone number is required',
-                      pattern: {
-                        value: /^[0-9]{10}$/,
-                        message: 'Please enter a valid 10-digit phone number',
-                      },
-                    })}
-                  />
-                  {errors.phone && (
-                    <p className="mt-2 text-sm text-red-600">{errors.phone.message}</p>
-                  )}
-                </div>
-                <div className="flex space-x-4">
-                  <button
-                    type="button"
-                    onClick={prevStep}
-                    className="w-1/2 flex justify-center items-center py-2 px-4 bg-gray-200 rounded-md"
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="w-1/2 flex justify-center items-center py-2 px-4 bg-teal-500 hover:bg-teal-600 text-white rounded-md"
-                  >
-                    Next <ArrowRight className="ml-2 h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            )}
+{step === 2 && (
+    <div className="space-y-6">
+      <h3 className="text-lg font-medium text-gray-800 mb-4">Contact Information</h3>
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          Email Address
+        </label>
+        <input
+          id="email"
+          type="email"
+          autoComplete="email"
+          placeholder="john.doe@example.com"
+          className="form-input mt-1 block w-full"
+          {...register('email', {
+            required: 'Email is required',
+            pattern: {
+              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+              message: 'Invalid email address',
+            },
+          })}
+        />
+        {errors.email && (
+          <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
+        )}
+      </div>
+      <div>
+        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+          Phone Number (+91)
+        </label>
+        <div className="flex mt-1">
+          <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+            +91
+          </span>
+          <input
+            id="phone"
+            type="tel"
+            placeholder="9876543210"
+            className="form-input flex-1 block w-full rounded-none rounded-r-md"
+            {...register('phone', {
+              required: 'Phone number is required',
+              pattern: {
+                value: /^[0-9]{10}$/,
+                message: 'Please enter a valid 10-digit phone number',
+              },
+            })}
+            onChange={(e) => {
+              e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+            }}
+          />
+        </div>
+        {errors.phone && (
+          <p className="mt-2 text-sm text-red-600">{errors.phone.message}</p>
+        )}
+      </div>
+      <div className="flex space-x-4">
+        <button
+          type="button"
+          onClick={prevStep}
+          className="w-1/2 flex justify-center items-center py-2 px-4 bg-gray-200 rounded-md"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </button>
+        <button
+          type="button"
+          onClick={nextStep}
+          className="w-1/2 flex justify-center items-center py-2 px-4 bg-teal-500 hover:bg-teal-600 text-white rounded-md"
+        >
+          Next <ArrowRight className="ml-2 h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )}
 
             {step === 3 && (
               <div className="space-y-6">

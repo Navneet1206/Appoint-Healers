@@ -47,6 +47,7 @@ const Verify: React.FC = () => {
 
   const onEmailSubmit = async (data: VerifyEmailFormData) => {
     try {
+      console.log('Email OTP submitted:', data.otp); // Yeh log add kar
       await verifyEmail(data.otp);
       setVerificationSuccess((prev) => ({ ...prev, email: true }));
       if (verificationSuccess.phone || user.phoneVerified) {
@@ -55,21 +56,23 @@ const Verify: React.FC = () => {
         setActiveTab('phone');
       }
     } catch (err) {
-      console.error('Email verification error:', err);
+      console.error('Email verification error:', err); // Yeh log check kar
     }
   };
-
+  
   const onPhoneSubmit = async (data: VerifyPhoneFormData) => {
     try {
+      console.log('Phone OTP submitted:', data.otp); // Yeh log add kar
       await verifyPhone(data.otp);
       setVerificationSuccess((prev) => ({ ...prev, phone: true }));
       if (verificationSuccess.email || user.emailVerified) {
         navigate('/dashboard');
       }
     } catch (err) {
-      console.error('Phone verification error:', err);
+      console.error('Phone verification error:', err); // Yeh log check kar
     }
   };
+  
 
   const resendEmailVerification = async () => {
     try {

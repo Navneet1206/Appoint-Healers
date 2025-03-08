@@ -4,8 +4,11 @@ import axios from 'axios';
 interface UserRegisterData {
   email: string;
   password: string;
+  confirmPassword: string; // Added
   firstName: string;
   lastName: string;
+  phone: string;
+  dateOfBirth: string;
 }
 
 interface ProfessionalRegisterData {
@@ -46,6 +49,10 @@ interface VerifyPaymentData {
   appointmentId: string;
 }
 
+interface VerifyOTPData {
+  otp: string;
+}
+
 interface UserResponse {
   id: string;
   email: string;
@@ -83,14 +90,17 @@ interface PaymentResponse {
   transactionId: string;
 }
 
-// New type for payment order creation response (e.g., Razorpay order)
 interface PaymentOrderResponse {
-  id: string; // Order ID (e.g., Razorpay order_id)
+  id: string;
   amount: number;
   currency: string;
   receipt: string;
   status: string;
   createdAt: number;
+}
+
+interface VerifyOTPResponse {
+  message: string;
 }
 
 // Use environment variable for API URL, fallback to localhost for development
@@ -105,41 +115,92 @@ const api = axios.create({
   },
 });
 
-// Add auth token to requests (optional, if using JWT in Authorization header)
+// Add request interceptor for debugging and token handling
 api.interceptors.request.use(
   (config) => {
+    console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`, config.data); // Debugging
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => {
+    console.log(`API Response: ${response.config.method.toUpperCase()} ${response.config.url}`, response.data); // Debugging
+    return response;
+  },
+  (error) => {
+    console.error('Response Error:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    });
+    return Promise.reject(error.response?.data || error.message);
+  }
 );
 
 // Auth API calls
 export const registerUser = async (data: UserRegisterData): Promise<UserResponse> => {
-  const response = await api.post('/auth/user/register', data);
-  return response.data;
-};
+  // Ensure phone number is prefixed with +91
+  const formattedPhone = data.phone.startsWith('+91') ? data.phone : `+91${data.phone}`;
+  if (!/^\+91[0-9]{10}$/.test(formattedPhone)) {
+    throw new Error('Phone number must be a valid 10-digit number starting with +91');
+  }
 
+  const formattedData = {
+    ...data,
+    phone: formattedPhone,
+  };
+  
+  console.log('Formatted Data before API call:', formattedData); // Debugging
+  const response = await api.post('/auth/user/register', formattedData);
+  return response.data.user;
+};
 export const registerProfessional = async (data: ProfessionalRegisterData): Promise<UserResponse> => {
   const response = await api.post('/auth/professional/register', data);
-  return response.data;
+  return response.data.user; // Adjust based on backend response structure
 };
 
 export const loginUser = async (data: LoginData): Promise<UserResponse> => {
   const response = await api.post('/auth/user/login', data);
-  return response.data;
+  return response.data.user; // Adjust based on backend response structure
 };
 
 export const logoutUser = async (): Promise<void> => {
-  const response = await api.post('/auth/logout');
-  return response.data;
+  await api.post('/auth/logout');
 };
 
 export const getCurrentUser = async (): Promise<UserResponse> => {
   const response = await api.get('/auth/me');
+  return response.data.user; // Adjust based on backend response structure
+};
+
+// OTP Verification API calls
+export const verifyEmail = async (otp: string): Promise<VerifyOTPResponse> => {
+  const response = await api.post('/users/verify/email', { otp });
+  return response.data;
+};
+
+export const verifyPhone = async (otp: string): Promise<VerifyOTPResponse> => {
+  const response = await api.post('/users/verify/phone', { otp });
+  return response.data;
+};
+
+export const resendEmailOTP = async (): Promise<VerifyOTPResponse> => {
+  const response = await api.post('/users/resend/email-otp');
+  return response.data;
+};
+
+export const resendPhoneOTP = async (): Promise<VerifyOTPResponse> => {
+  const response = await api.post('/users/resend/phone-otp');
   return response.data;
 };
 
