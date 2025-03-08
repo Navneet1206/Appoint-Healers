@@ -39,14 +39,13 @@ const Register: React.FC = () => {
 
   const onSubmit: SubmitHandler<RegisterFormData> = async (data) => {
     try {
-      console.log('Form Data Submitted:', data); // Debug log
+      console.log('Form Data Submitted:', data);
       await registerUser({
         email: data.email,
         password: data.password,
-        confirmPassword: data.confirmPassword,
         firstName: data.firstName,
         lastName: data.lastName,
-        phone: data.phone,
+        phone: `+1${data.phone}`, // Adjust country code as needed
         dateOfBirth: data.dateOfBirth,
       });
       navigate('/verify');

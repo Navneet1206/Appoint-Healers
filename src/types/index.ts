@@ -2,10 +2,13 @@
 export interface User {
   id: string;
   email: string;
+  firstName: string; // Added to match backend
+  lastName: string; // Added to match backend
+  phone: string; // Made required to match backend
+  dateOfBirth?: string; // Added as optional
   role: 'user' | 'professional' | 'admin';
   emailVerified: boolean;
   phoneVerified: boolean;
-  phone: string;
 }
 
 // Professional types
@@ -66,12 +69,15 @@ export interface RegisterFormData {
   email: string;
   password: string;
   confirmPassword: string;
+  firstName: string; // Added to match backend
+  lastName: string; // Added to match backend
   phone: string;
+  dateOfBirth?: string; // Added as optional
   role: 'user' | 'professional';
 }
 
 export interface VerifyEmailFormData {
-  token: string;
+  otp: string; // Changed from token to otp to match backend
 }
 
 export interface VerifyPhoneFormData {

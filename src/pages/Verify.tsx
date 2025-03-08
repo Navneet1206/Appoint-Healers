@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,7 +6,7 @@ import { VerifyEmailFormData, VerifyPhoneFormData } from '../types';
 import { CheckCircle, Mail, Phone } from 'lucide-react';
 
 const Verify: React.FC = () => {
-  const { user, verifyEmail, verifyPhone, loading, error } = useAuth();
+  const { user, verifyEmail, verifyPhone, resendEmailOTP, resendPhoneOTP, loading, error } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'email' | 'phone'>('email');
   const [verificationSuccess, setVerificationSuccess] = useState<{ email: boolean; phone: boolean }>(
@@ -16,27 +16,40 @@ const Verify: React.FC = () => {
     }
   );
 
-  // Using OTP field for email verification instead of "token"
   const {
     register: registerEmailForm,
     handleSubmit: handleEmailSubmit,
-    formState: { errors: emailErrors }
+    formState: { errors: emailErrors },
   } = useForm<VerifyEmailFormData>();
 
   const {
     register: registerPhoneForm,
     handleSubmit: handlePhoneSubmit,
-    formState: { errors: phoneErrors }
+    formState: { errors: phoneErrors },
   } = useForm<VerifyPhoneFormData>();
+
+  useEffect(() => {
+    setVerificationSuccess({
+      email: user?.emailVerified || false,
+      phone: user?.phoneVerified || false,
+    });
+  }, [user]);
+
+  if (!user) {
+    navigate('/register');
+    return null;
+  }
+
+  if (user.emailVerified && user.phoneVerified) {
+    navigate('/dashboard');
+    return null;
+  }
 
   const onEmailSubmit = async (data: VerifyEmailFormData) => {
     try {
-      // Here, data.otp is the OTP entered for email verification.
       await verifyEmail(data.otp);
       setVerificationSuccess((prev) => ({ ...prev, email: true }));
-
-      // If both verifications are complete, redirect to dashboard
-      if (verificationSuccess.phone) {
+      if (verificationSuccess.phone || user.phoneVerified) {
         navigate('/dashboard');
       } else {
         setActiveTab('phone');
@@ -48,13 +61,9 @@ const Verify: React.FC = () => {
 
   const onPhoneSubmit = async (data: VerifyPhoneFormData) => {
     try {
-      if (!user) return;
-
-      await verifyPhone(user.phone!, data.otp);
+      await verifyPhone(data.otp);
       setVerificationSuccess((prev) => ({ ...prev, phone: true }));
-
-      // If both verifications are complete, redirect to dashboard
-      if (verificationSuccess.email) {
+      if (verificationSuccess.email || user.emailVerified) {
         navigate('/dashboard');
       }
     } catch (err) {
@@ -63,20 +72,22 @@ const Verify: React.FC = () => {
   };
 
   const resendEmailVerification = async () => {
-    // In a real app, this would call an API endpoint to resend the OTP email
-    alert('Verification email with OTP has been resent. Please check your inbox.');
+    try {
+      await resendEmailOTP();
+      alert('Verification email with OTP has been resent. Please check your inbox.');
+    } catch (err) {
+      console.error('Resend email OTP error:', err);
+    }
   };
 
   const resendPhoneVerification = async () => {
-    // In a real app, this would call an API endpoint to resend the OTP SMS
-    alert('OTP has been resent to your phone. Please check your messages.');
+    try {
+      await resendPhoneOTP();
+      alert('OTP has been resent to your phone. Please check your messages.');
+    } catch (err) {
+      console.error('Resend phone OTP error:', err);
+    }
   };
-
-  // If both verifications are complete, redirect to dashboard
-  if (user?.emailVerified && user?.phoneVerified) {
-    navigate('/dashboard');
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -236,7 +247,7 @@ const Verify: React.FC = () => {
                 <form className="space-y-6" onSubmit={handlePhoneSubmit(onPhoneSubmit)}>
                   <div>
                     <p className="text-sm text-gray-700 mb-4">
-                      We've sent an OTP to your phone number {user?.phone}. Please enter the OTP below.
+                      We've sent an OTP to your phone number {user.phone}. Please enter the OTP below.
                     </p>
                     <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
                       OTP
@@ -251,8 +262,8 @@ const Verify: React.FC = () => {
                           required: 'OTP is required',
                           pattern: {
                             value: /^[0-9]{6}$/,
-                            message: 'Please enter a valid 6-digit OTP'
-                          }
+                            message: 'Please enter a valid 6-digit OTP',
+                          },
                         })}
                       />
                       {phoneErrors.otp && (

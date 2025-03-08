@@ -1,33 +1,27 @@
 import express from 'express';
 import {
-  loginUser,
   registerUser,
+  loginUser,
   getUserProfile,
   updateUserProfile,
+  getUsers,
   verifyEmail,
   verifyPhone,
-  sendEmailVerification,
-  sendPhoneVerification,
-  getUsers
+  resendEmailOTP,
+  resendPhoneOTP,
 } from '../controllers/userController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Public routes
-router.post('/login', loginUser);
 router.post('/register', registerUser);
-
-// Protected routes
-router.route('/profile')
-  .get(protect, getUserProfile)
-  .put(protect, updateUserProfile);
-
+router.post('/login', loginUser);
+router.get('/profile', protect, getUserProfile);
+router.put('/profile', protect, updateUserProfile);
+router.get('/', protect, admin, getUsers);
 router.post('/verify/email', protect, verifyEmail);
 router.post('/verify/phone', protect, verifyPhone);
-router.post('/send/email-verification', protect, sendEmailVerification);
-router.post('/send/phone-verification', protect, sendPhoneVerification);
-// Admin routes
-router.get('/', protect, admin, getUsers);
+router.post('/resend/email-otp', protect, resendEmailOTP);
+router.post('/resend/phone-otp', protect, resendPhoneOTP);
 
 export default router;

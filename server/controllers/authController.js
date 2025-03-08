@@ -75,7 +75,7 @@ export const registerUser = async (req, res, next) => {
       dateOfBirth,
       role: 'user'
     });
-    
+    console.log("User : ", user)
     // Send token response
     sendTokenResponse(user, 201, res);
   } catch (error) {

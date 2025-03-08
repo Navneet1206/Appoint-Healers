@@ -7,10 +7,11 @@ interface User {
   email: string;
   firstName: string;
   lastName: string;
+  phone: string;
+  dateOfBirth?: string;
   role: 'user' | 'professional' | 'admin';
   emailVerified: boolean;
   phoneVerified: boolean;
-  phone?: string;
 }
 
 // Define types for API request data
@@ -19,8 +20,8 @@ interface RegisterUserData {
   password: string;
   firstName: string;
   lastName: string;
-  phone: string; 
-  dateOfBirth?: string; 
+  phone: string;
+  dateOfBirth?: string;
 }
 
 interface RegisterProfessionalData {
@@ -32,14 +33,13 @@ interface RegisterProfessionalData {
   licenseNumber: string;
   yearsOfExperience: number;
   bio: string;
-  phone: string; // Made required; adjust if backend allows optional
-  dateOfBirth?: string; // Added as optional; make required if backend needs it
+  phone: string;
+  dateOfBirth?: string;
 }
 
 // Define response types
 interface AuthResponse {
   accessToken: string;
-  refreshToken?: string;
   user: User;
 }
 
@@ -54,8 +54,10 @@ interface AuthContextType {
   loginUser: (email: string, password: string) => Promise<void>;
   loginProfessional: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  verifyEmail: (token: string) => Promise<void>;
-  verifyPhone: (phone: string, otp: string) => Promise<void>;
+  verifyEmail: (otp: string) => Promise<void>;
+  verifyPhone: (otp: string) => Promise<void>;
+  resendEmailOTP: () => Promise<void>;
+  resendPhoneOTP: () => Promise<void>;
 }
 
 // Create auth context
@@ -82,8 +84,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           return;
         }
 
-        const { data } = await api.get<AuthResponse>('/auth/me');
-        setUser(data.user);
+        const { data } = await api.get<AuthResponse>('/users/profile'); // Adjusted to match your backend
+        setUser(data);
       } catch (err: any) {
         console.error('Auth check error:', err);
         localStorage.removeItem('accessToken');
@@ -102,17 +104,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Registering user with data:', data); // Debug log
+      console.log('Registering user with data:', data);
 
       const { data: response } = await api.post<AuthResponse>('/auth/user/register', data);
 
       localStorage.setItem('accessToken', response.accessToken);
-      if (response.refreshToken) {
-        localStorage.setItem('refreshToken', response.refreshToken);
-      }
       setUser(response.user);
     } catch (err: any) {
-      console.error('Registration error:', err.response?.data); // Log full error
+      console.error('Registration error:', err.response?.data);
       setError(err.response?.data?.message || 'Registration failed');
       throw err;
     } finally {
@@ -125,17 +124,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Registering professional with data:', data); // Debug log
+      console.log('Registering professional with data:', data);
 
       const { data: response } = await api.post<AuthResponse>('/auth/professional/register', data);
 
       localStorage.setItem('accessToken', response.accessToken);
-      if (response.refreshToken) {
-        localStorage.setItem('refreshToken', response.refreshToken);
-      }
       setUser(response.user);
     } catch (err: any) {
-      console.error('Registration error:', err.response?.data); // Log full error
+      console.error('Registration error:', err.response?.data);
       setError(err.response?.data?.message || 'Registration failed');
       throw err;
     } finally {
@@ -152,9 +148,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const { data } = await api.post<AuthResponse>('/auth/user/login', { email, password });
 
       localStorage.setItem('accessToken', data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
       setUser(data.user);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
@@ -173,9 +166,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const { data } = await api.post<AuthResponse>('/auth/user/login', { email, password });
 
       localStorage.setItem('accessToken', data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
       setUser(data.user);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
@@ -194,9 +184,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const { data } = await api.post<AuthResponse>('/auth/professional/login', { email, password });
 
       localStorage.setItem('accessToken', data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
       setUser(data.user);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
@@ -207,18 +194,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   // Verify email
-  const verifyEmail = async (token: string) => {
+  const verifyEmail = async (otp: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const { data } = await api.post<AuthResponse>('/auth/verify-email', { token });
+      await api.post('/users/verify/email', { otp });
 
-      localStorage.setItem('accessToken', data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
-      setUser(data.user);
+      setUser((prev) => (prev ? { ...prev, emailVerified: true } : null));
     } catch (err: any) {
       setError(err.response?.data?.message || 'Email verification failed');
       throw err;
@@ -228,20 +211,46 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   // Verify phone
-  const verifyPhone = async (phone: string, otp: string) => {
+  const verifyPhone = async (otp: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const { data } = await api.post<AuthResponse>('/auth/verify-phone', { phone, otp });
+      await api.post('/users/verify/phone', { otp });
 
-      localStorage.setItem('accessToken', data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
-      setUser(data.user);
+      setUser((prev) => (prev ? { ...prev, phoneVerified: true } : null));
     } catch (err: any) {
       setError(err.response?.data?.message || 'Phone verification failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend email OTP
+  const resendEmailOTP = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await api.post('/users/resend/email-otp');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to resend email OTP');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend phone OTP
+  const resendPhoneOTP = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await api.post('/users/resend/phone-otp');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to resend phone OTP');
       throw err;
     } finally {
       setLoading(false);
@@ -280,6 +289,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     logout,
     verifyEmail,
     verifyPhone,
+    resendEmailOTP,
+    resendPhoneOTP,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

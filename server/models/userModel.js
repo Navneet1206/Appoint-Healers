@@ -1,40 +1,37 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
-const UserSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
   email: {
     type: String,
-    required: [true, 'Please provide an email'],
+    required: true,
     unique: true,
-    match: [/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, 'Please provide a valid email'],
+    trim: true,
+    lowercase: true,
   },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
-    minlength: 8,
-    select: false,
+    required: true,
   },
   firstName: {
     type: String,
-    required: [true, 'Please provide your first name'],
+    required: true,
   },
   lastName: {
     type: String,
-    required: [true, 'Please provide your last name'],
+    required: true,
   },
   phone: {
     type: String,
-    required: [true, 'Please provide a phone number'],
-    match: [/^[0-9]{10}$/, 'Please provide a valid 10-digit phone number'],
+    required: true,
   },
   dateOfBirth: {
     type: Date,
-    required: [true, 'Please provide your date of birth'],
+    required: true,
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'professional', 'admin'],
     default: 'user',
   },
   emailVerified: {
@@ -45,23 +42,38 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  emailOTP: String,
-  emailOTPExpires: Date,
+  emailOTP: {
+    type: String,
+  },
+  emailOTPExpires: {
+    type: Date,
+  },
+  phoneOTP: {
+    type: String,
+  },
+  phoneOTPExpires: {
+    type: Date,
+  },
+  refreshToken: {
+    type: String,
+  },
+}, {
+  timestamps: true,
 });
 
 // Hash password before saving
-UserSchema.pre('save', async function (next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
-// Generate JWT token
-UserSchema.methods.getSignedJwtToken = function () {
-  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
-  });
+// Compare password method
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
-export default mongoose.model('User', UserSchema);
+const User = mongoose.model('User', userSchema);
+
+export default User;
