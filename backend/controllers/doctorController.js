@@ -190,6 +190,65 @@ const doctorDashboard = async (req, res) => {
     }
 }
 
+// API for doctor to create a slot
+const createSlot = async (req, res) => {
+    try {
+        const { docId, slotDate, slotTime, description } = req.body;
+        const doctor = await doctorModel.findById(docId);
+        if (!doctor) return res.json({ success: false, message: "Doctor not found" });
+        
+        // Check for duplicate slot (same date and time)
+        const exists = doctor.slots.some(slot => slot.slotDate === slotDate && slot.slotTime === slotTime);
+        if (exists) {
+            return res.json({ success: false, message: "Slot already exists" });
+        }
+        doctor.slots.push({ slotDate, slotTime, description, status: "Active" });
+        await doctor.save();
+        res.json({ success: true, message: "Slot created successfully", slots: doctor.slots });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// API for doctor to update a slot (status and/or description)
+const updateSlot = async (req, res) => {
+    try {
+        const { docId, slotId, status, description } = req.body;
+        const doctor = await doctorModel.findById(docId);
+        if (!doctor) return res.json({ success: false, message: "Doctor not found" });
+        
+        // Find the slot by its id (subdocument id)
+        const slot = doctor.slots.id(slotId);
+        if (!slot) {
+            return res.json({ success: false, message: "Slot not found" });
+        }
+        slot.status = status;
+        if (description !== undefined) {
+            slot.description = description;
+        }
+        await doctor.save();
+        res.json({ success: true, message: "Slot updated successfully", slot });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// (Optional) API to get all slots for a doctor
+const getSlots = async (req, res) => {
+    try {
+        const { docId } = req.body;
+        const doctor = await doctorModel.findById(docId);
+        if (!doctor) return res.json({ success: false, message: "Doctor not found" });
+        res.json({ success: true, slots: doctor.slots });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+
 export {
     loginDoctor,
     appointmentsDoctor,
@@ -199,5 +258,8 @@ export {
     appointmentComplete,
     doctorDashboard,
     doctorProfile,
-    updateDoctorProfile
+    updateDoctorProfile,
+    createSlot,
+    updateSlot,
+    getSlots
 }

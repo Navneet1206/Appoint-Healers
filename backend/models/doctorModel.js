@@ -11,10 +11,19 @@ const doctorSchema = new mongoose.Schema({
     about: { type: String, required: true },
     available: { type: Boolean, default: true },
     fees: { type: Number, required: true },
-    slots_booked: { type: Object, default: {} },
+    slots: [{
+        slotDate: { type: String, required: true },
+        slotTime: { type: String, required: true },
+        status: { 
+            type: String, 
+            enum: ["Active", "Booked", "Cancelled", "Coming Soon"],
+            default: "Active"
+        },
+        description: { type: String, default: "" }
+    }],
     address: { type: Object, required: true },
     date: { type: Number, required: true },
-}, { minimize: false })
+}, { minimize: false });
 
 const doctorModel = mongoose.models.doctor || mongoose.model("doctor", doctorSchema);
 export default doctorModel;
