@@ -5,7 +5,7 @@ import userModel from "../models/userModel.js";
 import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import { v2 as cloudinary } from 'cloudinary';
-import stripe from "stripe";
+// Removed: import stripe from "stripe";
 import razorpay from 'razorpay';
 import twilio from 'twilio';
 import nodemailer from 'nodemailer';
@@ -14,7 +14,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Gateway Initialize
-const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
+// REMOVED STRIPE INITIALIZATION
 const razorpayInstance = new razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -41,6 +41,9 @@ const transporter = nodemailer.createTransport({
 // Temporary storage for verification and reset codes (use Redis or DB in production)
 const verificationCodes = new Map();
 const resetOtps = new Map();
+
+// Temporary storage for OTP verification status
+const otpVerified = new Map();
 
 // API to register user with phone and email verification
 const registerUser = async (req, res) => {
@@ -206,14 +209,13 @@ const forgotPassword = async (req, res) => {
     }
 };
 
-// API to reset password with OTP
+// API to reset password after OTP verification
 const resetPassword = async (req, res) => {
     try {
-        const { userId, otp, newPassword } = req.body;
-
-        const storedOtp = resetOtps.get(userId);
-        if (!storedOtp || storedOtp !== otp) {
-            return res.json({ success: false, message: 'Invalid or expired OTP' });
+        const { userId, newPassword } = req.body;
+        // Check if OTP was verified previously
+        if (!otpVerified.get(userId)) {
+            return res.json({ success: false, message: 'OTP not verified' });
         }
 
         const user = await userModel.findById(userId);
@@ -223,13 +225,31 @@ const resetPassword = async (req, res) => {
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
-
         user.password = hashedPassword;
         await user.save();
 
-        resetOtps.delete(userId);
+        // Remove verification flag once password is reset
+        otpVerified.delete(userId);
 
         res.json({ success: true, message: 'Password reset successfully' });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// API to verify OTP for password reset
+const verifyResetOtp = async (req, res) => {
+    try {
+        const { userId, otp } = req.body;
+        const storedOtp = resetOtps.get(userId);
+        if (!storedOtp || storedOtp !== otp) {
+            return res.json({ success: false, message: 'Invalid or expired OTP' });
+        }
+        // OTP verified successfully. Set flag and remove OTP.
+        otpVerified.set(userId, true);
+        resetOtps.delete(userId);
+        res.json({ success: true, message: 'OTP verified successfully' });
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });
@@ -271,7 +291,6 @@ const updateProfile = async (req, res) => {
             // Upload image to Cloudinary
             const imageUpload = await cloudinary.uploader.upload(imageFile.path, { resource_type: "image" });
             const imageURL = imageUpload.secure_url;
-
             await userModel.findByIdAndUpdate(userId, { image: imageURL });
         }
 
@@ -282,7 +301,7 @@ const updateProfile = async (req, res) => {
     }
 };
 
-// API to book appointment 
+// API to book appointment
 const bookAppointment = async (req, res) => {
     try {
         const { userId, docId, slotDate, slotTime } = req.body;
@@ -294,7 +313,7 @@ const bookAppointment = async (req, res) => {
 
         let slots_booked = docData.slots_booked;
 
-        // Checking for slot availability 
+        // Checking for slot availability
         if (slots_booked[slotDate]) {
             if (slots_booked[slotDate].includes(slotTime)) {
                 return res.json({ success: false, message: 'Slot Not Available' });
@@ -340,22 +359,19 @@ const cancelAppointment = async (req, res) => {
         const { userId, appointmentId } = req.body;
         const appointmentData = await appointmentModel.findById(appointmentId);
 
-        // Verify appointment user 
+        // Verify appointment user
         if (appointmentData.userId !== userId) {
             return res.json({ success: false, message: 'Unauthorized action' });
         }
 
         await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
 
-        // Releasing doctor slot 
+        // Releasing doctor slot
         const { docId, slotDate, slotTime } = appointmentData;
-
         const doctorData = await doctorModel.findById(docId);
-
         let slots_booked = doctorData.slots_booked;
 
         slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime);
-
         await doctorModel.findByIdAndUpdate(docId, { slots_booked });
 
         res.json({ success: true, message: 'Appointment Cancelled' });
@@ -423,61 +439,7 @@ const verifyRazorpay = async (req, res) => {
     }
 };
 
-// API to make payment of appointment using Stripe
-const paymentStripe = async (req, res) => {
-    try {
-        const { appointmentId } = req.body;
-        const { origin } = req.headers;
-
-        const appointmentData = await appointmentModel.findById(appointmentId);
-
-        if (!appointmentData || appointmentData.cancelled) {
-            return res.json({ success: false, message: 'Appointment Cancelled or not found' });
-        }
-
-        const currency = process.env.CURRENCY.toLocaleLowerCase();
-
-        const line_items = [{
-            price_data: {
-                currency,
-                product_data: {
-                    name: "Appointment Fees",
-                },
-                unit_amount: appointmentData.amount * 100,
-            },
-            quantity: 1,
-        }];
-
-        const session = await stripeInstance.checkout.sessions.create({
-            success_url: `${origin}/verify?success=true&appointmentId=${appointmentData._id}`,
-            cancel_url: `${origin}/verify?success=false&appointmentId=${appointmentData._id}`,
-            line_items: line_items,
-            mode: 'payment',
-        });
-
-        res.json({ success: true, session_url: session.url });
-    } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
-    }
-};
-
-// API to verify Stripe payment
-const verifyStripe = async (req, res) => {
-    try {
-        const { appointmentId, success } = req.body;
-
-        if (success === "true") {
-            await appointmentModel.findByIdAndUpdate(appointmentId, { payment: true });
-            return res.json({ success: true, message: 'Payment Successful' });
-        }
-
-        res.json({ success: false, message: 'Payment Failed' });
-    } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
-    }
-};
+// REMOVED: paymentStripe & verifyStripe APIs
 
 export {
     loginUser,
@@ -485,6 +447,7 @@ export {
     verifyUser,
     forgotPassword,
     resetPassword,
+    verifyResetOtp,
     getProfile,
     updateProfile,
     bookAppointment,
@@ -492,6 +455,6 @@ export {
     cancelAppointment,
     paymentRazorpay,
     verifyRazorpay,
-    paymentStripe, 
-    verifyStripe,
+    // REMOVED: paymentStripe,
+    // REMOVED: verifyStripe,
 };

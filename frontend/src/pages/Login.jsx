@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { AppContext } from '../context/AppContext';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [state, setState] = useState('Sign Up');
@@ -156,9 +156,10 @@ const Login = () => {
                 Create a new account? <span onClick={() => setState('Sign Up')} className="text-primary underline cursor-pointer">Click here</span>
               </p>
               <p>
-                Forgot Password? <span onClick={() => setShowForgotPassword(true)} className="text-primary underline cursor-pointer">Reset here</span>
+                Forgot Password? <span onClick={() => setShowForgotPassword(true)} className="text-primary underline cursor-pointer"><Link to="/reset-password/:userId" className="text-primary underline cursor-pointer">Forgot Password</Link>
+                </span>
               </p>
-            </>
+             </>
           )}
         </form>
       ) : (
