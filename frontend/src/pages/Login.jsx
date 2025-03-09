@@ -10,7 +10,8 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
+  const [phoneCode, setPhoneCode] = useState('');
+  const [emailCode, setEmailCode] = useState('');
   const [userId, setUserId] = useState(null);
   const [showVerification, setShowVerification] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -36,11 +37,12 @@ const Login = () => {
       }
     } else if (state === 'Sign Up' && showVerification) {
       try {
-        const { data } = await axios.post(`${backendUrl}/api/user/verify`, { userId, code: verificationCode });
+        const { data } = await axios.post(`${backendUrl}/api/user/verify`, { userId, phoneCode, emailCode });
         if (data.success) {
           localStorage.setItem('token', data.token);
           setToken(data.token);
           toast.success(data.message);
+          navigate('/');
         } else {
           toast.error(data.message);
         }
@@ -54,6 +56,7 @@ const Login = () => {
           localStorage.setItem('token', data.token);
           setToken(data.token);
           toast.success('Logged in successfully');
+          navigate('/');
         } else {
           toast.error(data.message);
         }
@@ -88,8 +91,8 @@ const Login = () => {
     <div className="min-h-[80vh] flex items-center">
       {!showForgotPassword ? (
         <form onSubmit={onSubmitHandler} className="flex flex-col gap-3 m-auto items-start p-8 min-w-[340px] sm:min-w-96 border rounded-xl text-[#5E5E5E] text-sm shadow-lg">
-          <p className="text-2xl font-semibold">{state === 'Sign Up' ? (showVerification ? 'Verify Phone' : 'Create Account') : 'Login'}</p>
-          <p>Please {state === 'Sign Up' ? (showVerification ? 'enter the verification code sent to your phone' : 'sign up') : 'log in'} to book an appointment</p>
+          <p className="text-2xl font-semibold">{state === 'Sign Up' ? (showVerification ? 'Verify Phone & Email' : 'Create Account') : 'Login'}</p>
+          <p>Please {state === 'Sign Up' ? (showVerification ? 'enter the verification codes sent to your phone and email' : 'sign up') : 'log in'} to book an appointment</p>
 
           {state === 'Sign Up' && !showVerification && (
             <>
@@ -113,10 +116,16 @@ const Login = () => {
           )}
 
           {state === 'Sign Up' && showVerification && (
-            <div className="w-full">
-              <p>Verification Code</p>
-              <input onChange={(e) => setVerificationCode(e.target.value)} value={verificationCode} className="border border-[#DADADA] rounded w-full p-2 mt-1" type="text" required />
-            </div>
+            <>
+              <div className="w-full">
+                <p>Phone Verification Code</p>
+                <input onChange={(e) => setPhoneCode(e.target.value)} value={phoneCode} className="border border-[#DADADA] rounded w-full p-2 mt-1" type="text" required />
+              </div>
+              <div className="w-full">
+                <p>Email Verification Code</p>
+                <input onChange={(e) => setEmailCode(e.target.value)} value={emailCode} className="border border-[#DADADA] rounded w-full p-2 mt-1" type="text" required />
+              </div>
+            </>
           )}
 
           {state === 'Login' && (
@@ -155,12 +164,12 @@ const Login = () => {
       ) : (
         <form onSubmit={forgotPasswordHandler} className="flex flex-col gap-3 m-auto items-start p-8 min-w-[340px] sm:min-w-96 border rounded-xl text-[#5E5E5E] text-sm shadow-lg">
           <p className="text-2xl font-semibold">Forgot Password</p>
-          <p>Enter your email to receive a password reset link</p>
+          <p>Enter your email to receive a password reset OTP</p>
           <div className="w-full">
             <p>Email</p>
             <input onChange={(e) => setEmail(e.target.value)} value={email} className="border border-[#DADADA] rounded w-full p-2 mt-1" type="email" required />
           </div>
-          <button className="bg-primary text-white w-full py-2 my-2 rounded-md text-base">Send Reset Link</button>
+          <button className="bg-primary text-white w-full py-2 my-2 rounded-md text-base">Send Reset OTP</button>
           <p>
             Back to login? <span onClick={() => setShowForgotPassword(false)} className="text-primary underline cursor-pointer">Click here</span>
           </p>

@@ -28,6 +28,7 @@ if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.e
 }
 
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
 // Nodemailer setup
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -37,10 +38,11 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Temporary storage for verification codes (use Redis or DB in production)
+// Temporary storage for verification and reset codes (use Redis or DB in production)
 const verificationCodes = new Map();
+const resetOtps = new Map();
 
-// API to register user with phone verification
+// API to register user with phone and email verification
 const registerUser = async (req, res) => {
     try {
         const { name, email, password, phone } = req.body;
@@ -68,7 +70,6 @@ const registerUser = async (req, res) => {
 
         // Format phone number to E.164 (e.g., +918435061006)
         let formattedPhone = phone.trim();
-        console.log('To Phone:', formattedPhone);
         if (!formattedPhone.startsWith('+')) {
             formattedPhone = `+91${formattedPhone}`; // Assuming India (+91), adjust country code as needed
         }
@@ -84,43 +85,60 @@ const registerUser = async (req, res) => {
             name,
             email,
             password: hashedPassword,
-            phone: formattedPhone, // Store formatted phone number
+            phone: formattedPhone,
+            isMobileVerified: false, // Default false until verified
+            isEmailVerified: false,  // Default false until verified
         };
 
         const newUser = new userModel(userData);
         const user = await newUser.save();
 
-        // Send verification code via Twilio
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        verificationCodes.set(user._id.toString(), verificationCode);
+        // Generate and store OTPs for phone and email
+        const phoneOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        const emailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        verificationCodes.set(user._id.toString(), { phoneOtp, emailOtp });
 
+        // Send phone OTP via Twilio
         await twilioClient.messages.create({
-            body: `Your verification code is: ${verificationCode}`,
+            body: `Your phone verification code is: ${phoneOtp}`,
             from: process.env.TWILIO_PHONE_NUMBER,
-            to: formattedPhone, // Use formatted phone number
+            to: formattedPhone,
         });
 
-        res.json({ success: true, message: 'Verification code sent to your phone', userId: user._id });
+        // Send email OTP via Nodemailer
+        await transporter.sendMail({
+            from: process.env.NODEMAILER_EMAIL,
+            to: email,
+            subject: 'Email Verification Code',
+            html: `<p>Your email verification code is: <strong>${emailOtp}</strong></p>`,
+        });
+
+        res.json({ success: true, message: 'Verification codes sent to your phone and email', userId: user._id });
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });
     }
 };
 
-// API to verify user phone
+// API to verify user phone and email
 const verifyUser = async (req, res) => {
     try {
-        const { userId, code } = req.body;
+        const { userId, phoneCode, emailCode } = req.body;
 
-        const storedCode = verificationCodes.get(userId);
-        if (!storedCode || storedCode !== code) {
-            return res.json({ success: false, message: 'Invalid verification code' });
+        const storedCodes = verificationCodes.get(userId);
+        if (!storedCodes || storedCodes.phoneOtp !== phoneCode || storedCodes.emailOtp !== emailCode) {
+            return res.json({ success: false, message: 'Invalid verification code(s)' });
         }
 
         const user = await userModel.findById(userId);
         if (!user) {
             return res.json({ success: false, message: 'User not found' });
         }
+
+        // Mark both as verified
+        user.isMobileVerified = true;
+        user.isEmailVerified = true;
+        await user.save();
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
         verificationCodes.delete(userId);
@@ -142,6 +160,11 @@ const loginUser = async (req, res) => {
             return res.json({ success: false, message: "User does not exist" });
         }
 
+        // Check if user is verified
+        if (!user.isMobileVerified || !user.isEmailVerified) {
+            return res.json({ success: false, message: "Please verify your phone and email first" });
+        }
+
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (isMatch) {
@@ -156,7 +179,7 @@ const loginUser = async (req, res) => {
     }
 };
 
-// API to handle forgot password
+// API to handle forgot password with email OTP
 const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
@@ -166,32 +189,36 @@ const forgotPassword = async (req, res) => {
             return res.json({ success: false, message: 'User not found' });
         }
 
-        const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+        const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        resetOtps.set(user._id.toString(), resetOtp);
 
         await transporter.sendMail({
             from: process.env.NODEMAILER_EMAIL,
             to: email,
-            subject: 'Password Reset Request',
-            html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+            subject: 'Password Reset OTP',
+            html: `<p>Your password reset OTP is: <strong>${resetOtp}</strong>. It expires in 10 minutes.</p>`,
         });
 
-        res.json({ success: true, message: 'Password reset link sent to your email' });
+        res.json({ success: true, message: 'Password reset OTP sent to your email', userId: user._id });
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });
     }
 };
 
-// API to reset password
+// API to reset password with OTP
 const resetPassword = async (req, res) => {
     try {
-        const { token, newPassword } = req.body;
+        const { userId, otp, newPassword } = req.body;
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await userModel.findById(decoded.id);
+        const storedOtp = resetOtps.get(userId);
+        if (!storedOtp || storedOtp !== otp) {
+            return res.json({ success: false, message: 'Invalid or expired OTP' });
+        }
+
+        const user = await userModel.findById(userId);
         if (!user) {
-            return res.json({ success: false, message: 'Invalid or expired token' });
+            return res.json({ success: false, message: 'User not found' });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -199,6 +226,8 @@ const resetPassword = async (req, res) => {
 
         user.password = hashedPassword;
         await user.save();
+
+        resetOtps.delete(userId);
 
         res.json({ success: true, message: 'Password reset successfully' });
     } catch (error) {
@@ -463,6 +492,6 @@ export {
     cancelAppointment,
     paymentRazorpay,
     verifyRazorpay,
-    paymentStripe,
+    paymentStripe, 
     verifyStripe,
 };
