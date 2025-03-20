@@ -7,7 +7,6 @@ import appointmentModel from "../models/appointmentModel.js";
 import { v2 as cloudinary } from 'cloudinary';
 // Removed: import stripe from "stripe";
 import razorpay from 'razorpay';
-import twilio from 'twilio';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
@@ -20,14 +19,7 @@ const razorpayInstance = new razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Twilio setup
-if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
-    console.log('Twilio keys and numbers are loaded');
-} else {
-    console.log('Twilio keys are missing');
-}
 
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 // Nodemailer setup
 const transporter = nodemailer.createTransport({
