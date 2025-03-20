@@ -21,7 +21,7 @@ const App = () => {
   const { aToken } = useContext(AdminContext)
 
   return dToken || aToken ? (
-    <div className='bg-[#F8F9FD]'>
+    <div className='bg-rose-50'>
       <ToastContainer />
       <Navbar />
       <div className='flex items-start'>

@@ -24,7 +24,7 @@ const Header = () => {
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 1 }}
           >
-            Book Appointment <br /> With Trusted Doctors
+            Book Appointment <br /> With Trusted Professionals
           </motion.h1>
           <motion.div 
             className="flex flex-col sm:flex-row items-center gap-4"
@@ -34,7 +34,7 @@ const Header = () => {
           >
             <img className="w-24" src={assets.group_profiles} alt="Profiles" />
             <p className="text-base sm:text-lg">
-              Browse our extensive list of trusted doctors and schedule your appointment hassle-free.
+              Browse our extensive list of trusted professionals and schedule your appointment hassle-free.
             </p>
           </motion.div>
           <motion.a 

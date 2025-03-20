@@ -26,7 +26,7 @@ const SpecialityMenu = () => {
           whileInView={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 1 }}
         >
-          Browse through our extensive list of trusted doctors and schedule your appointment hassle-free.
+          Browse through our extensive list of trusted professionals and schedule your appointment hassle-free.
         </motion.p>
         <motion.div 
           className="mt-8 flex gap-6 overflow-x-auto pb-4 justify-center"
@@ -43,7 +43,7 @@ const SpecialityMenu = () => {
           {specialityData.map((item, index) => (
             <motion.div key={index} variants={itemVariant}>
               <Link 
-                to={`/doctors/${item.speciality}`}
+                to={`/professional/${item.speciality}`}
                 onClick={() => window.scrollTo(0, 0)}
                 className="flex flex-col items-center text-xs sm:text-sm cursor-pointer transition transform hover:scale-105"
               >

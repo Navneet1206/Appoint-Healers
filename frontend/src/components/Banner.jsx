@@ -22,7 +22,7 @@ const Banner = () => {
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 1 }}
           >
-            Book Appointment <br /> With 100+ Trusted Doctors
+            Book Appointment <br /> With 100+ Trusted Professionals
           </motion.h2>
           <motion.button 
             onClick={() => { navigate('/login'); window.scrollTo(0, 0); }}

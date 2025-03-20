@@ -21,9 +21,9 @@ const TopDoctors = () => {
           whileInView={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          <h2 className="text-3xl font-semibold text-rose-600">Top Doctors to Book</h2>
+          <h2 className="text-3xl font-semibold text-rose-600">Top professionals to Book</h2>
           <p className="mt-2 text-gray-600 text-sm sm:w-1/2 mx-auto">
-            Browse through our extensive list of trusted doctors and book an appointment effortlessly.
+            Browse through our extensive list of trusted professionals and book an appointment effortlessly.
           </p>
         </motion.div>
         <motion.div 
@@ -59,10 +59,10 @@ const TopDoctors = () => {
           transition={{ delay: 0.5, duration: 1 }}
         >
           <button 
-            onClick={() => { navigate('/doctors'); window.scrollTo(0, 0); }}
+            onClick={() => { navigate('/professional'); window.scrollTo(0, 0); }}
             className="bg-rose-600 text-white px-8 py-3 rounded-full shadow-lg transform transition hover:scale-105"
           >
-            More Doctors
+            More Professionals
           </button>
         </motion.div>
       </div>

@@ -22,7 +22,7 @@ const About = () => {
           <p>
             Welcome to <strong>SAVAYAS HEALS</strong>, your trusted partner in managing your healthcare
             needs conveniently and efficiently. At SAVAYAS HEALS, we understand the challenges
-            individuals face when it comes to scheduling doctor appointments and managing their
+            individuals face when it comes to scheduling professional appointments and managing their
             health records.
           </p>
           <p>

@@ -3,17 +3,17 @@ import { motion } from 'framer-motion';
 
 const testimonials = [
   {
-    name: "John Doe",
+    name: "Rajeshwar Singh",
     feedback: "The service was exceptional! Booking an appointment was easy and hassle-free.",
     image: "https://via.placeholder.com/100"
   },
   {
-    name: "Jane Smith",
-    feedback: "Highly recommended. The doctors are very professional and caring.",
+    name: "Bheem Sen",
+    feedback: "Highly recommended. The professionals are very professional and caring.",
     image: "https://via.placeholder.com/100"
   },
   {
-    name: "Michael Brown",
+    name: "Sonam Mishra",
     feedback: "A wonderful experience. The interface is user-friendly and the support is great.",
     image: "https://via.placeholder.com/100"
   }

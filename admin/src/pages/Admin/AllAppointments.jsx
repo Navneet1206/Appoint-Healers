@@ -26,7 +26,7 @@ const AllAppointments = () => {
           <p>Patient</p>
           <p>Age</p>
           <p>Date & Time</p>
-          <p>Doctor</p>
+          <p>Professional</p>
           <p>Fees</p>
           <p>Action</p>
         </div>

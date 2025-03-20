@@ -42,18 +42,16 @@ const Doctors = () => {
 
   // Debug logs to see exactly what's happening
   console.log("SPECIALITY from URL param:", speciality)
-  console.log("ALL DOCTORS from context:", doctors)
-  console.log("FILTERED DOCTORS:", filterDoc)
+  console.log("ALL professionalS from context:", doctors)
+  console.log("FILTERED professionalS:", filterDoc)
 
   // All available filter options (including "All")
   const filterSpecialities = [
     "All",
-    "General physician",
-    "Gynecologist",
-    "Dermatologist",
-    "Pediatricians",
-    "Neurologist",
-    "Gastroenterologist"
+    "Counseling professional",
+    "Relational therapist",
+    "Family therapist",
+    "Listeners"
   ]
 
   // Framer-motion variants for filter items
@@ -72,7 +70,7 @@ const Doctors = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-rose-50">
-        <p className="text-gray-600 text-lg">Loading doctors...</p>
+        <p className="text-gray-600 text-lg">Loading professionals...</p>
       </div>
     )
   }
@@ -86,7 +84,7 @@ const Doctors = () => {
           animate={{ opacity: 1 }} 
           transition={{ duration: 1 }}
         >
-          Browse through our expert doctors by specialty.
+          Browse through our expert professionals by specialty.
         </motion.p>
         
         {/* Filter Section */}
@@ -119,9 +117,9 @@ const Doctors = () => {
                 key={index}
                 onClick={() => {
                   if (spec === "All") {
-                    navigate('/doctors')
+                    navigate('/professional')
                   } else {
-                    navigate(`/doctors/${spec}`)
+                    navigate(`/professional/${spec}`)
                   }
                   window.scrollTo(0, 0)
                 }}
@@ -162,7 +160,7 @@ const Doctors = () => {
                 <img 
                   className="w-full h-48 object-cover bg-rose-100" 
                   src={item.image} 
-                  alt={item.name || 'Doctor'} 
+                  alt={item.name || 'professional'} 
                 />
                 <div className="p-4">
                   <div className={`flex items-center gap-2 text-sm ${
@@ -186,9 +184,9 @@ const Doctors = () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 1 }}
           >
-            <p className="text-2xl text-gray-600 mb-4">No doctors found!</p>
+            <p className="text-2xl text-gray-600 mb-4">No professionals found!</p>
             <p className="text-lg text-gray-500 text-center max-w-md">
-              We couldn't find any doctors for the selected specialty. Try changing your filters or check back later.
+              We couldn't find any professionals for the selected specialty. Try changing your filters or check back later.
             </p>
           </motion.div>
         )}
