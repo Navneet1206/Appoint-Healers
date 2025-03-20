@@ -31,7 +31,7 @@ const App = () => {
         <Route path='/my-appointments' element={<MyAppointments />} />
         <Route path='/my-profile' element={<MyProfile />} />
         <Route path='/verify' element={<Verify />} />
-        <Route path='/reset-password/:userId' element={<ResetPassword />} /> {/* Updated to userId */}
+        <Route path='/reset-password/:userId' element={<ResetPassword />} />
       </Routes>
       <Footer />
     </div>

@@ -89,7 +89,7 @@ const registerUser = async (req, res) => {
             email,
             password: hashedPassword,
             phone: formattedPhone,
-            isMobileVerified: false, // Default false until verified
+            isMobileVerified: true,
             isEmailVerified: false,  // Default false until verified
         };
 
@@ -97,23 +97,33 @@ const registerUser = async (req, res) => {
         const user = await newUser.save();
 
         // Generate and store OTPs for phone and email
-        const phoneOtp = Math.floor(100000 + Math.random() * 900000).toString();
         const emailOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        verificationCodes.set(user._id.toString(), { phoneOtp, emailOtp });
-
-        // Send phone OTP via Twilio
-        await twilioClient.messages.create({
-            body: `Your phone verification code is: ${phoneOtp}`,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            to: formattedPhone,
-        });
+        verificationCodes.set(user._id.toString(), { emailOtp });
 
         // Send email OTP via Nodemailer
         await transporter.sendMail({
             from: process.env.NODEMAILER_EMAIL,
             to: email,
-            subject: 'Email Verification Code',
-            html: `<p>Your email verification code is: <strong>${emailOtp}</strong></p>`,
+            subject: 'Welcome to Savayas Heals - Email Verification Code',
+            html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                <img src="https://via.placeholder.com/150" alt="Savayas Heals Logo" style="max-width: 100px; border-radius: 50%;">
+                <h2 style="color: #4CAF50;">Welcome to Savayas Heals</h2>
+                </div>
+                <p>Dear Valued User,</p>
+                <p>Thank you for joining <strong>Savayas Heals</strong>, where we prioritize your health and well-being. To complete your registration, please verify your email address using the code below:</p>
+                <div style="text-align: center; margin: 20px 0;">
+                <span style="font-size: 24px; font-weight: bold; color: #4CAF50; border: 1px dashed #4CAF50; padding: 10px 20px; border-radius: 8px;">${emailOtp}</span>
+                </div>
+                <p>If you did not request this, please ignore this email or contact our support team immediately.</p>
+                <p>We are excited to have you on board and look forward to helping you on your healing journey.</p>
+                <p style="margin-top: 20px;">Warm regards,</p>
+                <p><strong>The Savayas Heals Team</strong></p>
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                <p style="font-size: 12px; color: #777; text-align: center;">This is an automated email. Please do not reply to this message.</p>
+            </div>
+            `,
         });
 
         res.json({ success: true, message: 'Verification codes sent to your phone and email', userId: user._id });
@@ -129,7 +139,7 @@ const verifyUser = async (req, res) => {
         const { userId, phoneCode, emailCode } = req.body;
 
         const storedCodes = verificationCodes.get(userId);
-        if (!storedCodes || storedCodes.phoneOtp !== phoneCode || storedCodes.emailOtp !== emailCode) {
+        if (!storedCodes || storedCodes.emailOtp !== emailCode) {
             return res.json({ success: false, message: 'Invalid verification code(s)' });
         }
 
