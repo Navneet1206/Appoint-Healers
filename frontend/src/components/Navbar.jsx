@@ -17,7 +17,7 @@ const Navbar = () => {
   }
 
   return (
-    <div className='flex items-center justify-between text-sm py-4 mb-5 border-b border-b-[#ADADAD]'>
+    <div className='fixed top-0 left-0 right-0 bg-rose-50 flex items-center justify-between text-sm py-4 border-b border-b-[#ADADAD] z-50'>
       {/* <img onClick={() => navigate('/')} className='w-44 cursor-pointer' src="#" alt="" /> */}
       <h1 onClick={() => navigate('/')} className='w-44 cursor-pointer text-2xl text-rose-600 font-bold'>SAVAYS HEALS</h1>
       <ul className='md:flex items-start gap-5 font-medium hidden'>
@@ -25,7 +25,7 @@ const Navbar = () => {
           <li className='py-1'>HOME</li>
           <hr className='border-none outline-none h-0.5 bg-rose-600 w-3/5 m-auto hidden' />
         </NavLink>
-        <NavLink to='/professional' > 
+        <NavLink to='/professional' >
           <li className='py-1'>ALL PROFESSIONALS</li>
           <hr className='border-none outline-none h-0.5 bg-rose-600 w-3/5 m-auto hidden' />
         </NavLink>
@@ -65,44 +65,44 @@ const Navbar = () => {
             <img onClick={() => setShowMenu(false)} src={assets.cross_icon} className='w-7' alt="" />
           </div>
           <ul className='flex flex-col items-center gap-2 mt-5 px-5 text-lg font-medium'>
-            <NavLink 
-              onClick={() => setShowMenu(false)} 
-              to='/' 
-              className={({ isActive }) => 
-                isActive 
+            <NavLink
+              onClick={() => setShowMenu(false)}
+              to='/'
+              className={({ isActive }) =>
+                isActive
                   ? 'bg-rose-600 text-white px-4 py-2 rounded inline-block'
                   : 'text-rose-600 px-4 py-2 rounded inline-block'
               }
             >
               HOME
             </NavLink>
-            <NavLink 
-              onClick={() => setShowMenu(false)} 
-              to='/professional' 
-              className={({ isActive }) => 
-                isActive 
+            <NavLink
+              onClick={() => setShowMenu(false)}
+              to='/professional'
+              className={({ isActive }) =>
+                isActive
                   ? 'bg-rose-600 text-white px-4 py-2 rounded inline-block'
                   : 'text-rose-600 px-4 py-2 rounded inline-block'
               }
             >
               ALL PROFESSIONALS
             </NavLink>
-            <NavLink 
-              onClick={() => setShowMenu(false)} 
-              to='/about' 
-              className={({ isActive }) => 
-                isActive 
+            <NavLink
+              onClick={() => setShowMenu(false)}
+              to='/about'
+              className={({ isActive }) =>
+                isActive
                   ? 'bg-rose-600 text-white px-4 py-2 rounded inline-block'
                   : 'text-rose-600 px-4 py-2 rounded inline-block'
               }
             >
               ABOUT
             </NavLink>
-            <NavLink 
-              onClick={() => setShowMenu(false)} 
-              to='/contact' 
-              className={({ isActive }) => 
-                isActive 
+            <NavLink
+              onClick={() => setShowMenu(false)}
+              to='/contact'
+              className={({ isActive }) =>
+                isActive
                   ? 'bg-rose-600 text-white px-4 py-2 rounded inline-block'
                   : 'text-rose-600 px-4 py-2 rounded inline-block'
               }
@@ -111,8 +111,8 @@ const Navbar = () => {
             </NavLink>
             {/* Add "Create account" button if no token */}
             {!(token && userData) && (
-              <button 
-                onClick={() => { setShowMenu(false); navigate('/login'); }} 
+              <button
+                onClick={() => { setShowMenu(false); navigate('/login'); }}
                 className='bg-rose-600 text-white px-8 py-3 rounded-full font-light mt-4'
               >
                 Create account
