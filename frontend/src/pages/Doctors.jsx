@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
@@ -10,6 +10,7 @@ const Doctors = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [sortOption, setSortOption] = useState("");
+    const [showSidebar, setShowSidebar] = useState(false);
     const [filters, setFilters] = useState({
         type: "",
         experience: "",
@@ -69,6 +70,12 @@ const Doctors = () => {
         visible: { opacity: 1, y: 0 },
     };
 
+    const sidebarVariants = {
+        hidden: { x: "-100%" },
+        visible: { x: 0 },
+        exit: { x: "-100%" }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-rose-50 flex items-center justify-center">
@@ -92,9 +99,36 @@ const Doctors = () => {
                         </p>
                     </div>
 
+                    {/* Mobile Filter Button */}
+                    <div className="lg:hidden mb-6 flex justify-between items-center">
+                        <button
+                            onClick={() => setShowSidebar(true)}
+                            className="flex items-center gap-2 bg-white text-pink-500 px-4 py-2 rounded-lg border border-pink-200 hover:bg-pink-50 transition-colors"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                                />
+                            </svg>
+                            Filters
+                        </button>
+                        <div className="text-sm text-gray-500">
+                            {filteredDoctors.length} professionals found
+                        </div>
+                    </div>
+
                     <div className="flex flex-col lg:flex-row gap-8">
-                        {/* Sidebar Filters */}
-                        <div className="lg:w-1/4">
+                        {/* Desktop Sidebar Filters */}
+                        <div className="hidden lg:block lg:w-1/4">
                             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
                                 <h2 className="text-xl font-semibold text-gray-800 mb-6">Filters</h2>
 
@@ -158,6 +192,120 @@ const Doctors = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Mobile Sidebar Overlay */}
+                        <AnimatePresence>
+                            {showSidebar && (
+                                <>
+                                    <motion.div
+                                        className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        onClick={() => setShowSidebar(false)}
+                                    />
+                                    <motion.div
+                                        className="fixed top-0 left-0 h-full w-3/5 max-w-xs bg-white z-50 shadow-lg lg:hidden"
+                                        variants={sidebarVariants}
+                                        initial="hidden"
+                                        animate="visible"
+                                        exit="exit"
+                                        transition={{ type: "tween", duration: 0.3 }}
+                                    >
+                                        <div className="p-6 h-full overflow-y-auto">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h2 className="text-xl font-semibold text-gray-800">Filters</h2>
+                                                <button
+                                                    onClick={() => setShowSidebar(false)}
+                                                    className="text-gray-500 hover:text-gray-700"
+                                                >
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        className="h-6 w-6"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M6 18L18 6M6 6l12 12"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            {/* Professional Type Filter */}
+                                            <div className="mb-6">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Professional Type
+                                                </label>
+                                                <select
+                                                    value={filters.type}
+                                                    onChange={(e) =>
+                                                        setFilters({ ...filters, type: e.target.value })
+                                                    }
+                                                    className="w-full border border-pink-200 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                                                >
+                                                    <option value="">All Types</option>
+                                                    {types.map((type) => (
+                                                        <option key={type} value={type}>
+                                                            {type}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {/* Experience Filter */}
+                                            <div className="mb-6">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Years of Experience
+                                                </label>
+                                                <select
+                                                    value={filters.experience}
+                                                    onChange={(e) =>
+                                                        setFilters({ ...filters, experience: e.target.value })
+                                                    }
+                                                    className="w-full border border-pink-200 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                                                >
+                                                    <option value="">Any Experience</option>
+                                                    <option value="0-5">0-5 years</option>
+                                                    <option value="5-10">5-10 years</option>
+                                                    <option value="10+">10+ years</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Price Range Filter */}
+                                            <div className="mb-6">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Price Range
+                                                </label>
+                                                <select
+                                                    value={filters.priceRange}
+                                                    onChange={(e) =>
+                                                        setFilters({ ...filters, priceRange: e.target.value })
+                                                    }
+                                                    className="w-full border border-pink-200 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                                                >
+                                                    <option value="">All Prices</option>
+                                                    <option value="low">Under ₹1000</option>
+                                                    <option value="medium">₹1000 - ₹2000</option>
+                                                    <option value="high">Above ₹2000</option>
+                                                </select>
+                                            </div>
+
+                                            <button
+                                                onClick={() => setShowSidebar(false)}
+                                                className="w-full bg-pink-500 text-white py-2 rounded-md hover:bg-pink-600 transition-colors mt-4"
+                                            >
+                                                Apply Filters
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
 
                         {/* Main Content */}
                         <div className="lg:w-3/4">
