@@ -12,6 +12,7 @@ const appointmentSchema = new mongoose.Schema({
   cancelled: { type: Boolean, default: false },
   payment: { type: Boolean, default: false },
   isCompleted: { type: Boolean, default: false },
+  review: { type: mongoose.Schema.Types.ObjectId, ref: "Review" },
   sessionType: {
     type: String,
     enum: ["video", "phone", "in-person"],

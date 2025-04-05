@@ -174,19 +174,39 @@ const doctorDashboard = async (req, res) => {
 // API for doctor to create a slot
 const createSlot = async (req, res) => {
   try {
+    console.log("Create slot request received:", req.body);
     const { docId, slotDate, slotTime, description, sessionType } = req.body;
+
+    if (!docId) {
+      console.log("No doctor ID provided");
+      return res
+        .status(400)
+        .json({ success: false, message: "Doctor ID is required" });
+    }
+
     const doctor = await doctorModel.findById(docId);
-    if (!doctor)
-      return res.json({ success: false, message: "Doctor not found" });
+    console.log("Doctor found:", doctor ? "Yes" : "No");
+
+    if (!doctor) {
+      console.log("Doctor not found with ID:", docId);
+      return res
+        .status(404)
+        .json({ success: false, message: "Doctor not found" });
+    }
 
     // Check for duplicate slot (same date and time)
     const exists = doctor.slots.some(
       (slot) => slot.slotDate === slotDate && slot.slotTime === slotTime
     );
+
     if (exists) {
-      return res.json({ success: false, message: "Slot already exists" });
+      console.log("Duplicate slot found");
+      return res
+        .status(400)
+        .json({ success: false, message: "Slot already exists" });
     }
 
+    console.log("Adding new slot to doctor");
     doctor.slots.push({
       slotDate,
       slotTime,
@@ -195,15 +215,17 @@ const createSlot = async (req, res) => {
       status: "Active",
     });
 
+    console.log("Saving doctor with new slot");
     await doctor.save();
+
+    console.log("Slot created successfully");
     res.json({
       success: true,
       message: "Slot created successfully",
-      slots: doctor.slots,
     });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("Error creating slot:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -233,17 +255,37 @@ const updateSlot = async (req, res) => {
   }
 };
 
-// (Optional) API to get all slots for a doctor
+// API for doctor to get their slots
 const getSlots = async (req, res) => {
   try {
+    console.log("Get slots request received:", req.body);
     const { docId } = req.body;
+
+    if (!docId) {
+      console.log("No doctor ID provided");
+      return res
+        .status(400)
+        .json({ success: false, message: "Doctor ID is required" });
+    }
+
     const doctor = await doctorModel.findById(docId);
-    if (!doctor)
-      return res.json({ success: false, message: "Doctor not found" });
-    res.json({ success: true, slots: doctor.slots });
+    console.log("Doctor found:", doctor ? "Yes" : "No");
+
+    if (!doctor) {
+      console.log("Doctor not found with ID:", docId);
+      return res
+        .status(404)
+        .json({ success: false, message: "Doctor not found" });
+    }
+
+    console.log("Returning slots:", doctor.slots);
+    res.json({
+      success: true,
+      slots: doctor.slots,
+    });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("Error getting slots:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

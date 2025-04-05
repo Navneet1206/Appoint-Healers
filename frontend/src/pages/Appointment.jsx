@@ -33,13 +33,23 @@ const formatDate = (dateStr) => {
 
 const Appointment = () => {
   const { docId } = useParams();
-  const { doctors, currencySymbol, backendUrl, token, getDoctosData } = useContext(AppContext);
+  const {
+    doctors,
+    currencySymbol,
+    backendUrl,
+    token,
+    userData,
+    isLoading: isUserLoading,
+    getDoctosData
+  } = useContext(AppContext);
+
   const [docInfo, setDocInfo] = useState(null);
   const [groupedSlots, setGroupedSlots] = useState([]);
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [selectedSessionType, setSelectedSessionType] = useState("video");
   const [activeTab, setActiveTab] = useState("about");
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -71,6 +81,11 @@ const Appointment = () => {
   };
 
   const handleSlotSelect = (slot) => {
+    if (!token) {
+      toast.warning('Please login to book an appointment');
+      navigate('/login');
+      return;
+    }
     setSelectedSlotId(slot._id);
     setSelectedSessionType(slot.sessionType || "video");
   };
@@ -82,24 +97,34 @@ const Appointment = () => {
 
   const bookAppointment = async () => {
     if (!token) {
-      toast.warning('Login to book appointment');
-      return navigate('/login');
-    }
-    if (!selectedSlotId) {
-      toast.warning('Please select a slot');
+      toast.warning('Please login to book an appointment');
+      navigate('/login');
       return;
     }
+
+    if (!userData) {
+      toast.error('Unable to fetch user data. Please try logging in again.');
+      return;
+    }
+
+    if (!selectedSlotId) {
+      toast.warning('Please select a time slot');
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const { data } = await axios.post(
         `${backendUrl}/api/user/book-appointment`,
         {
           docId,
           slotId: selectedSlotId,
-          userId: token,
+          userId: userData._id, // Use userData._id instead of fetching it again
           sessionType: selectedSessionType
         },
         { headers: { token } }
       );
+
       if (data.success) {
         toast.success(data.message);
         getDoctosData();
@@ -109,7 +134,14 @@ const Appointment = () => {
       }
     } catch (error) {
       console.log(error);
-      toast.error(error.message);
+      if (error.response?.status === 401) {
+        toast.error('Your session has expired. Please login again.');
+        navigate('/login');
+      } else {
+        toast.error(error.response?.data?.message || error.message || 'Error booking appointment');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -149,11 +181,19 @@ const Appointment = () => {
 
               {/* Tags */}
               <div className="flex flex-wrap gap-2 mb-6">
-                {['Anxiety', 'Depression', 'Stress Management', 'Trauma', 'PTSD'].map((tag) => (
-                  <span key={tag} className="px-3 py-1 bg-pink-50 text-pink-500 rounded-full text-sm">
-                    {tag}
-                  </span>
-                ))}
+                {docInfo.specialists && docInfo.specialists.length > 0 ? (
+                  docInfo.specialists.map((specialty) => (
+                    <span key={specialty} className="px-3 py-1 bg-pink-50 text-pink-500 rounded-full text-sm">
+                      {specialty}
+                    </span>
+                  ))
+                ) : (
+                  ['Anxiety', 'Depression', 'Stress Management', 'Trauma', 'PTSD'].map((tag) => (
+                    <span key={tag} className="px-3 py-1 bg-pink-50 text-pink-500 rounded-full text-sm">
+                      {tag}
+                    </span>
+                  ))
+                )}
               </div>
 
               {/* Session Info */}
@@ -250,9 +290,17 @@ const Appointment = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">Languages</h3>
                     <ul className="space-y-2 text-gray-600">
-                      <li>• English</li>
-                      <li>• Hindi</li>
-                      <li>• Marathi</li>
+                      {docInfo.languages && docInfo.languages.length > 0 ? (
+                        docInfo.languages.map((lang) => (
+                          <li key={lang}>• {lang}</li>
+                        ))
+                      ) : (
+                        <>
+                          <li>• English</li>
+                          <li>• Hindi</li>
+                          <li>• Marathi</li>
+                        </>
+                      )}
                     </ul>
                   </div>
                 </div>
@@ -372,9 +420,9 @@ const Appointment = () => {
             <button
               onClick={bookAppointment}
               className="w-full bg-pink-500 text-white text-lg font-semibold py-4 rounded-xl hover:bg-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!selectedSlotId}
+              disabled={!selectedSlotId || isLoading}
             >
-              Book Appointment
+              {isLoading ? 'Booking...' : 'Book Appointment'}
             </button>
           </div>
         </div>

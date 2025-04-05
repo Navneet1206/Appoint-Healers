@@ -1,3 +1,4 @@
+// src/App.js
 import React from 'react';
 import Navbar from './components/Navbar';
 import { Routes, Route } from 'react-router-dom';
@@ -14,25 +15,28 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Verify from './pages/Verify';
 import ResetPassword from './pages/ResetPassword';
+import ErrorBoundary from './components/ErrorBoundary'; // Import the ErrorBoundary
 
 const App = () => {
   return (
     <div className='mx-1 sm:mx-[1%] pt-20'>
       <ToastContainer />
       <Navbar />
-      <Routes>
-        <Route path='/' element={<Home />} />
-        <Route path='/professional' element={<Doctors />} />
-        <Route path='/professional/:speciality' element={<Doctors />} />
-        <Route path='/login' element={<Login />} />
-        <Route path='/about' element={<About />} />
-        <Route path='/contact' element={<Contact />} />
-        <Route path='/appointment/:docId' element={<Appointment />} />
-        <Route path='/my-appointments' element={<MyAppointments />} />
-        <Route path='/my-profile' element={<MyProfile />} />
-        <Route path='/verify' element={<Verify />} />
-        <Route path='/reset-password/:userId' element={<ResetPassword />} />
-      </Routes>
+      <ErrorBoundary> {/* Wrap Routes with ErrorBoundary */}
+        <Routes>
+          <Route path='/' element={<Home />} />
+          <Route path='/professional' element={<Doctors />} />
+          <Route path='/professional/:speciality' element={<Doctors />} />
+          <Route path='/login' element={<Login />} />
+          <Route path='/about' element={<About />} />
+          <Route path='/contact' element={<Contact />} />
+          <Route path='/appointment/:docId' element={<Appointment />} />
+          <Route path='/my-appointments' element={<MyAppointments />} />
+          <Route path='/my-profile' element={<MyProfile />} />
+          <Route path='/verify' element={<Verify />} />
+          <Route path='/reset-password/:userId' element={<ResetPassword />} />
+        </Routes>
+      </ErrorBoundary>
       <Footer />
     </div>
   );

@@ -12,7 +12,7 @@ import 'react-time-picker/dist/TimePicker.css';
 
 const DoctorSlots = () => {
   const { backendUrl } = useContext(AppContext);
-  const { dToken } = useContext(DoctorContext);
+  const { dToken, doctorData } = useContext(DoctorContext);
 
   // Loader state
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +69,7 @@ const DoctorSlots = () => {
       setIsLoading(true);
       const { data } = await axios.post(
         `${backendUrl}/api/doctor/slots`,
-        { docId: '' },
+        { docId: doctorData._id },
         { headers: { dToken } }
       );
       setIsLoading(false);
@@ -105,7 +105,7 @@ const DoctorSlots = () => {
         slotTime: newTime,
         description: newDescription,
         sessionType: newSessionType,
-        docId: ''
+        docId: doctorData._id
       };
       const { data } = await axios.post(`${backendUrl}/api/doctor/create-slot`, payload, { headers: { dToken } });
       setIsLoading(false);
@@ -145,7 +145,7 @@ const DoctorSlots = () => {
     try {
       setIsLoading(true);
       const payload = {
-        docId: '',
+        docId: doctorData._id,
         slotId,
         status: editStatus,
         description: editDescription,
@@ -153,6 +153,7 @@ const DoctorSlots = () => {
       };
       const { data } = await axios.post(`${backendUrl}/api/doctor/update-slot`, payload, { headers: { dToken } });
       setIsLoading(false);
+
       if (data.success) {
         toast.success(data.message);
         cancelEdit();

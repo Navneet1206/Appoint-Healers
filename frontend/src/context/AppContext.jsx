@@ -10,8 +10,9 @@ const AppContextProvider = (props) => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL
 
     const [doctors, setDoctors] = useState([])
-    const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : '')
-    const [userData, setUserData] = useState(false)
+    const [token, setToken] = useState(localStorage.getItem('token') || '')
+    const [userData, setUserData] = useState(null)
+    const [isLoading, setIsLoading] = useState(true)
 
     // Getting Doctors using API
     const getDoctosData = async () => {
@@ -34,22 +35,48 @@ const AppContextProvider = (props) => {
 
     // Getting User Profile using API
     const loadUserProfileData = async () => {
+        if (!token) {
+            setIsLoading(false)
+            setUserData(null)
+            return
+        }
 
         try {
-
-            const { data } = await axios.get(backendUrl + '/api/user/get-profile', { headers: { token } })
+            const { data } = await axios.get(backendUrl + '/api/user/get-profile', {
+                headers: { token }
+            })
 
             if (data.success) {
                 setUserData(data.userData)
             } else {
-                toast.error(data.message)
+                // If token is invalid, clear it
+                localStorage.removeItem('token')
+                setToken('')
+                setUserData(null)
+                toast.error('Session expired. Please login again.')
             }
-
         } catch (error) {
             console.log(error)
-            toast.error(error.message)
+            // If request fails due to invalid token
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                localStorage.removeItem('token')
+                setToken('')
+                setUserData(null)
+                toast.error('Session expired. Please login again.')
+            } else {
+                toast.error(error.message)
+            }
+        } finally {
+            setIsLoading(false)
         }
+    }
 
+    // Logout function
+    const logout = () => {
+        localStorage.removeItem('token')
+        setToken('')
+        setUserData(null)
+        toast.success('Logged out successfully')
     }
 
     useEffect(() => {
@@ -57,9 +84,7 @@ const AppContextProvider = (props) => {
     }, [])
 
     useEffect(() => {
-        if (token) {
-            loadUserProfileData()
-        }
+        loadUserProfileData()
     }, [token])
 
     const value = {
@@ -67,7 +92,9 @@ const AppContextProvider = (props) => {
         currencySymbol,
         backendUrl,
         token, setToken,
-        userData, setUserData, loadUserProfileData
+        userData, setUserData, loadUserProfileData,
+        isLoading,
+        logout
     }
 
     return (

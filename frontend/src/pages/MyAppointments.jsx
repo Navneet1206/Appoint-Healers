@@ -12,6 +12,10 @@ const MyAppointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [payment, setPayment] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showReviewForm, setShowReviewForm] = useState(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -29,6 +33,80 @@ const MyAppointments = () => {
     } catch (error) {
       console.log(error);
       toast.error(error.message);
+    }
+  };
+
+  // Submit review
+  const submitReview = async (appointmentId) => {
+    try {
+      setIsSubmittingReview(true);
+      console.log('Submitting review for appointment:', appointmentId);
+      console.log('Backend URL:', backendUrl);
+      console.log('Token:', token ? 'Token exists' : 'No token');
+
+      // First, test if the review API is accessible
+      try {
+        const testResponse = await axios.get(`${backendUrl}/api/reviews/test`);
+        console.log('Test endpoint response:', testResponse.data);
+      } catch (testError) {
+        console.error('Test endpoint error:', testError);
+        toast.error('Review API is not accessible. Please try again later.');
+        setIsSubmittingReview(false);
+        return;
+      }
+
+      // Log the request details
+      console.log('Sending review request with data:', {
+        appointmentId,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      console.log('Request headers:', {
+        token,
+        'Content-Type': 'application/json'
+      });
+
+      const { data } = await axios.post(
+        `${backendUrl}/api/reviews`,
+        {
+          appointmentId,
+          rating: reviewRating,
+          comment: reviewComment
+        },
+        {
+          headers: {
+            token,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (data.success) {
+        toast.success('Review submitted successfully');
+        setShowReviewForm(null);
+        setReviewRating(5);
+        setReviewComment('');
+        getUserAppointments(); // Refresh appointments to show the new review
+      } else {
+        toast.error(data.message || 'Failed to submit review');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error headers:', error.response?.headers);
+
+      if (error.response?.status === 404) {
+        toast.error('Review API endpoint not found. Please contact support.');
+      } else if (error.response?.status === 403) {
+        toast.error('You are not authorized to review this appointment.');
+      } else if (error.response?.status === 400) {
+        toast.error(error.response.data.message || 'Invalid review data.');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to submit review. Please try again later.');
+      }
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -105,6 +183,15 @@ const MyAppointments = () => {
     );
   });
 
+  // Render star rating
+  const renderStars = (rating) => {
+    return [...Array(5)].map((_, index) => (
+      <span key={index} className={`text-${index < rating ? 'yellow' : 'gray'}-400 text-xl`}>
+        ★
+      </span>
+    ));
+  };
+
   return (
     <div className="min-h-screen bg-rose-50 p-4 sm:p-6 md:p-8 lg:p-10">
       <header className="mb-6">
@@ -135,6 +222,19 @@ const MyAppointments = () => {
                 <p className="mt-1 text-sm text-gray-600">
                   <span className="font-medium text-rose-600">Date & Time:</span> {slotDateFormat(item.slotDate)} | {item.slotTime}
                 </p>
+                {item.review && (
+                  <div className="mt-2 p-2 bg-gray-50 rounded">
+                    <div className="flex items-center">
+                      <div className="flex">{renderStars(item.review.rating)}</div>
+                      <span className="ml-2 text-sm text-gray-600">
+                        {new Date(item.review.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {item.review.comment && (
+                      <p className="mt-1 text-sm text-gray-600">{item.review.comment}</p>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="md:w-1/4 p-4 flex flex-col gap-2 justify-center items-center">
                 {!item.cancelled && !item.payment && !item.isCompleted && payment !== item._id && (
@@ -158,9 +258,17 @@ const MyAppointments = () => {
                     Paid
                   </button>
                 )}
-                {item.isCompleted && (
+                {item.isCompleted && !item.review && (
+                  <button
+                    onClick={() => setShowReviewForm(item._id)}
+                    className="w-full py-2 px-4 border border-green-500 rounded text-green-500 hover:bg-green-500 hover:text-white transition-colors duration-300"
+                  >
+                    Leave Review
+                  </button>
+                )}
+                {item.isCompleted && item.review && (
                   <button className="w-full py-2 px-4 border border-green-500 rounded text-green-500">
-                    Completed
+                    Review Submitted
                   </button>
                 )}
                 {!item.cancelled && !item.isCompleted && (
@@ -185,6 +293,61 @@ const MyAppointments = () => {
           </div>
         )}
       </div>
+
+      {/* Review Form Modal */}
+      {showReviewForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold mb-4">Leave a Review</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    className={`text-2xl ${star <= reviewRating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Comment (Optional)</label>
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                rows="3"
+                placeholder="Share your experience..."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowReviewForm(null);
+                  setReviewRating(5);
+                  setReviewComment('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => submitReview(showReviewForm)}
+                disabled={isSubmittingReview}
+                className={`px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 ${isSubmittingReview ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+              >
+                {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="mt-10 text-center text-xs text-gray-500">
         &copy; {new Date().getFullYear()} SAVAYAS HEALS. All rights reserved.
       </footer>
