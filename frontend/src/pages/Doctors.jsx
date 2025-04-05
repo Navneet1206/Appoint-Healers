@@ -308,7 +308,7 @@ const Doctors = () => {
                         </AnimatePresence>
 
                         {/* Main Content */}
-                        <div className="lg:w-3/4">
+                        <div className="lg:w-5/4">
                             {/* Search & Sort Row */}
                             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
                                 {/* Search */}
@@ -372,7 +372,7 @@ const Doctors = () => {
                                             className="bg-white border border-pink-200 rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all"
                                         >
                                             {/* Doctor Image */}
-                                            <div className="bg-pink-50 h-48 flex items-center justify-center">
+                                            <div className="bg-pink-50 h-48 flex items-center justify-center overflow-hidden">
                                                 {doc.image ? (
                                                     <img
                                                         src={doc.image}
@@ -419,7 +419,7 @@ const Doctors = () => {
                                         No professionals found!
                                     </p>
                                     <p className="text-lg text-gray-500 text-center max-w-md">
-                                        We couldn't find any professionals matching your filters.
+                                        We couldn&apos;t find any professionals matching your filters.
                                         Try changing your selections or check back later.
                                     </p>
                                 </motion.div>

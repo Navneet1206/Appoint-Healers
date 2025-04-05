@@ -1,11 +1,10 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { assets } from '../assets/assets';
 import RelatedDoctors from '../components/RelatedDoctors';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { motion } from 'framer-motion';
 
 // Helper to convert 24-hour time (e.g., "14:00") to 12-hour AM/PM format
 const convertToAmPm = (timeStr) => {
@@ -17,32 +16,30 @@ const convertToAmPm = (timeStr) => {
   return `${hour}:${minute < 10 ? '0' + minute : minute} ${ampm}`;
 };
 
-// Helper to convert "dd_mm_yyyy" to "Month Day, Year" format
-const formatDate = (dateStr) => {
-  const [d, m, y] = dateStr.split("_").map(Number);
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-  return `${monthNames[m - 1]} ${d}, ${y}`;
-};
-
 // Helper to get day of week from "dd_mm_yyyy"
 const getDayOfWeek = (dateStr) => {
   const [d, m, y] = dateStr.split("_").map(Number);
   const dateObj = new Date(y, m - 1, d);
-  const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return daysOfWeek[dateObj.getDay()];
+};
+
+// Helper to format date as "d Apr yyyy"
+const formatDate = (dateStr) => {
+  const [d, m, y] = dateStr.split("_").map(Number);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${d} ${months[m - 1]} ${y}`;
 };
 
 const Appointment = () => {
   const { docId } = useParams();
   const { doctors, currencySymbol, backendUrl, token, getDoctosData } = useContext(AppContext);
   const [docInfo, setDocInfo] = useState(null);
-  // Grouped slots: each entry is [dateString, array of slot objects]
   const [groupedSlots, setGroupedSlots] = useState([]);
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
   const [selectedSlotId, setSelectedSlotId] = useState("");
+  const [selectedSessionType, setSelectedSessionType] = useState("video");
+  const [activeTab, setActiveTab] = useState("about");
 
   const navigate = useNavigate();
 
@@ -54,7 +51,10 @@ const Appointment = () => {
   // Group active slots by slotDate
   const processSlots = () => {
     if (!docInfo || !docInfo.slots) return;
-    const activeSlots = docInfo.slots.filter(slot => slot.status === "Active");
+    const activeSlots = docInfo.slots.filter(slot => slot.status === "Active").map(slot => ({
+      ...slot,
+      sessionType: slot.sessionType || "video" // Ensure each slot has a session type
+    }));
     const groups = {};
     activeSlots.forEach(slot => {
       if (!groups[slot.slotDate]) groups[slot.slotDate] = [];
@@ -70,6 +70,16 @@ const Appointment = () => {
     setSelectedSlotId("");
   };
 
+  const handleSlotSelect = (slot) => {
+    setSelectedSlotId(slot._id);
+    setSelectedSessionType(slot.sessionType || "video");
+  };
+
+  const handleSessionTypeChange = (type) => {
+    setSelectedSessionType(type);
+    setSelectedSlotId("");
+  };
+
   const bookAppointment = async () => {
     if (!token) {
       toast.warning('Login to book appointment');
@@ -82,7 +92,12 @@ const Appointment = () => {
     try {
       const { data } = await axios.post(
         `${backendUrl}/api/user/book-appointment`,
-        { docId, slotId: selectedSlotId },
+        {
+          docId,
+          slotId: selectedSlotId,
+          userId: token,
+          sessionType: selectedSessionType
+        },
         { headers: { token } }
       );
       if (data.success) {
@@ -110,154 +125,264 @@ const Appointment = () => {
     }
   }, [docInfo]);
 
-  // Framer-motion variants for slot cards
-  const slotCardVariant = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 }
-  };
-
-  // Framer-motion variant for date cards
-  const dateCardVariant = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: { opacity: 1, scale: 1 }
-  };
-
   return docInfo ? (
-    <div className="min-h-screen bg-rose-50 p-4 md:p-8">
-      <motion.div 
-        className="max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-      >
-        {/* Doctor Details */}
-        <div className="flex flex-col md:flex-row">
-          <div className="md:w-1/3 bg-rose-100 p-6 flex items-center justify-center">
-            <motion.img 
-              className="w-full max-w-xs rounded-lg object-cover"
-              src={docInfo.image}
-              alt={docInfo.name}
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.8 }}
-            />
+    <div className="min-h-screen bg-rose-50 pt-20">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* Doctor Info Section */}
+          <div className="flex flex-col md:flex-row gap-8 p-8">
+            {/* Left Column - Doctor Image */}
+            <div className="md:w-1/4">
+              <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden">
+                <img
+                  src={docInfo.image || assets.default_doctor}
+                  alt={docInfo.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+
+            {/* Right Column - Doctor Details */}
+            <div className="md:w-3/4">
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">{docInfo.name}</h1>
+              <p className="text-lg text-gray-600 mb-4">{docInfo.speciality}</p>
+
+              {/* Tags */}
+              <div className="flex flex-wrap gap-2 mb-6">
+                {['Anxiety', 'Depression', 'Stress Management', 'Trauma', 'PTSD'].map((tag) => (
+                  <span key={tag} className="px-3 py-1 bg-pink-50 text-pink-500 rounded-full text-sm">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              {/* Session Info */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-gray-600">50 min session</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-gray-600">{docInfo.address?.line1}, {docInfo.address?.line2}</span>
+                </div>
+              </div>
+
+              {/* Rating and Experience */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-1">
+                  <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  <span className="font-semibold">4.9</span>
+                  <span className="text-gray-500">(124 reviews)</span>
+                </div>
+                <span className="text-gray-500">•</span>
+                <span className="text-gray-600">{docInfo.experience} years experience</span>
+              </div>
+
+              {/* Price */}
+              <div className="text-xl font-bold text-pink-500 mb-6">
+                {currencySymbol}{docInfo.fees}/session
+              </div>
+            </div>
           </div>
-          <div className="md:w-2/3 p-6 space-y-4">
-            <motion.p className="flex items-center gap-2 text-3xl font-bold text-gray-800"
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
+
+          {/* Biography Section with Tabs */}
+          <div className="border-t border-gray-100">
+            <div className="p-8">
+              {/* Tabs */}
+              <div className="flex gap-8 border-b border-gray-200 mb-6">
+                <button
+                  onClick={() => setActiveTab("about")}
+                  className={`pb-4 font-medium ${activeTab === "about"
+                    ? "text-pink-500 border-b-2 border-pink-500"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  About
+                </button>
+                <button
+                  onClick={() => setActiveTab("reviews")}
+                  className={`pb-4 font-medium ${activeTab === "reviews"
+                    ? "text-pink-500 border-b-2 border-pink-500"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  Reviews
+                </button>
+                <button
+                  onClick={() => setActiveTab("faq")}
+                  className={`pb-4 font-medium ${activeTab === "faq"
+                    ? "text-pink-500 border-b-2 border-pink-500"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  FAQ
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              {activeTab === "about" && (
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Biography</h3>
+                    <p className="text-gray-600">{docInfo.about}</p>
+                  </div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Education & Training</h3>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>• {docInfo.degree}</li>
+                      <li>• {docInfo.speciality}</li>
+                      <li>• {docInfo.experience} of experience</li>
+                    </ul>
+                  </div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Location</h3>
+                    <p className="text-gray-600">{docInfo.address?.line1}</p>
+                    <p className="text-gray-600">{docInfo.address?.line2}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Languages</h3>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>• English</li>
+                      <li>• Hindi</li>
+                      <li>• Marathi</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "reviews" && (
+                <div className="text-gray-600">
+                  <p>Reviews coming soon...</p>
+                </div>
+              )}
+
+              {activeTab === "faq" && (
+                <div className="text-gray-600">
+                  <p>FAQ coming soon...</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Booking Section */}
+          <div className="border-t border-gray-100 p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Book a Session</h2>
+
+            {/* Date Selection */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4">Select a Date</h3>
+              <div className="flex flex-wrap gap-3">
+                {groupedSlots.map(([dateStr], index) => (
+                  <button
+                    key={dateStr}
+                    onClick={() => setSelectedGroupIndex(index)}
+                    className={`p-3 rounded-xl text-center min-w-[120px] transition-all ${selectedGroupIndex === index
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-white border border-gray-200 text-gray-700'
+                      }`}
+                  >
+                    <div className="text-sm opacity-75">{getDayOfWeek(dateStr)}</div>
+                    <div className="text-base font-medium">{formatDate(dateStr)}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Session Type */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4">Session Type</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <button
+                  onClick={() => handleSessionTypeChange("video")}
+                  className={`p-4 rounded-xl flex items-center justify-center gap-3 transition-all ${selectedSessionType === "video"
+                    ? 'bg-pink-500 text-white'
+                    : 'bg-white border border-gray-200 text-gray-700'
+                    }`}
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span className="font-medium">Video</span>
+                </button>
+                <button
+                  onClick={() => handleSessionTypeChange("phone")}
+                  className={`p-4 rounded-xl flex items-center justify-center gap-3 transition-all ${selectedSessionType === "phone"
+                    ? 'bg-pink-500 text-white'
+                    : 'bg-white border border-gray-200 text-gray-700'
+                    }`}
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <span className="font-medium">Phone</span>
+                </button>
+                <button
+                  onClick={() => handleSessionTypeChange("in-person")}
+                  className={`p-4 rounded-xl flex items-center justify-center gap-3 transition-all ${selectedSessionType === "in-person"
+                    ? 'bg-pink-500 text-white'
+                    : 'bg-white border border-gray-200 text-gray-700'
+                    }`}
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="font-medium">In-Person</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Time Slots */}
+            {groupedSlots[selectedGroupIndex] && (
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">Available Time Slots</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {groupedSlots[selectedGroupIndex][1]
+                    .filter(slot => !selectedSessionType || slot.sessionType === selectedSessionType)
+                    .sort((a, b) => a.slotTime.localeCompare(b.slotTime))
+                    .map((slot) => (
+                      <button
+                        key={slot._id}
+                        onClick={() => handleSlotSelect(slot)}
+                        className={`p-4 rounded-xl text-center transition-all ${selectedSlotId === slot._id
+                          ? 'bg-pink-500 text-white'
+                          : 'bg-white border border-gray-200 text-gray-700'
+                          }`}
+                      >
+                        <div className="text-xl font-bold">{convertToAmPm(slot.slotTime)}</div>
+                        <div className="text-sm mt-1 opacity-75">{slot.sessionType}</div>
+                      </button>
+                    ))}
+                </div>
+                {groupedSlots[selectedGroupIndex][1].filter(slot => !selectedSessionType || slot.sessionType === selectedSessionType).length === 0 && (
+                  <p className="text-gray-500 text-center mt-4">No slots available for {selectedSessionType} sessions on this date.</p>
+                )}
+              </div>
+            )}
+
+            {/* Book Button */}
+            <button
+              onClick={bookAppointment}
+              className="w-full bg-pink-500 text-white text-lg font-semibold py-4 rounded-xl hover:bg-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!selectedSlotId}
             >
-              {docInfo.name} 
-              <img className="w-5" src={assets.verified_icon} alt="verified" />
-            </motion.p>
-            <motion.div className="flex items-center gap-2 text-gray-600"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3, duration: 0.8 }}
-            >
-              <p>{docInfo.degree} - {docInfo.speciality}</p>
-              <button className="py-1 px-3 border border-rose-600 text-xs rounded-full">{docInfo.experience}</button>
-            </motion.div>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
-            >
-              <p className="text-lg font-medium text-gray-700 flex items-center gap-1">
-                About 
-                <img className="w-4" src={assets.info_icon} alt="info" />
-              </p>
-              <p className="text-sm text-gray-600">{docInfo.about}</p>
-            </motion.div>
-            <motion.p 
-              className="text-gray-700 font-semibold"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.7, duration: 0.8 }}
-            >
-              Appointment fee: <span className="text-gray-900">{currencySymbol}{docInfo.fees}</span>
-            </motion.p>
+              Book Appointment
+            </button>
           </div>
         </div>
-        {/* Booking Slots */}
-        <div className="p-6 border-t border-gray-200">
-          <motion.p 
-            className="font-semibold text-gray-700 text-xl mb-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.8 }}
-          >
-            Available Slots
-          </motion.p>
-          {groupedSlots.length > 0 ? (
-            <>
-              {/* Date Selector as Cards */}
-              <motion.div 
-                className="flex gap-4 overflow-x-auto pb-4 mb-6"
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  visible: { transition: { staggerChildren: 0.15 } }
-                }}
-              >
-                {groupedSlots.map(([dateStr, slots], index) => (
-                  <motion.div 
-                    key={index}
-                    variants={dateCardVariant}
-                    onClick={() => { setSelectedGroupIndex(index); setSelectedSlotId(""); }}
-                    className={`flex flex-col items-center justify-center min-w-[120px] py-4 px-3 rounded-lg cursor-pointer transition-transform duration-300 shadow-md 
-                      ${selectedGroupIndex === index ? 'bg-rose-600 text-white' : 'bg-white border border-gray-300 text-gray-800'}`}
-                  >
-                    <p className="text-sm font-semibold">{getDayOfWeek(dateStr)}</p>
-                    <p className="text-base">{formatDate(dateStr)}</p>
-                  </motion.div>
-                ))}
-              </motion.div>
-              {/* Slots for Selected Date as Cards */}
-              <motion.div 
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  visible: { transition: { staggerChildren: 0.1 } }
-                }}
-              >
-                {groupedSlots[selectedGroupIndex] && groupedSlots[selectedGroupIndex][1].map(slot => (
-                  <motion.div 
-                    key={slot._id}
-                    variants={slotCardVariant}
-                    onClick={() => setSelectedSlotId(slot._id)}
-                    className={`p-4 rounded-lg border cursor-pointer transition-transform duration-300 shadow-sm hover:shadow-lg 
-                      ${selectedSlotId === slot._id ? 'bg-rose-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
-                  >
-                    <p className="text-lg font-bold">
-                      {convertToAmPm(slot.slotTime)}
-                    </p>
-                    {slot.description && <p className="text-xs mt-1">{slot.description}</p>}
-                  </motion.div>
-                ))}
-              </motion.div>
-            </>
-          ) : (
-            <motion.p className="text-gray-500" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-              No available slots
-            </motion.p>
-          )}
-          <motion.button 
-            onClick={bookAppointment}
-            className="mt-6 w-full bg-rose-600 text-white text-xl font-semibold py-3 rounded-full transition-transform duration-300 hover:scale-105"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.8 }}
-          >
-            Book an Appointment
-          </motion.button>
+
+        {/* Related Doctors */}
+        <div className="mt-8">
+          <RelatedDoctors speciality={docInfo.speciality} docId={docId} />
         </div>
-      </motion.div>
-      {/* Related Doctors Section */}
-      <div className="mt-8">
-        <RelatedDoctors speciality={docInfo.speciality} docId={docId} />
       </div>
     </div>
   ) : null;
