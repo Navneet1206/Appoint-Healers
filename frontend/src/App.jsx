@@ -19,7 +19,8 @@ import ErrorBoundary from './components/ErrorBoundary'; // Import the ErrorBound
 
 const App = () => {
   return (
-    <div className='mx-1 sm:mx-[1%] pt-20'>
+    <>
+    <div className='mb-20 mx-1 sm:mx-[1%] pt-20'>
       <ToastContainer />
       <Navbar />
       <ErrorBoundary> {/* Wrap Routes with ErrorBoundary */}
@@ -37,8 +38,9 @@ const App = () => {
           <Route path='/reset-password/:userId' element={<ResetPassword />} />
         </Routes>
       </ErrorBoundary>
-      <Footer />
     </div>
+      <Footer />
+    </>
   );
 };
 
