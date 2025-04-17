@@ -7,15 +7,15 @@ const Banner = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="bg-rose-600 rounded-2xl mx-4 md:mx-10 my-16 overflow-hidden">
+    <section className="bg-rose-600 rounded-2xl mx-4 md:mx-10 my-16 overflow-hidden p-8 md:p-12">
       <motion.div 
-        className="flex flex-col md:flex-row items-center"
+        className="flex flex-col md:flex-row items-center gap-8 md:gap-16"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
         {/* Left Side */}
-        <div className="flex-1 p-8 md:p-12">
+        <div className="flex-1">
           <motion.h2 
             className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-snug"
             initial={{ opacity: 0, x: -50 }}
@@ -34,6 +34,7 @@ const Banner = () => {
             Create Account
           </motion.button>
         </div>
+
         {/* Right Side */}
         <motion.div 
           className="flex-1 relative hidden md:block"
