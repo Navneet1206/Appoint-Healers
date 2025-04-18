@@ -95,51 +95,11 @@ const Footer = () => {
                 <span className="bg-rose-600 h-1 w-0 group-hover:w-4 transition-all duration-300 mr-2"></span>
                 CONTACT
               </button>
-              <button 
-                className="text-sm bg-gradient-to-r from-rose-600 to-rose-500 px-4 py-2 rounded-md hover:from-rose-700 hover:to-rose-600 transition-all duration-300"
-                onClick={() => navigateTo('/login')}
-              >
-                LogIn / SignUp
-              </button>
+            
             </div>
           </div>
 
-          {/* Services Column */}
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold relative">
-              <span className="bg-rose-600 h-1 w-6 absolute -bottom-2 left-0"></span>
-              Our Services
-            </h3>
-            <div className="space-y-5">
-              <div className="transform transition-all duration-300 hover:translate-x-1">
-                <h4 className="text-base font-medium flex items-center">
-                  <span className="w-2 h-2 bg-rose-500 rounded-full mr-2"></span>
-                  Counseling
-                </h4>
-                <p className="mt-1 text-sm text-gray-400 pl-4">
-                  Personalized counseling sessions to help you navigate life's challenges.
-                </p>
-              </div>
-              <div className="transform transition-all duration-300 hover:translate-x-1">
-                <h4 className="text-base font-medium flex items-center">
-                  <span className="w-2 h-2 bg-rose-500 rounded-full mr-2"></span>
-                  Therapy
-                </h4>
-                <p className="mt-1 text-sm text-gray-400 pl-4">
-                  Expert therapy sessions for mental, emotional, and relational well-being.
-                </p>
-              </div>
-              <div className="transform transition-all duration-300 hover:translate-x-1">
-                <h4 className="text-base font-medium flex items-center">
-                  <span className="w-2 h-2 bg-rose-500 rounded-full mr-2"></span>
-                  Psychiatry
-                </h4>
-                <p className="mt-1 text-sm text-gray-400 pl-4">
-                  Professional psychiatric support with a focus on comprehensive care.
-                </p>
-              </div>
-            </div>
-          </div>
+          
 
           {/* Support Column */}
           <div className="space-y-8">

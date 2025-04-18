@@ -20,7 +20,7 @@ import ErrorBoundary from './components/ErrorBoundary'; // Import the ErrorBound
 const App = () => {
   return (
     <>
-    <div className='mb-20 mx-1 sm:mx-[1%] pt-20'>
+    <div className='mb-20 '>
       <ToastContainer />
       <Navbar />
       <ErrorBoundary> {/* Wrap Routes with ErrorBoundary */}

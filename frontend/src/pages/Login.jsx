@@ -1,112 +1,113 @@
+// src/pages/Login.jsx
+
 import React, { useContext, useEffect, useState } from 'react';
-import { AppContext } from '../context/AppContext';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { Link, useNavigate } from 'react-router-dom';
+import { AppContext } from '../context/AppContext';
 
 const Login = () => {
-  const [state, setState] = useState('Login');
+  // Mode: 'Login' or 'SignUp'
+  const [mode, setMode] = useState('Login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [emailCode, setEmailCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [code, setCode] = useState('');
   const [userId, setUserId] = useState(null);
-  const [showVerification, setShowVerification] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
+  // UI state
+  const [verifying, setVerifying] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [terms, setTerms] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
   const { backendUrl, token, setToken } = useContext(AppContext);
 
-  const resetForm = () => {
-    setName('');
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    setPhone('');
-    setEmailCode('');
-    setUserId(null);
-    setShowVerification(false);
-    setTermsAccepted(false);
-    setShowPassword(false);
+  useEffect(() => {
+    if (token) navigate('/');
+  }, [token, navigate]);
+
+  const reset = () => {
+    setName(''); setEmail(''); setPhone('');
+    setPassword(''); setConfirmPwd(''); setCode('');
+    setUserId(null); setVerifying(false);
+    setTerms(false); setShowPwd(false); setShowConfirm(false);
   };
 
-  const switchMode = (newState) => {
-    setState(newState);
-    resetForm();
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    reset();
   };
 
-  const onSubmitHandler = async (event) => {
-    event.preventDefault();
-    if (isLoading) return;
-
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+    setLoading(true);
     try {
-      setIsLoading(true);
-
-      if (state === 'Sign Up' && !showVerification) {
-        if (!name || !email || !password || !phone) {
-          toast.error("Please fill in all fields");
+      // Sign‑Up: register → verify
+      if (mode === 'SignUp' && !verifying) {
+        if (!name || !email || !phone || !password) {
+          toast.error('All fields are required');
+          setLoading(false);
           return;
         }
-
-        if (password !== confirmPassword) {
-          toast.error("Passwords do not match");
+        if (password !== confirmPwd) {
+          toast.error('Passwords do not match');
+          setLoading(false);
           return;
         }
-
-        if (!termsAccepted) {
-          toast.error("Please accept the Terms and Services");
+        if (!terms) {
+          toast.error('You must accept the Terms');
+          setLoading(false);
           return;
         }
-
-        const { data } = await axios.post(`${backendUrl}/api/user/register`, {
-          name,
-          email,
-          password,
-          phone
-        });
-
+        const { data } = await axios.post(
+          `${backendUrl}/api/user/register`,
+          { name, email, phone, password }
+        );
         if (data.success) {
           setUserId(data.userId);
-          setShowVerification(true);
-          toast.success('Verification code sent to your email');
+          setVerifying(true);
+          toast.success('Check your email for the code');
         } else {
           toast.error(data.message || 'Registration failed');
         }
-      }
-      else if (state === 'Sign Up' && showVerification) {
-        if (!emailCode) {
-          toast.error("Please enter the verification code");
+
+      // Sign‑Up: verify code
+      } else if (mode === 'SignUp' && verifying) {
+        if (!code) {
+          toast.error('Enter the verification code');
+          setLoading(false);
           return;
         }
-
-        const { data } = await axios.post(`${backendUrl}/api/user/verify`, {
-          userId,
-          emailCode
-        });
-
+        const { data } = await axios.post(
+          `${backendUrl}/api/user/verify`,
+          { userId, emailCode: code }
+        );
         if (data.success) {
-          toast.success('Email verified successfully');
+          toast.success('Email verified — please log in');
           switchMode('Login');
         } else {
           toast.error(data.message || 'Verification failed');
         }
-      }
-      else if (state === 'Login') {
+
+      // Login
+      } else {
         if (!email || !password) {
-          toast.error("Please fill in all fields");
+          toast.error('Email and password are required');
+          setLoading(false);
           return;
         }
-
-        const { data } = await axios.post(`${backendUrl}/api/user/login`, {
-          email,
-          password
-        });
-
+        const { data } = await axios.post(
+          `${backendUrl}/api/user/login`,
+          { email, password }
+        );
         if (data.success) {
           localStorage.setItem('token', data.token);
           setToken(data.token);
@@ -116,307 +117,292 @@ const Login = () => {
           toast.error(data.message || 'Login failed');
         }
       }
-    } catch (error) {
-      console.error('Error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'An error occurred';
-      toast.error(errorMessage);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const forgotPasswordHandler = async (event) => {
-    event.preventDefault();
+  const onForgot = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+    setLoading(true);
     try {
-      setIsLoading(true);
-      const { data } = await axios.post(`${backendUrl}/api/user/forgot-password`, { email });
-      if (data.success) {
-        toast.success(data.message);
-        setShowForgotPassword(false);
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
+      const { data } = await axios.post(
+        `${backendUrl}/api/user/forgot-password`,
+        { email }
+      );
+      data.success ? toast.success(data.message) : toast.error(data.message);
+      setForgot(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (token) {
-      navigate('/');
-    }
-  }, [token, navigate]);
+  // Motion variants
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md">
-        {!showForgotPassword ? (
-          <form onSubmit={onSubmitHandler} className="bg-white shadow-xl rounded-xl px-8 pt-6 pb-8 mb-4">
-            <div className="flex justify-center gap-4 mb-4">
-              <button
-                type="button"
-                onClick={() => switchMode('Sign Up')}
-                className={`px-4 py-2 rounded ${state === 'Sign Up' ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-              >
-                Sign Up
-              </button>
-              <button
-                type="button"
-                onClick={() => switchMode('Login')}
-                className={`px-4 py-2 rounded ${state === 'Login' ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-              >
-                Login
-              </button>
-            </div>
+    <div className="min-h-screen bg-rose-50 flex items-center justify-center p-6">
+      <motion.div
+        className="w-full max-w-md bg-white rounded-3xl shadow-lg overflow-hidden"
+        variants={cardVariants}
+        initial="hidden"
+        animate="show"
+        whileHover={{ scale: 1.02 }}
+      >
+        <div className="p-8">
+          <h2 className="text-3xl font-playfair font-bold text-rose-900 mb-6 text-center">
+            Savayas Heal
+          </h2>
 
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-              {state === 'Sign Up'
-                ? (showVerification ? 'Verify Email' : 'Create Account')
-                : 'Welcome Back'}
-            </h2>
+          {/* Tabs */}
+          <div className="flex justify-center gap-4 mb-6">
+            {['Login', 'SignUp'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => switchMode(tab)}
+                className={`px-6 py-2 rounded-full font-medium transition ${
+                  mode === tab
+                    ? 'bg-rose-500 text-white'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {tab === 'SignUp' ? 'Sign Up' : 'Login'}
+              </button>
+            ))}
+          </div>
 
-            {state === 'Sign Up' && !showVerification && (
+          <form onSubmit={forgot ? onForgot : onSubmit}>
+            {/* Forgot Password */}
+            {forgot ? (
               <>
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-medium mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    required
-                  />
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-medium mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    required
-                  />
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-medium mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    required
-                  />
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-medium mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                    >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-gray-700 text-sm font-medium mb-2">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={termsAccepted}
-                      onChange={(e) => setTermsAccepted(e.target.checked)}
-                      className="mr-2"
-                      required
-                    />
-                    <span className="text-sm text-gray-600">
-                      I accept the <Link to="/terms" className="text-rose-500 hover:text-rose-600">Terms and Services</Link>
-                    </span>
-                  </label>
-                </div>
-              </>
-            )}
-
-            {state === 'Sign Up' && showVerification && (
-              <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-medium mb-2">
-                  Email Verification Code
-                </label>
+                <label className="block text-gray-700 mb-2">Email Address</label>
                 <input
-                  type="text"
-                  value={emailCode}
-                  onChange={(e) => setEmailCode(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@example.com"
                   required
+                  className="w-full border-b-2 border-gray-300 py-2 mb-6 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
                 />
-              </div>
-            )}
-
-            {state === 'Login' && (
+              </>
+            ) : (
               <>
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-medium mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    required
-                  />
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-gray-700 text-sm font-medium mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
+                {/* Sign-Up */}
+                {mode === 'SignUp' && !verifying && (
+                  <>
+                    <label className="block text-gray-700 mb-2">Full Name</label>
                     <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                      type="text"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="John Doe"
                       required
+                      className="w-full border-b-2 border-gray-300 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                    >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
-                  </div>
-                </div>
+
+                    <label className="block text-gray-700 mb-2">Email Address</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      className="w-full border-b-2 border-gray-300 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                    />
+
+                    <label className="block text-gray-700 mb-2">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="+1 (555) 123‑4567"
+                      required
+                      className="w-full border-b-2 border-gray-300 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                    />
+
+                    <label className="block text-gray-700 mb-2">Password</label>
+                    <div className="relative mb-4">
+                      <input
+                        type={showPwd ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        className="w-full border-b-2 border-gray-300 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPwd(v => !v)}
+                        className="absolute right-0 top-1/2 transform -translate-y-1/2 text-sm text-gray-600"
+                      >
+                        {showPwd ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+
+                    <label className="block text-gray-700 mb-2">Confirm Password</label>
+                    <div className="relative mb-4">
+                      <input
+                        type={showConfirm ? 'text' : 'password'}
+                        value={confirmPwd}
+                        onChange={e => setConfirmPwd(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        className="w-full border-b-2 border-gray-300 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm(v => !v)}
+                        className="absolute right-0 top-1/2 transform -translate-y-1/2 text-sm text-gray-600"
+                      >
+                        {showConfirm ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center mb-6">
+                      <input
+                        type="checkbox"
+                        checked={terms}
+                        onChange={e => setTerms(e.target.checked)}
+                        className="mr-2"
+                        required
+                      />
+                      <label className="text-gray-600 text-sm">
+                        I accept the{' '}
+                        <Link to="/terms" className="text-rose-500 hover:underline">
+                          Terms & Services
+                        </Link>
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {/* Verification */}
+                {mode === 'SignUp' && verifying && (
+                  <>
+                    <label className="block text-gray-700 mb-2">Verification Code</label>
+                    <input
+                      type="text"
+                      value={code}
+                      onChange={e => setCode(e.target.value)}
+                      placeholder="123456"
+                      required
+                      className="w-full border-b-2 border-gray-300 py-2 mb-6 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                    />
+                  </>
+                )}
+
+                {/* Login */}
+                {mode === 'Login' && (
+                  <>
+                    <label className="block text-gray-700 mb-2">Email Address</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      className="w-full border-b-2 border-gray-300 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                    />
+
+                    <label className="block text-gray-700 mb-2">Password</label>
+                    <div className="relative mb-6">
+                      <input
+                        type={showPwd ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        className="w-full border-b-2 border-gray-300 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPwd(v => !v)}
+                        className="absolute right-0 top-1/2 transform -translate-y-1/2 text-sm text-gray-600"
+                      >
+                        {showPwd ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
 
+            {/* Submit */}
             <button
               type="submit"
-              disabled={isLoading}
-              className={`w-full bg-rose-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-rose-600 transition-colors
-                ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
+              disabled={loading}
+              className={`w-full py-3 mb-4 rounded-full font-semibold transition ${
+                loading
+                  ? 'bg-rose-300 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-700 hover:to-pink-600'
+              } text-white`}
             >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Processing...
-                </div>
-              ) : (
-                state === 'Sign Up' ? (showVerification ? 'Verify Email' : 'Create Account') : 'Login'
-              )}
+              {forgot
+                ? loading
+                  ? 'Sending…'
+                  : 'Send Reset Link'
+                : loading
+                ? 'Processing…'
+                : mode === 'SignUp'
+                ? verifying
+                  ? 'Verify Email'
+                  : 'Create Account'
+                : 'Login'}
             </button>
 
-            <div className="mt-4 text-center">
-              {state === 'Sign Up' ? (
-                <p className="text-sm text-gray-600">
-                  Already have an account?{" "}
+            {/* Footer Links */}
+            <div className="text-center text-gray-700 text-sm">
+              {forgot ? (
+                <button
+                  type="button"
+                  onClick={() => setForgot(false)}
+                  className="text-rose-500 hover:underline"
+                >
+                  Back to Login
+                </button>
+              ) : mode === 'Login' ? (
+                <>
+                  Don’t have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => switchMode('SignUp')}
+                    className="text-rose-500 hover:underline"
+                  >
+                    Sign Up
+                  </button>
+                  <br />
+                  <button
+                    type="button"
+                    onClick={() => setForgot(true)}
+                    className="mt-2 text-rose-500 hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{' '}
                   <button
                     type="button"
                     onClick={() => switchMode('Login')}
-                    className="text-rose-500 hover:text-rose-600 font-medium"
+                    className="text-rose-500 hover:underline"
                   >
-                    Login here
-                  </button>
-                </p>
-              ) : (
-                <>
-                  <p className="text-sm text-gray-600">
-                    Don't have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => switchMode('Sign Up')}
-                      className="text-rose-500 hover:text-rose-600 font-medium"
-                    >
-                      Sign up here
-                    </button>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotPassword(true)}
-                    className="text-sm text-rose-500 hover:text-rose-600 mt-2"
-                  >
-                    Forgot your password?
+                    Login
                   </button>
                 </>
               )}
             </div>
           </form>
-        ) : (
-          <form onSubmit={forgotPasswordHandler} className="bg-white shadow-xl rounded-xl px-8 pt-6 pb-8 mb-4">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Reset Password</h2>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-medium mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`w-full bg-rose-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-rose-600 transition-colors
-                ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(false)}
-                className="text-sm text-rose-500 hover:text-rose-600"
-              >
-                Back to login
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+        </div>
+      </motion.div>
     </div>
   );
 };

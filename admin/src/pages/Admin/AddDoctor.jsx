@@ -14,7 +14,7 @@ const AddDoctor = () => {
     const [experience, setExperience] = useState('1 Year')
     const [fees, setFees] = useState('')
     const [about, setAbout] = useState('')
-    const [speciality, setSpeciality] = useState('General physician')
+    const [speciality, setSpeciality] = useState('Counseling professional')
     const [degree, setDegree] = useState('')
     const [address1, setAddress1] = useState('')
     const [address2, setAddress2] = useState('')
@@ -135,7 +135,6 @@ const AddDoctor = () => {
                             <select onChange={e => setSpeciality(e.target.value)} value={speciality} className='border rounded px-2 py-2'>
                                 <option value="Counseling professional">Counseling professional</option>
                                 <option value="Relational therapist">Relational therapist</option>
-                                <option value="Family therapist">Family therapist</option>
                                 <option value="Listeners">Listeners</option>
                             </select>
                         </div>
