@@ -158,7 +158,7 @@ const Appointment = () => {
   }, [docInfo]);
 
   return docInfo ? (
-    <div className="min-h-screen bg-rose-50 pt-20">
+    <div className="min-h-screen pt-20">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           {/* Doctor Info Section */}

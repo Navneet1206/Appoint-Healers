@@ -6,41 +6,74 @@ export default function Home() {
   return (
     <>
       {/* HERO SECTION - Updated with animated elements and better spacing */}
-      <div className="relative min-h-screen bg-gradient-to-b from-pink-50 to-pink-100 overflow-hidden w-full">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-pink-200 rounded-full opacity-30 -mr-20 -mt-20" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-rose-200 rounded-full opacity-30 -ml-40 -mb-40" />
-        
-        <main className="relative z-10">
-          <section className="relative h-screen flex items-center justify-center text-center px-4">
-            <div className="max-w-5xl mx-auto">
-              <div className="relative z-10">
-                <div className="mb-4 flex justify-center">
-                  <Heart className="text-rose-500 w-16 h-16 animate-pulse" />
-                </div>
-                <h1 className="text-6xl md:text-8xl font-bold text-rose-900 mb-6 tracking-tight">
-                  Savayas Heal
-                </h1>
-                <p className="text-2xl md:text-4xl text-rose-700 font-light mb-12">
-                  We don't judge<span className="mx-3 text-pink-400">•</span>We emphasize
-                </p>
-                <div className="space-y-4">
-                  <Link to="/professional" >
-                  <button
-                    className="group relative inline-flex items-center justify-center px-10 py-5 overflow-hidden font-semibold text-white transition-all duration-300 ease-in-out rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 hover:scale-105 shadow-lg shadow-pink-200"
-                    >
-                    Start Your Journey 
-                    <ArrowRight className="ml-3 w-5 h-5 group-hover:ml-4 transition-all" />
-                  </button>
-                    </Link>
-                </div>
-              </div>
+      <section className="mt-20 bg-[#f8f9f5] px-6 py-16 md:px-20">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-10">
+        {/* Left Content */}
+        <div className="w-full md:w-1/2 space-y-6">
+          {/* Small Badge */}
+          <div className="text-sm text-rose-700 font-medium flex items-center gap-2">
+            <span role="img" aria-label="bee">🐝</span>
+            Hey, we’re glad you’re here
+          </div>
+
+          {/* Main Heading */}
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
+            Start Your Wellness Journey<br /> with MyRafiky.
+          </h1>
+
+          {/* Subtext */}
+          <p className="text-gray-700 text-lg">
+            Discover affordable therapy, compassionate listeners, and a community where you can share, heal, and grow.
+          </p>
+
+          {/* Sub-section */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">What brings you here today?</h3>
+            <p className="text-gray-600">
+              Whatever you’re going through, we’re here to support you with compassion and understanding, no matter where you are on your journey.
+            </p>
+          </div>
+
+          {/* CTA Cards */}
+          <div className="flex flex-col md:flex-row gap-4 pt-4">
+            {/* Card 1 */}
+            <div className="bg-white rounded-xl shadow-md p-6 flex-1">
+              <h4 className="font-semibold text-gray-800 text-lg mb-2">Therapy Made Affordable</h4>
+              <p className="text-gray-600 mb-4 text-sm">
+                Explore our network of professional therapists who provide high-quality
+              </p>
+              <button className="bg-rose-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-rose-800">
+                Find Your Therapist →
+              </button>
             </div>
-          </section>
-        </main>
+
+            {/* Card 2 */}
+            <div className="bg-white rounded-xl shadow-md p-6 flex-1">
+              <h4 className="font-semibold text-gray-800 text-lg mb-2">Your Compassionate Listening Partner</h4>
+              <p className="text-gray-600 mb-4 text-sm">
+                Find a wellness companion who is ready to listen and support you without judgment.
+              </p>
+              <button className="border border-rose-700 text-rose-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-rose-50">
+                Connect with a Listener →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Image */}
+        <div className="w-full md:w-1/2 flex justify-center">
+          <img
+            src="/hero-illustration.png" // Replace with actual image path
+            alt="Comforting illustration"
+            className="max-w-sm w-full"
+          />
+        </div>
       </div>
+    </section>
+
 
       {/* OUR SERVICES SECTION - Updated with cleaner cards and hover effects */}
-      <section className="px-4 py-24 bg-pink-50 w-full" id="services">
+      <section className="px-4 py-24  w-full" id="services">
         <div className="text-center mb-20">
           <div className="flex justify-center mb-4">
             <div className="bg-pink-100 p-3 rounded-full">

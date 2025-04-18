@@ -75,7 +75,7 @@ const Doctors = () => {
   }
 
   return (
-    <div className="mt-28 min-h-screen bg-rose-50 p-4 md:p-8">
+    <div className="bg-[#f8f9f5] mt-28 min-h-screen p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <motion.p 
           className="text-gray-600 text-lg mb-4" 

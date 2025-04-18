@@ -5,9 +5,9 @@ export default function About() {
   return (
     <>
       {/* HERO SECTION */}
-      <div className="relative bg-gradient-to-b from-pink-50 to-pink-100 overflow-hidden w-full py-24">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-pink-200 rounded-full opacity-30 -mr-20 -mt-20" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-rose-200 rounded-full opacity-30 -ml-40 -mb-40" />
+      <div className="relati overflow-hidden w-full py-24">
+        <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-30 -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 rounded-full opacity-30 -ml-40 -mb-40" />
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
