@@ -18,7 +18,7 @@ export default function Home() {
 
           {/* Main Heading */}
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
-            Start Your Wellness Journey<br /> with MyRafiky.
+            Start Your Wellness Journey<br /> with SavayasHeal.
           </h1>
 
           {/* Subtext */}

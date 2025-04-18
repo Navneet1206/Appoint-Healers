@@ -303,7 +303,8 @@ const updateProfile = async (req, res) => {
     }
 };
 
-// API to book appointment using a doctor-created slot
+// Updated backend/controllers/userController.js
+// Updated backend/controllers/userController.js
 const bookAppointment = async (req, res) => {
     try {
         const { userId, docId, slotId } = req.body;
@@ -337,13 +338,100 @@ const bookAppointment = async (req, res) => {
         const newAppointment = new appointmentModel(appointmentData);
         await newAppointment.save();
 
+        // Email notification for appointment creation
+        function sendAppointmentConfirmationEmail() {
+            let transporter = nodemailer.createTransport({
+                service: "Gmail",
+                auth: {
+                    user: process.env.NODEMAILER_EMAIL,
+                    pass: process.env.NODEMAILER_PASSWORD,
+                },
+            });
+
+            // Email content for user
+            const userMailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: userData.email,
+                subject: "Appointment Confirmation",
+                html: generateEmailTemplate(
+                    "Appointment Confirmation",
+                    `Dear ${userData.name},<br><br>    
+                    Your appointment with ${doctor.name} (${doctor.email}) has been successfully booked for ${slot.slotDate} at ${slot.slotTime}.<br><br>
+                    ${newAppointment.payment
+                        ? "Your online payment has been completed."
+                        : "Please make the payment at the time of your appointment."}
+                    `
+                ),
+            };
+
+            // Email content for doctor
+            const doctorMailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: doctor.email,
+                subject: "New Appointment Scheduled",
+                html: generateEmailTemplate(
+                    "New Appointment Scheduled",
+                    `Dear ${doctor.name},<br><br>
+                    You have a new appointment scheduled with ${userData.name} (${userData.email}) on ${slot.slotDate} at ${slot.slotTime}.<br><br>
+                    ${newAppointment.payment
+                        ? "The user has completed the online payment."
+                        : "The user will make the payment at the time of their appointment."}
+                    `
+                ),
+            };
+
+            // Email content for admin
+            const adminMailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: process.env.NODEMAILER_EMAIL,
+                subject: "New Appointment Notification",
+                html: generateEmailTemplate(
+                    "New Appointment Notification",
+                    `A new appointment has been scheduled:<br><br>
+                    User: ${userData.name} (${userData.email})<br>
+                    Doctor: ${doctor.name} (${doctor.email})<br>
+                    Date & Time: ${slot.slotDate} at ${slot.slotTime}<br><br>
+                    ${newAppointment.payment
+                        ? "Payment: Online"
+                        : "Payment: Cash (To be collected at appointment time)"}
+                    `
+                ),
+            };
+
+            // Send emails
+            transporter.sendMail(userMailOptions, (error, info) => {
+                if (error) {
+                    console.error("Error sending email to user:", error);
+                } else {
+                    console.log("Email sent to user:", info.response);
+                }
+            });
+
+            transporter.sendMail(doctorMailOptions, (error, info) => {
+                if (error) {
+                    console.error("Error sending email to doctor:", error);
+                } else {
+                    console.log("Email sent to doctor:", info.response);
+                }
+            });
+
+            transporter.sendMail(adminMailOptions, (error, info) => {
+                if (error) {
+                    console.error("Error sending email to admin:", error);
+                } else {
+                    console.log("Email sent to admin:", info.response);
+                }
+            });
+        }
+
+        sendAppointmentConfirmationEmail();
+
         res.json({ success: true, message: 'Appointment Booked' });
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });
     }
 };
-
 
 // API to cancel appointment
 const cancelAppointment = async (req, res) => {
@@ -361,10 +449,110 @@ const cancelAppointment = async (req, res) => {
         // Releasing doctor slot
         const { docId, slotDate, slotTime } = appointmentData;
         const doctorData = await doctorModel.findById(docId);
-        let slots_booked = doctorData.slots_booked;
+        
+        // Ensure slots_booked exists and initialize if necessary
+        if (!doctorData.slots_booked) {
+            doctorData.slots_booked = {};
+        }
 
-        slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime);
-        await doctorModel.findByIdAndUpdate(docId, { slots_booked });
+        if (!doctorData.slots_booked[slotDate]) {
+            doctorData.slots_booked[slotDate] = [];
+        }
+
+        doctorData.slots_booked[slotDate] = doctorData.slots_booked[slotDate].filter(e => e !== slotTime);
+        await doctorModel.findByIdAndUpdate(docId, { slots_booked: doctorData.slots_booked });
+
+        // Email notification for appointment cancellation
+        async function sendCancellationNotificationEmail() {
+            let transporter = nodemailer.createTransport({
+                service: "Gmail",
+                auth: {
+                    user: process.env.NODEMAILER_EMAIL,
+                    pass: process.env.NODEMAILER_PASSWORD,
+                },
+            });
+
+            // Fetch user and doctor data
+            const userData = await userModel.findById(userId).select("-password");
+            const doctor = await doctorModel.findById(docId);
+
+            // Email content for user
+            const userMailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: userData.email,
+                subject: "Appointment Cancellation",
+                html: generateEmailTemplate(
+                    "Appointment Cancellation",
+                    `Dear ${userData.name},<br><br>
+                    Your appointment with ${doctor.name} (${doctor.email}) scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
+                    ${appointmentData.payment
+                        ? "Our team will discuss your refund within 3-7 business days."
+                        : "No further action is required."}
+                    `
+                ),
+            };
+
+            // Email content for doctor
+            const doctorMailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: doctor.email,
+                subject: "Appointment Cancellation",
+                html: generateEmailTemplate(
+                    "Appointment Cancellation",
+                    `Dear ${doctor.name},<br><br>
+                    The appointment with ${userData.name} (${userData.email}) scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
+                    ${appointmentData.payment
+                        ? "Our team will discuss the refund process with the user within 3-7 business days."
+                        : "No further action is required."}
+                    `
+                ),
+            };
+
+            // Email content for admin
+            const adminMailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: process.env.NODEMAILER_EMAIL,
+                subject: "Appointment Cancellation Notification",
+                html: generateEmailTemplate(
+                    "Appointment Cancellation Notification",
+                    `An appointment has been cancelled:<br><br>
+                    User: ${userData.name} (${userData.email})<br>
+                    Doctor: ${doctor.name} (${doctor.email})<br>
+                    Date & Time: ${slotDate} at ${slotTime}<br><br>
+                    ${appointmentData.payment
+                        ? "Payment: Online - Refund discussion pending"
+                        : "Payment: Cash - No refund required"}
+                    `
+                ),
+            };
+
+            // Send emails
+            transporter.sendMail(userMailOptions, (error, info) => {
+                if (error) {
+                    console.error("Error sending email to user:", error);
+                } else {
+                    console.log("Email sent to user:", info.response);
+                }
+            });
+
+            transporter.sendMail(doctorMailOptions, (error, info) => {
+                if (error) {
+                    console.error("Error sending email to doctor:", error);
+                } else {
+                    console.log("Email sent to doctor:", info.response);
+                }
+            });
+
+            transporter.sendMail(adminMailOptions, (error, info) => {
+                if (error) {
+                    console.error("Error sending email to admin:", error);
+                } else {
+                    console.log("Email sent to admin:", info.response);
+                }
+            });
+        }
+
+        sendCancellationNotificationEmail();
 
         res.json({ success: true, message: 'Appointment Cancelled' });
     } catch (error) {
@@ -372,7 +560,42 @@ const cancelAppointment = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
-
+// Helper function to generate email HTML template
+function generateEmailTemplate(title, body) {
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Savayas Heal</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #fff5f7;">
+        <div style="max-width: 600px; margin: 30px auto; border: 1px solid #ffe0e6; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+            <div style="background-color: #ff5e8e; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; color: #ffffff; font-size: 28px;">SAVAYAS HEALS</h1>
+            </div>
+            <div style="padding: 30px; color: #333;">
+                <h2 style="color: #ff5e8e; margin-top: 0; font-size: 24px;">${title}</h2>
+                <p style="font-size: 16px; line-height: 1.5;">${body}</p>
+                <div style="background-color: #ffe0e6; padding: 15px; border-radius: 5px; margin: 20px 0; color: #ff5e8e; font-style: italic;">
+                    "${body}"
+                </div>
+                <p style="font-size: 16px; line-height: 1.5;">
+                    If you have any urgent queries, please feel free to call us at <strong>(91) 8468938745</strong>.
+                </p>
+                <p style="font-size: 16px; line-height: 1.5; margin: 30px 0 0;">
+                    Best Regards,<br />SAVAYAS HEALS Team
+                </p>
+            </div>
+            <div style="background-color: #ff5e8e; padding: 10px; text-align: center;">
+                <p style="color: #ffffff; margin: 0; font-size: 12px;">&copy; ${new Date().getFullYear()} SAVAYAS HEALS. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+}
 // API to get user appointments for frontend my-appointments page
 const listAppointment = async (req, res) => {
     try {
@@ -414,6 +637,7 @@ const paymentRazorpay = async (req, res) => {
 };
 
 // API to verify payment of Razorpay
+// Updated backend/controllers/userController.js
 const verifyRazorpay = async (req, res) => {
     try {
         const { razorpay_order_id } = req.body;
@@ -421,6 +645,94 @@ const verifyRazorpay = async (req, res) => {
 
         if (orderInfo.status === 'paid') {
             await appointmentModel.findByIdAndUpdate(orderInfo.receipt, { payment: true });
+            
+            // Fetch appointment and user details
+            const appointment = await appointmentModel.findById(orderInfo.receipt);
+            const userData = await userModel.findById(appointment.userId).select("-password");
+            const doctor = await doctorModel.findById(appointment.docId);
+
+            // Email notification for payment confirmation
+            function sendPaymentConfirmationEmail() {
+                let transporter = nodemailer.createTransport({
+                    service: "Gmail",
+                    auth: {
+                        user: process.env.NODEMAILER_EMAIL,
+                        pass: process.env.NODEMAILER_PASSWORD,
+                    },
+                });
+
+                // Email content for user
+                const userMailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: userData.email,
+                    subject: "Payment Confirmation",
+                    html: generateEmailTemplate(
+                        "Payment Confirmation",
+                        `Dear ${userData.name},<br><br>
+                        Your payment for the appointment with ${doctor.name} (${doctor.email}) scheduled for ${appointment.slotDate} at ${appointment.slotTime} has been successfully processed.<br><br>
+                        Thank you for choosing Savayas Heal.
+                        `
+                    ),
+                };
+
+                // Email content for doctor
+                const doctorMailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: doctor.email,
+                    subject: "Payment Received",
+                    html: generateEmailTemplate(
+                        "Payment Received",
+                        `Dear ${doctor.name},<br><br>
+                        You have received a payment from ${userData.name} (${userData.email}) for the appointment scheduled for ${appointment.slotDate} at ${appointment.slotTime}.<br><br>
+                        Thank you for using Savayas Heal.
+                        `
+                    ),
+                };
+
+                // Email content for admin
+                const adminMailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: process.env.NODEMAILER_EMAIL,
+                    subject: "Payment Received Notification",
+                    html: generateEmailTemplate(
+                        "Payment Received Notification",
+                        `A payment has been received:<br><br>
+                        User: ${userData.name} (${userData.email})<br>
+                        Doctor: ${doctor.name} (${doctor.email})<br>
+                        Date & Time: ${appointment.slotDate} at ${appointment.slotTime}<br><br>
+                        Payment: Online - Completed
+                        `
+                    ),
+                };
+
+                // Send emails
+                transporter.sendMail(userMailOptions, (error, info) => {
+                    if (error) {
+                        console.error("Error sending email to user:", error);
+                    } else {
+                        console.log("Email sent to user:", info.response);
+                    }
+                });
+
+                transporter.sendMail(doctorMailOptions, (error, info) => {
+                    if (error) {
+                        console.error("Error sending email to doctor:", error);
+                    } else {
+                        console.log("Email sent to doctor:", info.response);
+                    }
+                });
+
+                transporter.sendMail(adminMailOptions, (error, info) => {
+                    if (error) {
+                        console.error("Error sending email to admin:", error);
+                    } else {
+                        console.log("Email sent to admin:", info.response);
+                    }
+                });
+            }
+
+            sendPaymentConfirmationEmail();
+
             res.json({ success: true, message: "Payment Successful" });
         } else {
             res.json({ success: false, message: 'Payment Failed' });
