@@ -4,6 +4,7 @@ import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import userModel from "../models/userModel.js"; 
 
 dotenv.config();
 
@@ -270,21 +271,23 @@ const sendMeetingLink = async (req, res) => {
             return res.json({ success: false, message: 'Appointment not found' });
         }
 
-        const user = await doctorModel.findById(appointment.userId).select('-password');
-        const doctor = await doctorModel.findById(appointment.docId);
+        const userEmail = appointment.userData.email;
+        const userName = appointment.userData.name;
+        const doctorName = appointment.docData.name;
+        const doctorEmail = appointment.docData.email;
 
         // Email content for user
         const userMailOptions = {
             from: process.env.NODEMAILER_EMAIL,
-            to: user.email,
+            to: userEmail,
             subject: 'Meeting Link for Your Appointment',
             html: `
                 <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
                     <div style="text-align: center; margin-bottom: 20px;">
                         <h2 style="color: #4CAF50;">Meeting Link</h2>
                     </div>
-                    <p>Dear ${user.name},</p>
-                    <p>Your meeting link for the appointment with ${doctor.name} (${doctor.email}) is: ${meetingLink}</p>
+                    <p>Dear ${userName},</p>
+                    <p>Your meeting link for the appointment with ${doctorName} (${doctorEmail}) is: ${meetingLink}</p>
                     <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
                     <p>Thank you for choosing our services.</p>
                     <p>Best regards,</p>
@@ -302,13 +305,11 @@ const sendMeetingLink = async (req, res) => {
             console.log('Email sent to user:', info.response);
             res.json({ success: true, message: 'Meeting link sent successfully' });
         });
-
     } catch (error) {
         console.error(error);
         res.json({ success: false, message: error.message });
     }
 };
-
 const acceptAppointment = async (req, res) => {
     try {
         const { appointmentId } = req.body;
@@ -317,8 +318,10 @@ const acceptAppointment = async (req, res) => {
             return res.json({ success: false, message: 'Appointment not found' });
         }
 
-        const user = await doctorModel.findById(appointment.userId).select('-password');
-        const doctor = await doctorModel.findById(appointment.docId);
+        const userEmail = appointment.userData.email;
+        const userName = appointment.userData.name;
+        const doctorName = appointment.docData.name;
+        const doctorEmail = appointment.docData.email;
 
         // Update appointment status
         appointment.isCompleted = true;
@@ -327,15 +330,15 @@ const acceptAppointment = async (req, res) => {
         // Email content for user
         const userMailOptions = {
             from: process.env.NODEMAILER_EMAIL,
-            to: userData.email,
+            to: userEmail,
             subject: 'Appointment Accepted',
             html: `
                 <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
                     <div style="text-align: center; margin-bottom: 20px;">
                         <h2 style="color: #4CAF50;">Appointment Accepted</h2>
                     </div>
-                    <p>Dear ${user.name},</p>
-                    <p>Your appointment with ${doctor.name} (${doctor.email}) has been accepted.</p>
+                    <p>Dear ${userName},</p>
+                    <p>Your appointment with ${doctorName} (${doctorEmail}) has been accepted.</p>
                     <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
                     <p>Thank you for choosing our services.</p>
                     <p>Best regards,</p>
@@ -353,7 +356,6 @@ const acceptAppointment = async (req, res) => {
             console.log('Email sent to user:', info.response);
             res.json({ success: true, message: 'Appointment accepted successfully' });
         });
-
     } catch (error) {
         console.error(error);
         res.json({ success: false, message: error.message });
