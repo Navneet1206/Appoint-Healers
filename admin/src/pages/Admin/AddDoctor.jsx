@@ -18,21 +18,23 @@ const AddDoctor = () => {
     const [degree, setDegree] = useState('')
     const [address1, setAddress1] = useState('')
     const [address2, setAddress2] = useState('')
+  const [languages, setLanguages] = useState('English')
+  const [specialityList, setSpecialityList] = useState('Counseling professional')
 
     const { backendUrl } = useContext(AppContext)
     const { aToken } = useContext(AdminContext)
 
     const onSubmitHandler = async (event) => {
         event.preventDefault()
-
+    
         try {
-
+    
             if (!docImg) {
                 return toast.error('Image Not Selected')
             }
-
+    
             const formData = new FormData();
-
+    
             formData.append('image', docImg)
             formData.append('name', name)
             formData.append('email', email)
@@ -43,13 +45,17 @@ const AddDoctor = () => {
             formData.append('speciality', speciality)
             formData.append('degree', degree)
             formData.append('address', JSON.stringify({ line1: address1, line2: address2 }))
-
-            // console log formdata            
+            formData.append('languages', languages)
+            formData.append('specialityList', specialityList)
+    
+            // Log form data for debugging
             formData.forEach((value, key) => {
                 console.log(`${key}: ${value}`);
             });
-
-            const { data } = await axios.post(backendUrl + '/api/admin/add-doctor', formData, { headers: { aToken } })
+    
+            // Update the API URL to include the correct endpoint
+            const { data } = await axios.post(`${backendUrl}/api/admin/add-doctor`, formData, { headers: { aToken } })
+            
             if (data.success) {
                 toast.success(data.message)
                 setDocImg(false)
@@ -61,17 +67,18 @@ const AddDoctor = () => {
                 setDegree('')
                 setAbout('')
                 setFees('')
+                setLanguages('')
+                setSpecialityList('')
             } else {
                 toast.error(data.message)
             }
-
+    
         } catch (error) {
             toast.error(error.message)
             console.log(error)
         }
-
+    
     }
-
     return (
         <form onSubmit={onSubmitHandler} className='m-5 w-full'>
 
@@ -125,6 +132,16 @@ const AddDoctor = () => {
                             <p>Fees</p>
                             <input onChange={e => setFees(e.target.value)} value={fees} className='border rounded px-3 py-2' type="number" placeholder='Doctor fees' required />
                         </div>
+
+                       <div className='flex-1 flex flex-col gap-1'>
+                           <p>Languages</p>
+                          <input onChange={e => setLanguages(e.target.value)} value={languages} className='border rounded px-3 py-2' type="text" placeholder='Languages (comma separated)' required />
+                      </div>
+
+                      <div className='flex-1 flex flex-col gap-1'>
+                          <p>Specialities</p>
+                          <input onChange={e => setSpecialityList(e.target.value)} value={specialityList} className='border rounded px-3 py-2' type="text" placeholder='Specialities (comma separated)' required />
+                      </div>
 
                     </div>
 
