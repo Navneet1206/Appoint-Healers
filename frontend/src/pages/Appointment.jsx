@@ -178,11 +178,11 @@ const Appointment = () => {
             <div className="md:w-3/4">
               <h1 className="text-3xl font-bold text-gray-800 mb-2">{docInfo.name}</h1>
               <p className="text-lg text-gray-600 mb-4">{docInfo.speciality}</p>
-
+              
               {/* Tags */}
               <div className="flex flex-wrap gap-2 mb-6">
-                {docInfo.specialists && docInfo.specialists.length > 0 ? (
-                  docInfo.specialists.map((specialty) => (
+                {docInfo.specialityList && docInfo.specialityList.length > 0 ? (
+                  docInfo.specialityList.map((specialty) => (
                     <span key={specialty} className="px-3 py-1 bg-pink-50 text-pink-500 rounded-full text-sm">
                       {specialty}
                     </span>

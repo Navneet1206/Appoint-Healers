@@ -58,14 +58,13 @@ const appointmentCancel = async (req, res) => {
 }
 
 // API for adding Doctor
-// API for adding Doctor
 const addDoctor = async (req, res) => {
     try {
         const { name, email, password, speciality, degree, experience, about, fees, address, languages, specialityList } = req.body;
         const imageFile = req.file;
 
         // Checking for all data to add doctor
-        if (!name || !email || !password || !speciality || !degree || !experience || !about || !fees || !address || !languages || !specialityList) {
+        if (!name || !email || !password || !speciality || !degree || !experience || !about || !fees || !address || !languages) {
             return res.json({ success: false, message: "Missing Details" });
         }
 
@@ -87,12 +86,14 @@ const addDoctor = async (req, res) => {
         const imageUpload = await cloudinary.uploader.upload(imageFile.path, { resource_type: "image" });
         const imageUrl = imageUpload.secure_url;
 
+        // Store speciality as a single value and specialityList as an array
         const doctorData = {
             name,
             email,
             image: imageUrl,
             password: hashedPassword,
-            speciality: specialityList.split(',').map(item => item.trim()),
+            speciality: speciality, // Store the selected specialty
+            specialityList: specialityList.split(',').map(item => item.trim()), // Store the list of specialties
             degree,
             experience,
             about,

@@ -1,84 +1,83 @@
-import React, { useContext, useState } from 'react'
-import { assets } from '../../assets/assets'
-import { toast } from 'react-toastify'
-import axios from 'axios'
-import { AdminContext } from '../../context/AdminContext'
-import { AppContext } from '../../context/AppContext'
+import React, { useContext, useState } from 'react';
+import { assets } from '../../assets/assets';
+import { toast } from 'react-toastify';
+import axios from 'axios';
+import { AdminContext } from '../../context/AdminContext';
+import { AppContext } from '../../context/AppContext';
 
 const AddDoctor = () => {
 
-    const [docImg, setDocImg] = useState(false)
-    const [name, setName] = useState('')
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [experience, setExperience] = useState('1 Year')
-    const [fees, setFees] = useState('')
-    const [about, setAbout] = useState('')
-    const [speciality, setSpeciality] = useState('Counseling professional')
-    const [degree, setDegree] = useState('')
-    const [address1, setAddress1] = useState('')
-    const [address2, setAddress2] = useState('')
-  const [languages, setLanguages] = useState('English')
-  const [specialityList, setSpecialityList] = useState('Counseling professional')
+    const [docImg, setDocImg] = useState(false);
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [experience, setExperience] = useState('1 Year');
+    const [fees, setFees] = useState('');
+    const [about, setAbout] = useState('');
+    const [speciality, setSpeciality] = useState('Counseling professional');
+    const [degree, setDegree] = useState('');
+    const [address1, setAddress1] = useState('');
+    const [address2, setAddress2] = useState('');
+    const [languages, setLanguages] = useState('English');
+    const [specialityList, setSpecialityList] = useState('Counseling professional');
 
-    const { backendUrl } = useContext(AppContext)
-    const { aToken } = useContext(AdminContext)
+    const { backendUrl } = useContext(AppContext);
+    const { aToken } = useContext(AdminContext);
 
     const onSubmitHandler = async (event) => {
-        event.preventDefault()
-    
+        event.preventDefault();
+
         try {
-    
             if (!docImg) {
-                return toast.error('Image Not Selected')
+                return toast.error('Image Not Selected');
             }
-    
+
             const formData = new FormData();
-    
-            formData.append('image', docImg)
-            formData.append('name', name)
-            formData.append('email', email)
-            formData.append('password', password)
-            formData.append('experience', experience)
-            formData.append('fees', Number(fees))
-            formData.append('about', about)
-            formData.append('speciality', speciality)
-            formData.append('degree', degree)
-            formData.append('address', JSON.stringify({ line1: address1, line2: address2 }))
-            formData.append('languages', languages)
-            formData.append('specialityList', specialityList)
-    
+
+            formData.append('image', docImg);
+            formData.append('name', name);
+            formData.append('email', email);
+            formData.append('password', password);
+            formData.append('experience', experience);
+            formData.append('fees', Number(fees));
+            formData.append('about', about);
+            formData.append('speciality', speciality);
+            formData.append('degree', degree);
+            formData.append('address', JSON.stringify({ line1: address1, line2: address2 }));
+            formData.append('languages', languages);
+            formData.append('specialityList', specialityList);
+
             // Log form data for debugging
             formData.forEach((value, key) => {
                 console.log(`${key}: ${value}`);
             });
-    
-            // Update the API URL to include the correct endpoint
-            const { data } = await axios.post(`${backendUrl}/api/admin/add-doctor`, formData, { headers: { aToken } })
-            
+
+            const { data } = await axios.post(`${backendUrl}/api/admin/add-doctor`, formData, { headers: { aToken } });
+
             if (data.success) {
-                toast.success(data.message)
-                setDocImg(false)
-                setName('')
-                setPassword('')
-                setEmail('')
-                setAddress1('')
-                setAddress2('')
-                setDegree('')
-                setAbout('')
-                setFees('')
-                setLanguages('')
-                setSpecialityList('')
+                toast.success(data.message);
+                setDocImg(false);
+                setName('');
+                setPassword('');
+                setEmail('');
+                setAddress1('');
+                setAddress2('');
+                setDegree('');
+                setAbout('');
+                setFees('');
+                setLanguages('');
+                setSpecialityList('');
             } else {
-                toast.error(data.message)
+                toast.error(data.message);
             }
-    
+
         } catch (error) {
-            toast.error(error.message)
-            console.log(error)
+            toast.error(error.message);
+            console.log(error);
         }
-    
-    }
+
+    };
+
     return (
         <form onSubmit={onSubmitHandler} className='m-5 w-full'>
 
@@ -107,7 +106,6 @@ const AddDoctor = () => {
                             <input onChange={e => setEmail(e.target.value)} value={email} className='border rounded px-3 py-2' type="email" placeholder='Email' required />
                         </div>
 
-
                         <div className='flex-1 flex flex-col gap-1'>
                             <p>Set Password</p>
                             <input onChange={e => setPassword(e.target.value)} value={password} className='border rounded px-3 py-2' type="password" placeholder='Password' required />
@@ -115,7 +113,7 @@ const AddDoctor = () => {
 
                         <div className='flex-1 flex flex-col gap-1'>
                             <p>Experience</p>
-                            <select onChange={e => setExperience(e.target.value)} value={experience} className='border rounded px-2 py-2' >
+                            <select onChange={e => setExperience(e.target.value)} value={experience} className='border rounded px-2 py-2'>
                                 <option value="1 Year">1 Year</option>
                                 <option value="2 Year">2 Years</option>
                                 <option value="3 Year">3 Years</option>
@@ -133,15 +131,15 @@ const AddDoctor = () => {
                             <input onChange={e => setFees(e.target.value)} value={fees} className='border rounded px-3 py-2' type="number" placeholder='Doctor fees' required />
                         </div>
 
-                       <div className='flex-1 flex flex-col gap-1'>
-                           <p>Languages</p>
-                          <input onChange={e => setLanguages(e.target.value)} value={languages} className='border rounded px-3 py-2' type="text" placeholder='Languages (comma separated)' required />
-                      </div>
+                        <div className='flex-1 flex flex-col gap-1'>
+                            <p>Languages</p>
+                            <input onChange={e => setLanguages(e.target.value)} value={languages} className='border rounded px-3 py-2' type="text" placeholder='Languages (comma separated)' required />
+                        </div>
 
-                      <div className='flex-1 flex flex-col gap-1'>
-                          <p>Specialities</p>
-                          <input onChange={e => setSpecialityList(e.target.value)} value={specialityList} className='border rounded px-3 py-2' type="text" placeholder='Specialities (comma separated)' required />
-                      </div>
+                        <div className='flex-1 flex flex-col gap-1'>
+                            <p>Specialities</p>
+                            <input onChange={e => setSpecialityList(e.target.value)} value={specialityList} className='border rounded px-3 py-2' type="text" placeholder='Specialities (comma separated)' required />
+                        </div>
 
                     </div>
 
@@ -155,7 +153,6 @@ const AddDoctor = () => {
                                 <option value="Listeners">Listeners</option>
                             </select>
                         </div>
-
 
                         <div className='flex-1 flex flex-col gap-1'>
                             <p>Degree</p>
@@ -181,9 +178,8 @@ const AddDoctor = () => {
 
             </div>
 
-
         </form>
-    )
-}
+    );
+};
 
-export default AddDoctor
+export default AddDoctor;
