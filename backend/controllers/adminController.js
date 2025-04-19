@@ -5,7 +5,16 @@ import bcrypt from "bcrypt";
 import validator from "validator";
 import { v2 as cloudinary } from "cloudinary";
 import userModel from "../models/userModel.js";
+import nodemailer from 'nodemailer';
 
+// Nodemailer transporter setup
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.NODEMAILER_EMAIL,
+    pass: process.env.NODEMAILER_PASSWORD
+  }
+});
 // API for admin login
 const loginAdmin = async (req, res) => {
     try {
@@ -148,11 +157,277 @@ const adminDashboard = async (req, res) => {
     }
 }
 
+const sendMeetingLink = async (req, res) => {
+  try {
+    const { appointmentId, meetingLink } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
+    if (!appointment) {
+      return res.json({ success: false, message: 'Appointment not found' });
+    }
+
+    const userEmail = appointment.userData.email;
+    const userName = appointment.userData.name;
+    const doctorEmail = appointment.docData.email;
+    const doctorName = appointment.docData.name;
+
+    const userMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: userEmail,
+      subject: 'Meeting Link for Your Appointment',
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Meeting Link</h2>
+          </div>
+          <p>Dear ${userName},</p>
+          <p>Your meeting link for the appointment with ${doctorName} (${doctorEmail}) is: ${meetingLink}</p>
+          <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
+          <p>Thank you for choosing our services.</p>
+          <p>Best regards,</p>
+          <p>The SAVAYAS HEALS Team</p>
+        </div>
+      `,
+    };
+
+    const doctorMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: doctorEmail,
+      subject: 'Meeting Link for Appointment',
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Meeting Link</h2>
+          </div>
+          <p>Dear ${doctorName},</p>
+          <p>The meeting link for your appointment with ${userName} (${userEmail}) is: ${meetingLink}</p>
+          <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
+          <p>Best regards,</p>
+          <p>The SAVAYAS HEALS Team</p>
+        </div>
+      `,
+    };
+
+    const sendUserEmail = new Promise((resolve, reject) => {
+      transporter.sendMail(userMailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email to user:', error);
+          reject(error);
+        } else {
+          console.log('Email sent to user:', info.response);
+          resolve(info);
+        }
+      });
+    });
+
+    const sendDoctorEmail = new Promise((resolve, reject) => {
+      transporter.sendMail(doctorMailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email to doctor:', error);
+          reject(error);
+        } else {
+          console.log('Email sent to doctor:', info.response);
+          resolve(info);
+        }
+      });
+    });
+
+    try {
+      await Promise.all([sendUserEmail, sendDoctorEmail]);
+      res.json({ success: true, message: 'Meeting link sent to both user and doctor' });
+    } catch (error) {
+      res.json({ success: false, message: 'Error sending emails' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+const acceptAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
+    if (!appointment) {
+      return res.json({ success: false, message: 'Appointment not found' });
+    }
+
+    const userEmail = appointment.userData.email;
+    const userName = appointment.userData.name;
+    const doctorEmail = appointment.docData.email;
+    const doctorName = appointment.docData.name;
+
+    const userMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: userEmail,
+      subject: 'Appointment Accepted',
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Appointment Accepted</h2>
+          </div>
+          <p>Dear ${userName},</p>
+          <p>Your appointment with ${doctorName} (${doctorEmail}) has been accepted.</p>
+          <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
+          <p>Thank you for choosing our services.</p>
+          <p>Best regards,</p>
+          <p>The SAVAYAS HEALS Team</p>
+        </div>
+      `,
+    };
+
+    const doctorMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: doctorEmail,
+      subject: 'Appointment Accepted',
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Appointment Accepted</h2>
+          </div>
+          <p>Dear ${doctorName},</p>
+          <p>The appointment with ${userName} (${userEmail}) has been accepted.</p>
+          <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
+          <p>Best regards,</p>
+          <p>The SAVAYAS HEALS Team</p>
+        </div>
+      `,
+    };
+
+    const sendUserEmail = new Promise((resolve, reject) => {
+      transporter.sendMail(userMailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email to user:', error);
+          reject(error);
+        } else {
+          console.log('Email sent to user:', info.response);
+          resolve(info);
+        }
+      });
+    });
+
+    const sendDoctorEmail = new Promise((resolve, reject) => {
+      transporter.sendMail(doctorMailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email to doctor:', error);
+          reject(error);
+        } else {
+          console.log('Email sent to doctor:', info.response);
+          resolve(info);
+        }
+      });
+    });
+
+    try {
+      await Promise.all([sendUserEmail, sendDoctorEmail]);
+      res.json({ success: true, message: 'Notifications sent to both user and doctor' });
+    } catch (error) {
+      res.json({ success: false, message: 'Error sending emails' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+const completeAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
+    if (!appointment) {
+      return res.json({ success: false, message: 'Appointment not found' });
+    }
+
+    // Mark appointment as completed
+    appointment.isCompleted = true;
+    await appointment.save();
+
+    const userEmail = appointment.userData.email;
+    const userName = appointment.userData.name;
+    const doctorEmail = appointment.docData.email;
+    const doctorName = appointment.docData.name;
+
+    const userMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: userEmail,
+      subject: 'Appointment Completed',
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Appointment Completed</h2>
+          </div>
+          <p>Dear ${userName},</p>
+          <p>Your appointment with ${doctorName} (${doctorEmail}) has been successfully completed.</p>
+          <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
+          <p>Thank you for choosing our services.</p>
+          <p>Best regards,</p>
+          <p>The SAVAYAS HEALS Team</p>
+        </div>
+      `,
+    };
+
+    const doctorMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: doctorEmail,
+      subject: 'Appointment Completed',
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Appointment Completed</h2>
+          </div>
+          <p>Dear ${doctorName},</p>
+          <p>The appointment with ${userName} (${userEmail}) has been successfully completed.</p>
+          <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
+          <p>Best regards,</p>
+          <p>The SAVAYAS HEALS Team</p>
+        </div>
+      `,
+    };
+
+    const sendUserEmail = new Promise((resolve, reject) => {
+      transporter.sendMail(userMailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email to user:', error);
+          reject(error);
+        } else {
+          console.log('Email sent to user:', info.response);
+          resolve(info);
+        }
+      });
+    });
+
+    const sendDoctorEmail = new Promise((resolve, reject) => {
+      transporter.sendMail(doctorMailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email to doctor:', error);
+          reject(error);
+        } else {
+          console.log('Email sent to doctor:', info.response);
+          resolve(info);
+        }
+      });
+    });
+
+    try {
+      await Promise.all([sendUserEmail, sendDoctorEmail]);
+      res.json({ success: true, message: 'Appointment completed and notifications sent to both user and doctor' });
+    } catch (error) {
+      res.json({ success: false, message: 'Error sending emails' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+
 export {
     loginAdmin,
     appointmentsAdmin,
     appointmentCancel,
     addDoctor,
     allDoctors,
-    adminDashboard
+    adminDashboard,
+    acceptAppointment,
+    sendMeetingLink, 
+    completeAppointment
 }
