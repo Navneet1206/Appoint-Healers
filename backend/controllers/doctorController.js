@@ -33,7 +33,136 @@ const generateOTP = () => {
         from: process.env.NODEMAILER_EMAIL,
         to: email,
         subject: 'Password Reset OTP',
-        html: `<p>Your password reset OTP is: <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
+        html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Reset Verification Code - SavayasHeal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .header {
+            text-align: center;
+            padding: 25px 0;
+            background-color: #f5f8ff;
+            border-bottom: 1px solid #e1e5f0;
+        }
+        .logo {
+            max-width: 180px;
+            height: auto;
+        }
+        .content {
+            padding: 30px 25px;
+        }
+        .otp-container {
+            background-color: #f0f5ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+            border: 1px solid #d0d9f0;
+        }
+        .otp-code {
+            font-size: 32px;
+            letter-spacing: 3px;
+            color: #1a365d;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        .timer {
+            color: #e53e3e;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .instructions {
+            background-color: #fffbeb;
+            border-left: 4px solid #f6ad55;
+            padding: 12px 15px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666666;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-top: 1px solid #eeeeee;
+        }
+        .help-text {
+            font-size: 13px;
+            color: #718096;
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .button {
+            background-color: #4a7aff;
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="/api/placeholder/180/60" alt="SavayasHeal Logo" class="logo">
+        </div>
+        <div class="content">
+            <h2>Reset Your Password</h2>
+            <p>Hello,</p>
+            <p>We received a request to reset the password for your SavayasHeal account. To verify your identity and proceed with the password reset, please use the verification code below:</p>
+            
+            <div class="otp-container">
+                <div class="otp-code">${otp}</div>
+                <div class="timer">Expires in 10 minutes</div>
+            </div>
+            
+            <div class="instructions">
+                <strong>How to reset your password:</strong>
+                <ol style="margin-top: 5px; padding-left: 20px;">
+                    <li>Enter the verification code shown above on the password reset page</li>
+                    <li>Create your new password following our security guidelines</li>
+                    <li>Submit to complete the password reset process</li>
+                </ol>
+            </div>
+            
+            <p>If you didn't request a password reset, please ignore this email or <a href="https://savayasheal.com/contact">contact our support team</a> immediately as someone may be attempting to access your account.</p>
+            
+            <div class="help-text">
+                <p>For security reasons, this password reset link will expire in 10 minutes. If you need assistance, please visit our <a href="https://savayasheal.com/help">Help Center</a> or contact our support team.</p>
+            </div>
+            
+            <p>Thank you,<br>The SavayasHeal Team</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message from SavayasHeal.com. Please do not reply to this email.</p>
+            <p>&copy; 2025 SavayasHeal.com | <a href="https://savayasheal.com/privacy">Privacy Policy</a> | <a href="https://savayasheal.com/terms">Terms of Service</a></p>
+            <p>SavayasHeal Inc., 123 Wellness Avenue, Suite 200, Health City, HC 12345</p>
+        </div>
+    </div>
+</body>
+</html>`,
       });
   
       res.json({ success: true, message: 'OTP sent to your email' });
@@ -94,7 +223,99 @@ const generateOTP = () => {
           from: process.env.NODEMAILER_EMAIL,
           to: email,
           subject: 'Login OTP',
-          html: `<p>Your login OTP is: <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
+          html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Savayas Heal Verification Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .logo {
+            max-width: 200px;
+            height: auto;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .otp-container {
+            background-color: #f5f8ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            border: 1px solid #e1e5f0;
+        }
+        .otp-code {
+            font-size: 28px;
+            letter-spacing: 2px;
+            color: #2d3748;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666666;
+            padding: 20px 0;
+            border-top: 1px solid #eeeeee;
+        }
+        .button {
+            background-color: #4a7aff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="/api/placeholder/200/80" alt="Savayas Heal Logo" class="logo">
+        </div>
+        <div class="content">
+            <h2>Verify Your Identity</h2>
+            <p>Hello,</p>
+            <p>We received a request to access your Savayas Heal account. Please use the verification code below to complete the process:</p>
+            
+            <div class="otp-container">
+                <span class="otp-code">${otp}</span>
+            </div>
+            
+            <p>This code will expire in <strong>10 minutes</strong> for security reasons.</p>
+            
+            <p>If you didn't request this code, please ignore this email or contact our support team immediately if you believe your account security has been compromised.</p>
+            
+            <p>Thank you for choosing Savayas Heal for your healthcare needs.</p>
+            
+            <p>Warm regards,<br>The Savayas Heal Team</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message, please do not reply to this email.</p>
+            <p>&copy; 2025 Savayas Heal | <a href="#">Privacy Policy</a> | <a href="#">Unsubscribe</a></p>
+            <p>123 Health Street, Wellness City, WC 12345</p>
+        </div>
+    </div>
+</body>
+</html>`,
         });
   
         res.json({ success: true, message: 'OTP sent to your email', doctorId: doctor._id });

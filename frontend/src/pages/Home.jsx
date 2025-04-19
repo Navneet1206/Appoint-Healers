@@ -1,75 +1,14 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Heart, Users, Headphones, CalendarCheck, Compass, Footprints } from "lucide-react";
+import LandingPage from "../components/LandingPage";
 
 export default function Home() {
   return (
     <>
       {/* HERO SECTION - Updated with animated elements and better spacing */}
-      <section className="mt-20 bg-[#f8f9f5] px-6 py-16 md:px-20">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-10">
-        {/* Left Content */}
-        <div className="w-full md:w-1/2 space-y-6">
-          {/* Small Badge */}
-          <div className="text-sm text-rose-700 font-medium flex items-center gap-2">
-            <span role="img" aria-label="bee">🐝</span>
-            Hey, we’re glad you’re here
-          </div>
-
-          {/* Main Heading */}
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
-            Start Your Wellness Journey<br /> with SavayasHeal.
-          </h1>
-
-          {/* Subtext */}
-          <p className="text-gray-700 text-lg">
-            Discover affordable therapy, compassionate listeners, and a community where you can share, heal, and grow.
-          </p>
-
-          {/* Sub-section */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">What brings you here today?</h3>
-            <p className="text-gray-600">
-              Whatever you’re going through, we’re here to support you with compassion and understanding, no matter where you are on your journey.
-            </p>
-          </div>
-
-          {/* CTA Cards */}
-          <div className="flex flex-col md:flex-row gap-4 pt-4">
-            {/* Card 1 */}
-            <div className="bg-white rounded-xl shadow-md p-6 flex-1">
-              <h4 className="font-semibold text-gray-800 text-lg mb-2">Therapy Made Affordable</h4>
-              <p className="text-gray-600 mb-4 text-sm">
-                Explore our network of professional therapists who provide high-quality
-              </p>
-              <button className="bg-rose-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-rose-800">
-                Find Your Therapist →
-              </button>
-            </div>
-
-            {/* Card 2 */}
-            <div className="bg-white rounded-xl shadow-md p-6 flex-1">
-              <h4 className="font-semibold text-gray-800 text-lg mb-2">Your Compassionate Listening Partner</h4>
-              <p className="text-gray-600 mb-4 text-sm">
-                Find a wellness companion who is ready to listen and support you without judgment.
-              </p>
-              <button className="border border-rose-700 text-rose-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-rose-50">
-                Connect with a Listener →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Image */}
-        <div className="w-full md:w-1/2 flex justify-center">
-          <img
-            src="/hero-illustration.png" // Replace with actual image path
-            alt="Comforting illustration"
-            className="max-w-sm w-full"
-          />
-        </div>
-      </div>
-    </section>
+      <LandingPage />
+      
 
 
       {/* OUR SERVICES SECTION - Updated with cleaner cards and hover effects */}

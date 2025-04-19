@@ -37,7 +37,99 @@ const generateOTP = () => {
           from: process.env.NODEMAILER_EMAIL,
           to: process.env.ADMIN_EMAIL,
           subject: 'Login OTP',
-          html: `<p>Your login OTP is: <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
+          html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Savayas Heal Verification Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .logo {
+            max-width: 200px;
+            height: auto;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .otp-container {
+            background-color: #f5f8ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            border: 1px solid #e1e5f0;
+        }
+        .otp-code {
+            font-size: 28px;
+            letter-spacing: 2px;
+            color: #2d3748;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666666;
+            padding: 20px 0;
+            border-top: 1px solid #eeeeee;
+        }
+        .button {
+            background-color: #4a7aff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="/api/placeholder/200/80" alt="Savayas Heal Logo" class="logo">
+        </div>
+        <div class="content">
+            <h2>Verify Your Identity</h2>
+            <p>Hello,</p>
+            <p>We received a request to access your Savayas Heal account. Please use the verification code below to complete the process:</p>
+            
+            <div class="otp-container">
+                <span class="otp-code">${otp}</span>
+            </div>
+            
+            <p>This code will expire in <strong>10 minutes</strong> for security reasons.</p>
+            
+            <p>If you didn't request this code, please ignore this email or contact our support team immediately if you believe your account security has been compromised.</p>
+            
+            <p>Thank you for choosing Savayas Heal for your healthcare needs.</p>
+            
+            <p>Warm regards,<br>The Savayas Heal Team</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message, please do not reply to this email.</p>
+            <p>&copy; 2025 Savayas Heal | <a href="#">Privacy Policy</a> | <a href="#">Unsubscribe</a></p>
+            <p>123 Health Street, Wellness City, WC 12345</p>
+        </div>
+    </div>
+</body>
+</html>`,
         });
   
         res.json({ success: true, message: 'OTP sent to your email' });

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "axios": "^1.7.2",
     "caniuse-lite": "^1.0.30001702",
     "class-variance-authority": "^0.7.1",
@@ -20,7 +21,10 @@
     "react-dom": "^18.3.1",
     "react-image-crop": "^11.0.7",
     "react-router-dom": "^6.24.1",
-    "react-toastify": "^10.0.5"
+    "react-slick": "^0.30.3",
+    "react-spinners": "^0.16.1",
+    "react-toastify": "^10.0.5",
+    "slick-carousel": "^1.8.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
