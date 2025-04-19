@@ -1,6 +1,9 @@
 import express from "express";
 import {
   loginDoctor,
+  forgotPasswordDoctor,
+  resetPasswordDoctor,
+  verifyLoginOtpDoctor,
   appointmentsDoctor,
   appointmentCancel,
   doctorList,
@@ -20,6 +23,9 @@ import authDoctor from "../middleware/authDoctor.js";
 const doctorRouter = express.Router();
 
 doctorRouter.post("/login", loginDoctor);
+doctorRouter.post("/forgot-password", forgotPasswordDoctor);
+doctorRouter.post("/reset-password", resetPasswordDoctor);
+doctorRouter.post("/verify-login-otp", verifyLoginOtpDoctor);
 doctorRouter.post("/cancel-appointment", authDoctor, appointmentCancel);
 doctorRouter.get("/appointments", authDoctor, appointmentsDoctor);
 doctorRouter.get("/list", doctorList);

@@ -15,25 +15,60 @@ const transporter = nodemailer.createTransport({
     pass: process.env.NODEMAILER_PASSWORD
   }
 });
-// API for admin login
-const loginAdmin = async (req, res) => {
+const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+  
+  const otpStore = new Map();
+  
+  const loginAdmin = async (req, res) => {
     try {
-
-        const { email, password } = req.body
-
-        if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
-            const token = jwt.sign(email + password, process.env.JWT_SECRET)
-            res.json({ success: true, token })
-        } else {
-            res.json({ success: false, message: "Invalid credentials" })
-        }
-
+      const { email, password } = req.body;
+  
+      if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+        const otp = generateOTP();
+        otpStore.set('admin', { otp, type: 'login' });
+  
+        setTimeout(() => {
+          otpStore.delete('admin');
+        }, 10 * 60 * 1000);
+  
+        await transporter.sendMail({
+          from: process.env.NODEMAILER_EMAIL,
+          to: process.env.ADMIN_EMAIL,
+          subject: 'Login OTP',
+          html: `<p>Your login OTP is: <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
+        });
+  
+        res.json({ success: true, message: 'OTP sent to your email' });
+      } else {
+        res.json({ success: false, message: "Invalid credentials" });
+      }
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+      console.log(error);
+      res.json({ success: false, message: error.message });
     }
-
-}
+  };
+  
+  const verifyLoginOtpAdmin = async (req, res) => {
+    try {
+      const { otp } = req.body;
+      const storedData = otpStore.get('admin');
+      if (!storedData || storedData.otp !== otp || storedData.type !== 'login') {
+        return res.json({ success: false, message: 'Invalid or expired OTP' });
+      }
+  
+      const token = jwt.sign(process.env.ADMIN_EMAIL + process.env.ADMIN_PASSWORD, process.env.JWT_SECRET);
+  
+      otpStore.delete('admin');
+  
+      res.json({ success: true, token });
+    } catch (error) {
+      console.log(error);
+      res.json({ success: false, message: error.message });
+    }
+  };
+  
 
 
 // API to get all appointments list
@@ -429,5 +464,6 @@ export {
     adminDashboard,
     acceptAppointment,
     sendMeetingLink, 
-    completeAppointment
+    completeAppointment,
+  verifyLoginOtpAdmin,
 }
