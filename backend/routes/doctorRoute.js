@@ -12,6 +12,9 @@ import {
   doctorDashboard,
   doctorProfile,
   updateDoctorProfile,
+  sendMeetingLink,
+  acceptAppointment,
+
 } from "../controllers/doctorController.js";
 import authDoctor from "../middleware/authDoctor.js";
 const doctorRouter = express.Router();
@@ -28,4 +31,7 @@ doctorRouter.post("/update-profile", authDoctor, updateDoctorProfile);
 doctorRouter.post("/create-slot", authDoctor, createSlot);
 doctorRouter.post("/update-slot", authDoctor, updateSlot);
 doctorRouter.post("/slots", authDoctor, getSlots);
+doctorRouter.post("/send-meeting-link", authDoctor, sendMeetingLink);
+doctorRouter.post("/accept-appointment", authDoctor, acceptAppointment);
+
 export default doctorRouter;

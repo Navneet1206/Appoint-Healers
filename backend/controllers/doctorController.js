@@ -2,6 +2,10 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // API for doctor Login 
 const loginDoctor = async (req, res) => {
@@ -250,6 +254,113 @@ const getSlots = async (req, res) => {
 };
 
 
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.NODEMAILER_EMAIL,
+        pass: process.env.NODEMAILER_PASSWORD,
+    },
+});
+
+const sendMeetingLink = async (req, res) => {
+    try {
+        const { appointmentId, meetingLink } = req.body;
+        const appointment = await appointmentModel.findById(appointmentId);
+        if (!appointment) {
+            return res.json({ success: false, message: 'Appointment not found' });
+        }
+
+        const user = await doctorModel.findById(appointment.userId).select('-password');
+        const doctor = await doctorModel.findById(appointment.docId);
+
+        // Email content for user
+        const userMailOptions = {
+            from: process.env.NODEMAILER_EMAIL,
+            to: user.email,
+            subject: 'Meeting Link for Your Appointment',
+            html: `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #4CAF50;">Meeting Link</h2>
+                    </div>
+                    <p>Dear ${user.name},</p>
+                    <p>Your meeting link for the appointment with ${doctor.name} (${doctor.email}) is: ${meetingLink}</p>
+                    <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
+                    <p>Thank you for choosing our services.</p>
+                    <p>Best regards,</p>
+                    <p>The SAVAYAS HEALS Team</p>
+                </div>
+            `,
+        };
+
+        // Send email to user
+        transporter.sendMail(userMailOptions, (error, info) => {
+            if (error) {
+                console.error('Error sending email to user:', error);
+                return res.json({ success: false, message: 'Error sending email' });
+            }
+            console.log('Email sent to user:', info.response);
+            res.json({ success: true, message: 'Meeting link sent successfully' });
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+const acceptAppointment = async (req, res) => {
+    try {
+        const { appointmentId } = req.body;
+        const appointment = await appointmentModel.findById(appointmentId);
+        if (!appointment) {
+            return res.json({ success: false, message: 'Appointment not found' });
+        }
+
+        const user = await doctorModel.findById(appointment.userId).select('-password');
+        const doctor = await doctorModel.findById(appointment.docId);
+
+        // Update appointment status
+        appointment.isCompleted = true;
+        await appointment.save();
+
+        // Email content for user
+        const userMailOptions = {
+            from: process.env.NODEMAILER_EMAIL,
+            to: userData.email,
+            subject: 'Appointment Accepted',
+            html: `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #4CAF50;">Appointment Accepted</h2>
+                    </div>
+                    <p>Dear ${user.name},</p>
+                    <p>Your appointment with ${doctor.name} (${doctor.email}) has been accepted.</p>
+                    <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
+                    <p>Thank you for choosing our services.</p>
+                    <p>Best regards,</p>
+                    <p>The SAVAYAS HEALS Team</p>
+                </div>
+            `,
+        };
+
+        // Send email to user
+        transporter.sendMail(userMailOptions, (error, info) => {
+            if (error) {
+                console.error('Error sending email to user:', error);
+                return res.json({ success: false, message: 'Error sending email' });
+            }
+            console.log('Email sent to user:', info.response);
+            res.json({ success: true, message: 'Appointment accepted successfully' });
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+
 export {
     loginDoctor,
     appointmentsDoctor,
@@ -262,5 +373,7 @@ export {
     updateDoctorProfile,
     createSlot,
     updateSlot,
-    getSlots
+    getSlots,
+    sendMeetingLink,
+    acceptAppointment
 }
