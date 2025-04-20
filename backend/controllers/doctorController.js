@@ -5,6 +5,7 @@ import appointmentModel from "../models/appointmentModel.js";
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import userModel from "../models/userModel.js"; 
+import professionalRequestModel from "../models/professionalRequestModel.js";
 
 dotenv.config();
 
@@ -701,6 +702,108 @@ const getDashData = async (req, res) => {
     }
   };
 
+
+  const submitProfessionalRequest = async (req, res) => {
+    try {
+      const { name, email, speciality, degree, experience, about, fees, address, languages } = req.body;
+      const imageFile = req.file;
+  
+      // Validation
+      if (!name || !email || !speciality || !degree || !experience || !about || !fees || !address || !languages || !imageFile) {
+        return res.json({ success: false, message: "Missing Details" });
+      }
+  
+      if (!validator.isEmail(email)) {
+        return res.json({ success: false, message: "Invalid email" });
+      }
+  
+      // Upload image to Cloudinary
+      const imageUpload = await cloudinary.uploader.upload(imageFile.path, { resource_type: "image" });
+      const imageUrl = imageUpload.secure_url;
+  
+      // Parse address
+      const parsedAddress = JSON.parse(address);
+  
+      // Store request
+      const requestData = {
+        name,
+        email,
+        speciality,
+        degree,
+        experience,
+        about,
+        fees: Number(fees),
+        address: parsedAddress,
+        languages: languages.split(',').map(lang => lang.trim()),
+        image: imageUrl,
+        status: "Pending",
+      };
+  
+      const newRequest = new professionalRequestModel(requestData);
+      await newRequest.save();
+  
+      // Send email to professional
+      await transporter.sendMail({
+        from: process.env.NODEMAILER_EMAIL,
+        to: email,
+        subject: 'Professional Registration Request - Savayas Heal',
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+            <h2 style="color: #4CAF50;">Savayas Heal</h2>
+            <p>Dear ${name},</p>
+            <p>Thank you for submitting your request to join Savayas Heal as a professional. Your request is under review, and we will notify you once a decision is made.</p>
+            <p><strong>Details Submitted:</strong></p>
+            <ul>
+              <li><strong>Name:</strong> ${name}</li>
+              <li><strong>Email:</strong> ${email}</li>
+              <li><strong>Speciality:</strong> ${speciality}</li>
+              <li><strong>Degree:</strong> ${degree}</li>
+              <li><strong>Experience:</strong> ${experience}</li>
+              <li><strong>Fees:</strong> ₹${fees}</li>
+            </ul>
+            <p>If you have any questions, please contact our support team.</p>
+            <p>Best regards,</p>
+            <p><strong>Savayas Heal Team</strong></p>
+          </div>
+        `,
+      });
+  
+      // Send email to admin
+      await transporter.sendMail({
+        from: process.env.NODEMAILER_EMAIL,
+        to: process.env.ADMIN_EMAIL, // Add ADMIN_EMAIL to .env
+        subject: 'New Professional Registration Request - Savayas Heal',
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+            <h2 style="color: #4CAF50;">New Professional Request</h2>
+            <p>A new professional has submitted a registration request. Please review the details below:</p>
+            <p><strong>Details:</strong></p>
+            <ul>
+              <li><strong>Name:</strong> ${name}</li>
+              <li><strong>Email:</strong> ${email}</li>
+              <li><strong>Speciality:</strong> ${speciality}</li>
+              <li><strong>Degree:</strong> ${degree}</li>
+              <li><strong>Experience:</strong> ${experience}</li>
+              <li><strong>About:</strong> ${about}</li>
+              <li><strong>Fees:</strong> ₹${fees}</li>
+              <li><strong>Address:</strong> ${parsedAddress.line1}, ${parsedAddress.line2}</li>
+              <li><strong>Languages:</strong> ${languages}</li>
+              <li><strong>Image:</strong> <a href="${imageUrl}">View Image</a></li>
+            </ul>
+            <p>Please take appropriate action to approve or reject this request.</p>
+            <p>Best regards,</p>
+            <p><strong>Savayas Heal System</strong></p>
+          </div>
+        `,
+      });
+  
+      res.json({ success: true, message: 'Request submitted successfully. You will be notified via email.' });
+    } catch (error) {
+      console.log(error);
+      res.json({ success: false, message: error.message });
+    }
+  };
+
 export {
     loginDoctor,
   forgotPasswordDoctor,
@@ -719,5 +822,6 @@ export {
     getSlots,
     sendMeetingLink,
     acceptAppointment,
-    getDashData
+    getDashData,
+    submitProfessionalRequest,
 }

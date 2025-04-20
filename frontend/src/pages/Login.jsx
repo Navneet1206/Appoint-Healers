@@ -8,7 +8,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 
 const Login = () => {
-  // Mode: 'Login' or 'SignUp'
   const [mode, setMode] = useState('Login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -16,9 +15,10 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [code, setCode] = useState('');
+  const [dob, setDob] = useState('');      // Added DOB state
+  const [gender, setGender] = useState(''); // Added Gender state
   const [userId, setUserId] = useState(null);
 
-  // UI state
   const [verifying, setVerifying] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [terms, setTerms] = useState(false);
@@ -36,6 +36,7 @@ const Login = () => {
   const reset = () => {
     setName(''); setEmail(''); setPhone('');
     setPassword(''); setConfirmPwd(''); setCode('');
+    setDob(''); setGender('');             // Reset DOB and Gender
     setUserId(null); setVerifying(false);
     setTerms(false); setShowPwd(false); setShowConfirm(false);
   };
@@ -50,9 +51,8 @@ const Login = () => {
     if (loading) return;
     setLoading(true);
     try {
-      // Sign‑Up: register → verify
       if (mode === 'SignUp' && !verifying) {
-        if (!name || !email || !phone || !password) {
+        if (!name || !email || !phone || !password || !dob || !gender) { // Added DOB and Gender to validation
           toast.error('All fields are required');
           setLoading(false);
           return;
@@ -69,7 +69,7 @@ const Login = () => {
         }
         const { data } = await axios.post(
           `${backendUrl}/api/user/register`,
-          { name, email, phone, password }
+          { name, email, phone, password, dob, gender } // Added DOB and Gender to request
         );
         if (data.success) {
           setUserId(data.userId);
@@ -78,8 +78,6 @@ const Login = () => {
         } else {
           toast.error(data.message || 'Registration failed');
         }
-
-      // Sign‑Up: verify code
       } else if (mode === 'SignUp' && verifying) {
         if (!code) {
           toast.error('Enter the verification code');
@@ -96,8 +94,6 @@ const Login = () => {
         } else {
           toast.error(data.message || 'Verification failed');
         }
-
-      // Login
       } else {
         if (!email || !password) {
           toast.error('Email and password are required');
@@ -142,7 +138,6 @@ const Login = () => {
     }
   };
 
-  // Motion variants
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
@@ -162,7 +157,6 @@ const Login = () => {
             Savayas Heal
           </h2>
 
-          {/* Tabs */}
           <div className="flex justify-center gap-4 mb-6">
             {['Login', 'SignUp'].map((tab) => (
               <button
@@ -180,7 +174,6 @@ const Login = () => {
           </div>
 
           <form onSubmit={forgot ? onForgot : onSubmit}>
-            {/* Forgot Password */}
             {forgot ? (
               <>
                 <label className="block text-gray-700 mb-2">Email Address</label>
@@ -195,7 +188,6 @@ const Login = () => {
               </>
             ) : (
               <>
-                {/* Sign-Up */}
                 {mode === 'SignUp' && !verifying && (
                   <>
                     <label className="block text-gray-700 mb-2">Full Name</label>
@@ -227,6 +219,28 @@ const Login = () => {
                       required
                       className="w-full border-b-2 border-gray-300 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
                     />
+
+                    <label className="block text-gray-700 mb-2">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={dob}
+                      onChange={e => setDob(e.target.value)}
+                      required
+                      className="w-full border-b-2 border-gray-300 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                    />
+
+                    <label className="block text-gray-700 mb-2">Gender</label>
+                    <select
+                      value={gender}
+                      onChange={e => setGender(e.target.value)}
+                      required
+                      className="w-full border-b-2 border-gray-300 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-rose-200 transition"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
 
                     <label className="block text-gray-700 mb-2">Password</label>
                     <div className="relative mb-4">
@@ -284,7 +298,6 @@ const Login = () => {
                   </>
                 )}
 
-                {/* Verification */}
                 {mode === 'SignUp' && verifying && (
                   <>
                     <label className="block text-gray-700 mb-2">Verification Code</label>
@@ -299,7 +312,6 @@ const Login = () => {
                   </>
                 )}
 
-                {/* Login */}
                 {mode === 'Login' && (
                   <>
                     <label className="block text-gray-700 mb-2">Email Address</label>
@@ -335,7 +347,6 @@ const Login = () => {
               </>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -358,7 +369,6 @@ const Login = () => {
                 : 'Login'}
             </button>
 
-            {/* Footer Links */}
             <div className="text-center text-gray-700 text-sm">
               {forgot ? (
                 <button

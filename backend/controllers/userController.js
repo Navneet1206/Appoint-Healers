@@ -39,14 +39,13 @@ const otpVerified = new Map();
 // API to register user with phone and email verification
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, dob, gender } = req.body;
 
     // Checking for all required data to register user
-    if (!name || !email || !password || !phone) {
+    if (!name || !email || !password || !phone || !dob || !gender) {
       return res.json({
         success: false,
-        message:
-          "Missing Details: Name, Email, Password, and Phone are required",
+        message: "Missing Details: Name, Email, Password, Phone, DOB, and Gender are required",
       });
     }
 
@@ -93,6 +92,8 @@ const registerUser = async (req, res) => {
       email,
       password: hashedPassword,
       phone: formattedPhone,
+      dob,
+      gender,
       isMobileVerified: true,
       isEmailVerified: false, // Default false until verified
     };
