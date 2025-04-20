@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState, useRef } from 'react';    // ← added useRef here
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { assets } from '../assets/assets';
@@ -31,6 +31,28 @@ const formatDate = (dateStr) => {
   return `${d} ${months[m - 1]} ${y}`;
 };
 
+// Helper to format review date
+const formatReviewDate = (date) => {
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+// Helper to render star rating
+const renderStars = (rating) => {
+  const numRating = parseFloat(rating) || 0;
+  return [...Array(5)].map((_, index) => (
+    <span
+      key={index}
+      className={`text-${index < Math.round(numRating) ? 'yellow' : 'gray'}-400 text-sm`}
+    >
+      ★
+    </span>
+  ));
+};
+
 const Appointment = () => {
   const { docId } = useParams();
   const {
@@ -43,6 +65,8 @@ const Appointment = () => {
     getDoctosData
   } = useContext(AppContext);
 
+  const bookSectionRef = useRef(null);  // ← new ref for scrolling
+
   const [docInfo, setDocInfo] = useState(null);
   const [groupedSlots, setGroupedSlots] = useState([]);
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
@@ -50,12 +74,40 @@ const Appointment = () => {
   const [selectedSessionType, setSelectedSessionType] = useState("video");
   const [activeTab, setActiveTab] = useState("about");
   const [isLoading, setIsLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState('N/A');
+  const [reviewCount, setReviewCount] = useState(0);
 
   const navigate = useNavigate();
 
   const fetchDocInfo = () => {
     const doc = doctors.find((doc) => doc._id === docId);
     setDocInfo(doc);
+  };
+
+  // Fetch reviews for the specific doctor
+  const fetchReviews = async () => {
+    try {
+      const response = await axios.get(`${backendUrl}/api/user/reviews/${docId}`, {
+        headers: { token },
+      });
+      if (response.data.success) {
+        const reviews = response.data.reviews;
+        const avgRating =
+          reviews.length > 0
+            ? (
+                reviews.reduce((sum, review) => sum + review.rating, 0) /
+                reviews.length
+              ).toFixed(1)
+            : 'N/A';
+        setReviews(reviews);
+        setAverageRating(avgRating);
+        setReviewCount(reviews.length);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      toast.error('Failed to load reviews');
+    }
   };
 
   // Group active slots by slotDate
@@ -145,6 +197,20 @@ const Appointment = () => {
     }
   };
 
+  // ← new handler for "Book Now"
+  function handlegotobookbutton() {
+    if (!token) {
+      toast.warning('Please login to book an appointment');
+      navigate('/login');
+      return;
+    }
+    if (!userData) {
+      toast.error('Unable to fetch user data. Please try logging in again.');
+      return;
+    }
+    bookSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }
+
   useEffect(() => {
     if (doctors.length > 0) {
       fetchDocInfo();
@@ -154,6 +220,7 @@ const Appointment = () => {
   useEffect(() => {
     if (docInfo) {
       processSlots();
+      fetchReviews();
     }
   }, [docInfo]);
 
@@ -216,11 +283,9 @@ const Appointment = () => {
               {/* Rating and Experience */}
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-1">
-                  <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                  <span className="font-semibold">4.9</span>
-                  <span className="text-gray-500">(124 reviews)</span>
+                  {renderStars(averageRating)}
+                  <span className="font-semibold ml-1">{averageRating}</span>
+                  <span className="text-gray-500">({reviewCount} reviews)</span>
                 </div>
                 <span className="text-gray-500">•</span>
                 <span className="text-gray-600">{docInfo.experience} years experience</span>
@@ -230,6 +295,13 @@ const Appointment = () => {
               <div className="text-xl font-bold text-pink-500 mb-6">
                 {currencySymbol}{docInfo.fees}/session
               </div>
+              {/* Book Now button using our new handler */}
+              <button
+                className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 transition-all"
+                onClick={handlegotobookbutton}
+              >
+                Book Now
+              </button>
             </div>
           </div>
 
@@ -294,12 +366,12 @@ const Appointment = () => {
                         docInfo.languages.map((lang) => (
                           <li key={lang}>• {lang}</li>
                         ))
-                      ) : (
-                        <>
-                          <li>• English</li>
-                          <li>• Hindi</li>
-                          <li>• Marathi</li>
-                        </>
+                      ) : ( 
+                        <> 
+                          <li>• English</li> 
+                          <li>• Hindi</li> 
+                          <li>• Marathi</li> 
+                        </> 
                       )}
                     </ul>
                   </div>
@@ -308,7 +380,30 @@ const Appointment = () => {
 
               {activeTab === "reviews" && (
                 <div className="text-gray-600">
-                  <p>Reviews coming soon...</p>
+                  {reviews.length > 0 ? (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          {renderStars(averageRating)}
+                          <span className="ml-2 font-semibold">{averageRating}</span>
+                          <span className="text-gray-500">({reviewCount} reviews)</span>
+                        </div>
+                      </div>
+                      {reviews.map((review, index) => (
+                        <div key={index} className="border-t border-gray-200 pt-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            {renderStars(review.rating)}
+                            <span className="text-sm text-gray-500">
+                              by {review.userName} on {formatReviewDate(review.createdAt)}
+                            </span>
+                          </div>
+                          <p className="text-gray-600">{review.comment}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No reviews available yet.</p>
+                  )}
                 </div>
               )}
 
@@ -321,7 +416,7 @@ const Appointment = () => {
           </div>
 
           {/* Booking Section */}
-          <div className="border-t border-gray-100 p-8">
+          <div ref={bookSectionRef} className="border-t border-gray-100 p-8">  {/* ← attached ref here */}
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Book a Session</h2>
 
             {/* Date Selection */}
@@ -356,7 +451,7 @@ const Appointment = () => {
                     }`}
                 >
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                   </svg>
                   <span className="font-medium">Video</span>
                 </button>
@@ -368,7 +463,7 @@ const Appointment = () => {
                     }`}
                 >
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                   </svg>
                   <span className="font-medium">Phone</span>
                 </button>
@@ -380,8 +475,8 @@ const Appointment = () => {
                     }`}
                 >
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                   </svg>
                   <span className="font-medium">In-Person</span>
                 </button>
@@ -389,7 +484,7 @@ const Appointment = () => {
             </div>
 
             {/* Time Slots */}
-            {groupedSlots[selectedGroupIndex] && (
+            {groupedSlots[selectedGroupIndex] && ( 
               <div className="mb-8">
                 <h3 className="text-lg font-semibold text-gray-700 mb-4">Available Time Slots</h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -410,8 +505,12 @@ const Appointment = () => {
                       </button>
                     ))}
                 </div>
-                {groupedSlots[selectedGroupIndex][1].filter(slot => !selectedSessionType || slot.sessionType === selectedSessionType).length === 0 && (
-                  <p className="text-gray-500 text-center mt-4">No slots available for {selectedSessionType} sessions on this date.</p>
+                {groupedSlots[selectedGroupIndex][1]
+                  .filter(slot => !selectedSessionType || slot.sessionType === selectedSessionType)
+                  .length === 0 && (
+                  <p className="text-gray-500 text-center mt-4">
+                    No slots available for {selectedSessionType} sessions on this date.
+                  </p>
                 )}
               </div>
             )}
