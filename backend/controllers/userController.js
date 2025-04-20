@@ -10,7 +10,7 @@ import razorpay from "razorpay";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import testResultModel from "../models/testResultModel.js";
-
+import reviewModel from "../models/reviewModel.js";
 dotenv.config();
 
 // Gateway Initialize
@@ -668,7 +668,23 @@ const listAppointment = async (req, res) => {
     const { userId } = req.body;
     const appointments = await appointmentModel.find({ userId });
 
-    res.json({ success: true, appointments });
+    // Fetch reviews for these appointments
+    const appointmentIds = appointments.map((app) => app._id);
+    const reviews = await reviewModel.find({ appointmentId: { $in: appointmentIds } });
+
+    // Map reviews to appointments
+    const appointmentsWithReviews = appointments.map((app) => {
+      const review = reviews.find(
+        (rev) => rev.appointmentId.toString() === app._id.toString()
+      );
+      return {
+        ...app.toObject(),
+        hasReview: !!review,
+        review: review ? review : null,
+      };
+    });
+
+    res.json({ success: true, appointments: appointmentsWithReviews });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -915,6 +931,62 @@ const submitTest = async (req, res) => {
     }
   };
 
+  const addReview = async (req, res) => {
+    try {
+      const { userId, doctorId, appointmentId, rating, comment } = req.body;
+  
+      // Validate appointment
+      const appointment = await appointmentModel.findOne({ _id: appointmentId, userId });
+      if (!appointment) {
+        return res.json({ success: false, message: "Invalid appointment" });
+      }
+  
+      // Check if appointment is completed
+      if (!appointment.isCompleted) {
+        return res.json({ success: false, message: "Appointment not completed yet" });
+      }
+  
+      // Check if review already exists
+      const existingReview = await reviewModel.findOne({ appointmentId });
+      if (existingReview) {
+        return res.json({ success: false, message: "Review already submitted for this appointment" });
+      }
+  
+      // Validate rating
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return res.json({ success: false, message: "Rating must be an integer between 1 and 5" });
+      }
+  
+      const newReview = new reviewModel({
+        userId,
+        doctorId,
+        appointmentId,
+        rating,
+        comment,
+      });
+      await newReview.save();
+  
+      res.json({ success: true, message: "Review submitted successfully" });
+    } catch (error) {
+      console.log(error);
+      res.json({ success: false, message: error.message });
+    }
+  };
+
+  const getDoctorReviews = async (req, res) => {
+    try {
+      const { doctorId } = req.params;
+      const reviews = await reviewModel
+        .find({ doctorId })
+        .populate("userId", "name image")
+        .sort({ timestamp: -1 }); // Latest reviews first
+      res.json({ success: true, reviews });
+    } catch (error) {
+      console.log(error);
+      res.json({ success: false, message: error.message });
+    }
+  };
+
 export {
   loginUser,
   registerUser,
@@ -930,4 +1002,6 @@ export {
   paymentRazorpay,
   verifyRazorpay,
   submitTest,
+  addReview,
+  getDoctorReviews,
 };

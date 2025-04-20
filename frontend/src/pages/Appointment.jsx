@@ -180,7 +180,7 @@ const Appointment = () => {
               <p className="text-lg text-gray-600 mb-4">{docInfo.speciality}</p>
               
               {/* Tags */}
-              <div className="flex flex-wrap gap-2 mb-6">
+              <div className="flex flex-wrFap gap-2 mb-6">
                 {docInfo.specialityList && docInfo.specialityList.length > 0 ? (
                   docInfo.specialityList.map((specialty) => (
                     <span key={specialty} className="px-3 py-1 bg-pink-50 text-pink-500 rounded-full text-sm">

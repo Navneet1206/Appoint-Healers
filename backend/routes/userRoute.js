@@ -14,6 +14,8 @@ import {
   verifyUser,
   forgotPassword,
   resetPassword,
+  addReview, 
+  getDoctorReviews,
 } from "../controllers/userController.js";
 import upload from "../middleware/multer.js";
 import authUser from "../middleware/authUser.js";
@@ -39,5 +41,7 @@ userRouter.post("/cancel-appointment", authUser, cancelAppointment);
 userRouter.post("/payment-razorpay", authUser, paymentRazorpay);
 userRouter.post("/verifyRazorpay", authUser, verifyRazorpay);
 userRouter.post("/submit-test", submitTest);
+userRouter.post("/add-review", authUser, addReview);
+userRouter.get("/reviews/:doctorId", getDoctorReviews);
 
 export default userRouter;
