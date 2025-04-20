@@ -671,6 +671,35 @@ const acceptAppointment = async (req, res) => {
     }
 };
 
+const getDashData = async (req, res) => {
+    try {
+      const doctorId = req.userId; // From auth middleware
+      const appointments = await appointmentModel.find({ docId: doctorId });
+      const earnings = appointments
+        .filter((app) => app.payment && !app.cancelled)
+        .reduce((sum, app) => sum + app.fees, 0);
+      const patients = [...new Set(appointments.map((app) => app.userId.toString()))].length;
+      const latestAppointments = appointments
+        .sort((a, b) => new Date(b.slotDate) - new Date(a.slotDate))
+        .slice(0, 5)
+        .map((app) => ({
+          ...app.toObject(),
+          userData: { name: 'User Name', image: 'user_image_url' }, // Populate user data
+        }));
+  
+      res.json({
+        success: true,
+        earnings,
+        appointments: appointments.length,
+        patients,
+        latestAppointments,
+        doctorId,
+      });
+    } catch (error) {
+      console.log(error);
+      res.json({ success: false, message: error.message });
+    }
+  };
 
 export {
     loginDoctor,
@@ -689,5 +718,6 @@ export {
     updateSlot,
     getSlots,
     sendMeetingLink,
-    acceptAppointment
+    acceptAppointment,
+    getDashData
 }

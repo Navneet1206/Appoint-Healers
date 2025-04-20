@@ -55,7 +55,9 @@ export const assets = {
     dropdown_icon,
     upload_icon,
     stripe_logo,
-    razorpay_logo
+    razorpay_logo,
+    review_icon: '/path/to/review_icon.png',
+  default_user: '/path/to/default_user.png',
 }
 
 export const specialityData = [

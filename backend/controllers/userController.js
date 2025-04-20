@@ -979,7 +979,7 @@ const submitTest = async (req, res) => {
       const reviews = await reviewModel
         .find({ doctorId })
         .populate("userId", "name image")
-        .sort({ timestamp: -1 }); // Latest reviews first
+        .sort({ timestamp: -1 }); 
       res.json({ success: true, reviews });
     } catch (error) {
       console.log(error);
