@@ -7,6 +7,7 @@ import {
   appointmentsDoctor,
   appointmentCancel,
   doctorList,
+  submitProfessionalRequest,
   changeAvailablity,
   createSlot,
   updateSlot,
@@ -20,6 +21,7 @@ import {
 
 } from "../controllers/doctorController.js";
 import authDoctor from "../middleware/authDoctor.js";
+import upload from "../middleware/multer.js"; // Added import
 const doctorRouter = express.Router();
 
 doctorRouter.post("/login", loginDoctor);
@@ -39,5 +41,5 @@ doctorRouter.post("/update-slot", authDoctor, updateSlot);
 doctorRouter.post("/slots", authDoctor, getSlots);
 doctorRouter.post("/send-meeting-link", authDoctor, sendMeetingLink);
 doctorRouter.post("/accept-appointment", authDoctor, acceptAppointment);
-
+doctorRouter.post("/request-professional", upload.single('image'), submitProfessionalRequest); 
 export default doctorRouter;

@@ -5,9 +5,26 @@ import appointmentModel from "../models/appointmentModel.js";
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import userModel from "../models/userModel.js"; 
+import { v2 as cloudinary } from 'cloudinary';
+import validator from 'validator';
 import professionalRequestModel from "../models/professionalRequestModel.js";
 
 dotenv.config();
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+
+  
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.NODEMAILER_EMAIL,
+        pass: process.env.NODEMAILER_PASSWORD,
+    },
+});
+ 
 
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -568,13 +585,7 @@ const getSlots = async (req, res) => {
 };
 
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.NODEMAILER_EMAIL,
-        pass: process.env.NODEMAILER_PASSWORD,
-    },
-});
+
 
 const sendMeetingLink = async (req, res) => {
     try {
@@ -718,11 +729,19 @@ const getDashData = async (req, res) => {
       }
   
       // Upload image to Cloudinary
-      const imageUpload = await cloudinary.uploader.upload(imageFile.path, { resource_type: "image" });
+      const imageUpload = await cloudinary.uploader.upload(imageFile.path, {
+        resource_type: "image",
+        folder: "savayas_heal/professionals", // Optional: organize images in a folder
+      });
       const imageUrl = imageUpload.secure_url;
   
       // Parse address
-      const parsedAddress = JSON.parse(address);
+      let parsedAddress;
+      try {
+        parsedAddress = JSON.parse(address);
+      } catch (error) {
+        return res.json({ success: false, message: "Invalid address format" });
+      }
   
       // Store request
       const requestData = {
@@ -771,7 +790,7 @@ const getDashData = async (req, res) => {
       // Send email to admin
       await transporter.sendMail({
         from: process.env.NODEMAILER_EMAIL,
-        to: process.env.ADMIN_EMAIL, // Add ADMIN_EMAIL to .env
+        to: process.env.ADMIN_EMAIL,
         subject: 'New Professional Registration Request - Savayas Heal',
         html: `
           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">

@@ -17,7 +17,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Verify from './pages/Verify';
 import ResetPassword from './pages/ResetPassword';
 import ErrorBoundary from './components/ErrorBoundary'; // Import the ErrorBoundary
-
+import JoinProfessional from './pages/JoinProfessional';
 const App = () => {
   return (
     <>
@@ -38,6 +38,8 @@ const App = () => {
           <Route path='/my-profile' element={<MyProfile />} />
           <Route path='/verify' element={<Verify />} />
           <Route path='/reset-password/:userId' element={<ResetPassword />} />
+          
+          <Route path='/join-professional' element={<JoinProfessional />} />
         </Routes>
       </ErrorBoundary>
     </div>
