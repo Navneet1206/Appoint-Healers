@@ -18,7 +18,7 @@ const Navbar = () => {
   return (
     <>
       {/* top bar */}
-      <nav className="fixed top-0 left-0 w-full z-30 bg-white/30 backdrop-blur-md shadow-md">
+      <nav className="fixed top-0 left-0 w-full z-30 bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
           <NavLink
             to="/"
@@ -41,9 +41,9 @@ const Navbar = () => {
                   }`
                 }
               >
-                About Us <ChevronDownIcon size={12} className="ml-1" />
+                ABOUT US <ChevronDownIcon size={12} className="ml-1" />
               </NavLink>
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200">
                 <NavLink
                   to="/about"
                   end
@@ -52,7 +52,7 @@ const Navbar = () => {
                   About SAVAYAS
                 </NavLink>
                 <NavLink
-                  to="/about/team"
+                  to="/about"
                   className="block px-4 py-2 text-sm hover:bg-rose-50"
                 >
                   Team
@@ -78,7 +78,7 @@ const Navbar = () => {
               >
                 Services <ChevronDownIcon size={12} className="ml-1" />
               </NavLink>
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200">
                 <NavLink
                   to="/services/1"
                   className="block px-4 py-2 text-sm hover:bg-rose-50"
@@ -98,7 +98,7 @@ const Navbar = () => {
                   >
                     Nested Services <ChevronRightIcon size={12} />
                   </NavLink>
-                  <div className="absolute left-full top-0 mt-2 w-48 bg-white shadow-md opacity-0 group-hover/nested:opacity-100 transition-opacity duration-200">
+                  <div className="absolute left-full top-0 w-48 bg-white shadow-md opacity-0 pointer-events-none group-hover/nested:opacity-100 group-hover/nested:pointer-events-auto transition-opacity duration-200">
                     <NavLink
                       to="/services/nested/1"
                       className="block px-4 py-2 text-sm hover:bg-rose-50"
@@ -128,7 +128,7 @@ const Navbar = () => {
               >
                 Experts <ChevronDownIcon size={12} className="ml-1" />
               </NavLink>
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200">
                 <NavLink
                   to="/experts/1"
                   className="block px-4 py-2 text-sm hover:bg-rose-50"
@@ -156,7 +156,7 @@ const Navbar = () => {
               >
                 Centres <ChevronDownIcon size={12} className="ml-1" />
               </NavLink>
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200">
                 <NavLink
                   to="/centres/c1"
                   className="block px-4 py-2 text-sm hover:bg-rose-50"
@@ -184,7 +184,7 @@ const Navbar = () => {
               >
                 Partners <ChevronDownIcon size={12} className="ml-1" />
               </NavLink>
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200">
                 <NavLink
                   to="/partners/p1"
                   className="block px-4 py-2 text-sm hover:bg-rose-50"
@@ -212,7 +212,7 @@ const Navbar = () => {
               >
                 Resources <ChevronDownIcon size={12} className="ml-1" />
               </NavLink>
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200">
                 <NavLink
                   to="/resources/r1"
                   className="block px-4 py-2 text-sm hover:bg-rose-50"
@@ -276,7 +276,7 @@ const Navbar = () => {
                 onClick={() => toggleNested('about')}
                 className="w-full flex justify-between items-center font-medium text-black hover:text-rose-600"
               >
-                About Us <ChevronDownIcon size={20} />
+                ABOUT US <ChevronDownIcon size={20} />
               </button>
               {openNested.about && (
                 <div className="pl-4 space-y-2">
@@ -288,7 +288,7 @@ const Navbar = () => {
                     About SAVAYAS
                   </NavLink>
                   <NavLink
-                    to="/about/team"
+                    to="/about"
                     onClick={() => setIsMobileOpen(false)}
                     className="block text-sm hover:text-rose-600"
                   >

@@ -16,6 +16,7 @@ import DoctorAppointments from './pages/Doctor/DoctorAppointments';
 import DoctorDashboard from './pages/Doctor/DoctorDashboard';
 import DoctorProfile from './pages/Doctor/DoctorProfile';
 import DoctorSlots from './pages/Doctor/DoctorSlots';
+import TestManagement from './pages/Admin/TestManagement';
 
 const App = () => {
   const { dToken } = useContext(DoctorContext);
@@ -33,6 +34,7 @@ const App = () => {
               <Route path='/' element={<></>} />
               <Route path='/admin-dashboard' element={<Dashboard />} />
               <Route path='/all-appointments' element={<AllAppointments />} />
+              <Route path='/test-management' element={<TestManagement />} />
               <Route path='/add-doctor' element={<AddDoctor />} />
               <Route path='/doctor-list' element={<DoctorsList />} />
               <Route path='/doctor-dashboard' element={<DoctorDashboard />} />

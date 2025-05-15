@@ -16,6 +16,8 @@ import {
   resetPassword,
   addReview, 
   getDoctorReviews,
+  getTests,
+  getTestById,
 } from "../controllers/userController.js";
 import upload from "../middleware/multer.js";
 import authUser from "../middleware/authUser.js";
@@ -40,8 +42,10 @@ userRouter.get("/appointments", authUser, listAppointment);
 userRouter.post("/cancel-appointment", authUser, cancelAppointment);
 userRouter.post("/payment-razorpay", authUser, paymentRazorpay);
 userRouter.post("/verifyRazorpay", authUser, verifyRazorpay);
-userRouter.post("/submit-test", submitTest);
 userRouter.post("/add-review", authUser, addReview);
 userRouter.get("/reviews/:doctorId", getDoctorReviews);
+userRouter.post("/submit-test", submitTest); // No auth required
+userRouter.get("/tests", getTests); // Publicly accessible
+userRouter.get("/tests/:testId", getTestById); // Publicly accessible
 
 export default userRouter;

@@ -1,283 +1,191 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ClipLoader } from 'react-spinners';
-import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
+import { motion } from "framer-motion";
 
 const Test = () => {
-  const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [answers, setAnswers] = useState({});
-  const [currentQuestion, setCurrentQuestion] = useState(-1); // -1 for name/phone, 0+ for questions
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [completed, setCompleted] = useState(false);
+  const [tests, setTests] = useState([]);
+  const [selectedTest, setSelectedTest] = useState(null);
+  const [answers, setAnswers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [userDetails, setUserDetails] = useState({ name: "", email: "", mobile: "" });
 
-  const questions = [
-    {
-      id: 'q1',
-      text: 'How often do you feel stressed or overwhelmed?',
-      options: ['Never', 'Sometimes', 'Often', 'Always'],
-    },
-    {
-      id: 'q2',
-      text: 'Do you have trouble sleeping due to worry or restlessness?',
-      options: ['Yes', 'No'],
-    },
-    {
-      id: 'q3',
-      text: 'How would you describe your mood over the past two weeks?',
-      options: ['Very positive', 'Somewhat positive', 'Neutral', 'Somewhat negative', 'Very negative'],
-    },
-    {
-      id: 'q4',
-      text: 'Do you feel anxious or uncomfortable in social situations?',
-      options: ['Yes', 'No'],
-    },
-    {
-      id: 'q5',
-      text: 'Are you currently experiencing challenges in your relationships?',
-      options: ['Yes', 'No'],
-    },
-  ];
-
-  const totalSteps = questions.length + 1; // Name/phone + questions
-  const currentStep = currentQuestion + 2; // -1 -> Step 1, 0 -> Step 2, etc.
-
-  // Handle loading message sequence
   useEffect(() => {
-    if (loading) {
-      const messages = [
-        'Parsing responses...',
-        'Analyzing your answers...',
-        'Finding the best professional for you...',
-      ];
-      let index = 0;
-      setLoadingMessage(messages[0]);
-      const interval = setInterval(() => {
-        index = (index + 1) % messages.length;
-        setLoadingMessage(messages[index]);
-      }, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [loading]);
-
-  const handleNext = () => {
-    if (currentQuestion === -1) {
-      if (!name) {
-        toast.error('Please enter your name.');
-        return;
+    const fetchTests = async () => {
+      try {
+        const { data } = await axios.get("/api/user/tests");
+        if (data.success) {
+          setTests(data.tests);
+        }
+      } catch (error) {
+        toast.error("Error fetching tests");
       }
-      if (!phone || !/^\d{10}$/.test(phone)) {
-        toast.error('Please enter a valid 10-digit mobile number.');
-        return;
-      }
-    }
-    // Only check for answer if not on the last question
-    if (
-      currentQuestion >= 0 &&
-      currentQuestion < questions.length - 1 &&
-      !answers[questions[currentQuestion].id]
-    ) {
-      toast.error('Please select an option.');
-      return;
-    }
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    }
-  };
+    };
+    fetchTests();
+  }, []);
 
-  const handlePrevious = () => {
-    if (currentQuestion > -1) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Check if the last question has an answer
-    if (!answers[questions[currentQuestion].id]) {
-      toast.error('Please select an option.');
-      return;
-    }
-    setLoading(true);
+  const selectTest = async (testId) => {
     try {
-      const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/submit-test`, {
-        name,
-        phone,
-        answers,
-      });
-      const { data } = response;
+      const { data } = await axios.get(`/api/user/tests/${testId}`);
       if (data.success) {
-        setLoading(false);
-        setCompleted(true);
-        setTimeout(() => navigate(`/appointment/${data.doctorId}`), 2000); // Delay for completion animation
-      } else {
-        toast.error(data.message || 'Failed to process test.');
-        setLoading(false);
+        setSelectedTest(data.test);
+        setAnswers(new Array(data.test.questions.length).fill(null));
+        setResult(null);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'An error occurred.');
-      setLoading(false);
+      toast.error("Error fetching test details");
     }
+  };
+
+  const handleAnswer = (questionIndex, optionIndex) => {
+    const newAnswers = [...answers];
+    newAnswers[questionIndex] = optionIndex;
+    setAnswers(newAnswers);
+  };
+
+  const submitTest = async () => {
+    if (!userDetails.name || !userDetails.email || !userDetails.mobile) {
+      toast.error("Please enter your name, email, and mobile number");
+      return;
+    }
+    if (answers.some((ans) => ans === null)) {
+      toast.error("Please answer all questions");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setTimeout(async () => {
+      try {
+        const { data } = await axios.post("/api/user/submit-test", {
+          name: userDetails.name,
+          email: userDetails.email,
+          mobile: userDetails.mobile,
+          testId: selectedTest._id,
+          answers,
+        });
+        if (data.success) {
+          setResult(data);
+        }
+      } catch (error) {
+        toast.error("Error submitting test");
+      } finally {
+        setIsSubmitting(false);
+      }
+    }, 5000); // 5-second delay
   };
 
   return (
-    <div className="min-h-screen bg-rose-50 p-4 md:p-8 pt-20 flex items-center justify-center relative overflow-hidden">
-      {/* Subtle Background Animation */}
-      <motion.div
-        className="absolute inset-0 bg-gradient-to-br from-rose-100 to-rose-200 opacity-50"
-        animate={{ scale: [1, 1.05, 1], opacity: [0.5, 0.7, 0.5] }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      <div className="max-w-3xl mx-auto relative z-10">
-        <h1 className="text-3xl font-bold text-rose-600 mb-4 text-center">Mental Health Assessment</h1>
-        <p className="text-gray-600 mb-8 text-center">
-          Answer the following questions to receive personalized professional recommendations. No signup required.
-        </p>
-
-        {completed ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-col items-center justify-center h-64"
-          >
-            <CheckCircleIcon className="h-16 w-16 text-rose-600 mb-4" />
-            <p className="text-2xl text-rose-600 font-medium">Assessment Complete!</p>
-            <p className="text-gray-600 mt-2">Redirecting to your recommended professional...</p>
-          </motion.div>
-        ) : loading ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-col items-center justify-center h-64"
-          >
-            <ClipLoader color="#e11d48" size={50} />
-            <p className="mt-4 text-lg text-rose-600 font-medium">{loadingMessage}</p>
-          </motion.div>
-        ) : (
-          <motion.form
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            onSubmit={currentQuestion === questions.length - 1 ? handleSubmit : undefined}
-            className="bg-white p-6 rounded-lg shadow-md space-y-6"
-          >
-            {/* Progress Indicator */}
-            <div className="mb-6">
-              <p className="text-center text-gray-700 font-medium mb-2">
-                Step {currentStep} of {totalSteps}
+    <div className="container mx-auto p-4 min-h-screen">
+      <h1 className="text-3xl font-bold text-rose-600 mb-6 text-center">Take a Test</h1>
+      {!selectedTest ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tests.map((test) => (
+            <motion.div
+              key={test._id}
+              className="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition"
+              onClick={() => selectTest(test._id)}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h2 className="text-xl font-semibold">{test.title}</h2>
+              <p className="text-gray-600">{test.description}</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Category: {test.category} | Subcategory: {test.subCategory}
               </p>
-              <div className="w-full bg-rose-200 rounded-full h-2">
-                <motion.div
-                  className="bg-rose-500 h-2 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(currentStep / totalSteps) * 100}%` }}
-                  transition={{ duration: 0.3 }}
-                />
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-2xl font-semibold mb-4">{selectedTest.title}</h2>
+          <div className="mb-6">
+            <input
+              type="text"
+              placeholder="Name"
+              value={userDetails.name}
+              onChange={(e) => setUserDetails({ ...userDetails, name: e.target.value })}
+              className="w-full p-2 border rounded mb-2"
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={userDetails.email}
+              onChange={(e) => setUserDetails({ ...userDetails, email: e.target.value })}
+              className="w-full p-2 border rounded mb-2"
+            />
+            <input
+              type="tel"
+              placeholder="Mobile Number"
+              value={userDetails.mobile}
+              onChange={(e) => setUserDetails({ ...userDetails, mobile: e.target.value })}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          {selectedTest.questions.map((q, qIndex) => (
+            <div key={qIndex} className="mb-6">
+              <p className="text-lg font-medium mb-2">{q.questionText}</p>
+              <div className="space-y-2">
+                {q.options.map((option, oIndex) => (
+                  <label key={oIndex} className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      name={`question-${qIndex}`}
+                      checked={answers[qIndex] === oIndex}
+                      onChange={() => handleAnswer(qIndex, oIndex)}
+                      className="form-radio text-rose-600"
+                    />
+                    <span>{option.text}</span>
+                  </label>
+                ))}
               </div>
             </div>
-
-            <AnimatePresence mode="wait">
-              {currentQuestion === -1 ? (
-                <motion.div
-                  key="personal-info"
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-4"
-                >
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Name</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      className="w-full border border-rose-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-rose-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Mobile Number</label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      required
-                      pattern="\d{10}"
-                      placeholder="Enter 10-digit mobile number"
-                      className="w-full border border-rose-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-rose-400"
-                    />
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key={questions[currentQuestion].id}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-4"
-                >
-                  <p className="font-medium text-gray-800">{questions[currentQuestion].text}</p>
-                  <div className="space-y-2">
-                    {questions[currentQuestion].options.map((option) => (
-                      <motion.label
-                        key={option}
-                        className="flex items-center p-2 rounded-md cursor-pointer"
-                        whileHover={{ scale: 1.02, backgroundColor: '#fef2f2' }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <input
-                          type="radio"
-                          name={questions[currentQuestion].id}
-                          value={option}
-                          checked={answers[questions[currentQuestion].id] === option}
-                          onChange={(e) =>
-                            setAnswers((prev) => ({ ...prev, [questions[currentQuestion].id]: e.target.value }))
-                          }
-                          required
-                          className="mr-2 accent-rose-500"
-                        />
-                        <span className="text-gray-700">{option}</span>
-                      </motion.label>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex justify-between">
-              {currentQuestion > -1 && (
-                <button
-                  type="button"
-                  onClick={handlePrevious}
-                  className="bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400 transition-colors"
-                >
-                  Previous
-                </button>
-              )}
-              <button
-                type={currentQuestion === questions.length - 1 ? 'submit' : 'button'}
-                onClick={currentQuestion < questions.length - 1 ? handleNext : undefined}
-                disabled={loading}
-                className={`bg-rose-500 text-white py-2 px-4 rounded hover:bg-rose-600 transition-colors ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
-                } ${currentQuestion > -1 ? '' : 'ml-auto'}`}
+          ))}
+          <button
+            onClick={submitTest}
+            disabled={isSubmitting}
+            className={`w-full py-3 rounded-lg text-white font-semibold ${
+              isSubmitting ? "bg-gray-400" : "bg-rose-600 hover:bg-rose-700"
+            } transition`}
+          >
+            {isSubmitting ? "Calculating..." : "Submit Test"}
+          </button>
+          {isSubmitting && (
+            <motion.div
+              className="mt-4 text-center text-gray-600"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <svg
+                className="animate-spin h-8 w-8 mx-auto text-rose-600"
+                viewBox="0 0 24 24"
               >
-                {currentQuestion === questions.length - 1 ? 'Submit' : 'Next'}
-              </button>
-            </div>
-          </motion.form>
-        )}
-      </div>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              <p className="mt-2">Calculating your results...</p>
+            </motion.div>
+          )}
+          {result && (
+            <motion.div
+              className="mt-6 p-4 bg-rose-50 rounded-lg text-center"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h3 className="text-xl font-semibold text-rose-600">Your Result</h3>
+              <p className="text-lg">Score: {result.score}</p>
+              <p className="text-lg">{result.resultText}</p>
+            </motion.div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
