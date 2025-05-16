@@ -19,7 +19,7 @@ const TestManagement = () => {
 
   const fetchTests = async () => {
     try {
-      const { data } = await axios.get("http://localhost:4000/api/admin/tests", {
+      const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/admin/tests`, {
         headers: { aToken: localStorage.getItem("aToken") },
       });
       if (data.success) setTests(data.tests);
@@ -32,9 +32,9 @@ const TestManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      console.log('Sending request to:', 'http://localhost:4000/api/admin/add-test');
+      console.log('Sending request to:', `${import.meta.env.VITE_BACKEND_URL}/api/admin/add-test`);
       console.log('With data:', formData);
-      const { data } = await axios.post("http://localhost:4000/api/admin/add-test", formData, {
+      const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/admin/add-test`, formData, {
         headers: { aToken: localStorage.getItem("aToken") },
       });
       if (data.success) {

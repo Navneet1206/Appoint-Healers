@@ -17,7 +17,7 @@ const Test = () => {
   useEffect(() => {
     const fetchTests = async () => {
       try {
-        const { data } = await axios.get("http://localhost:4000/api/user/tests");
+        const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/user/tests`);
         if (data.success) {
           setTests(data.tests);
         }
@@ -51,7 +51,7 @@ const Test = () => {
   // Handle test selection
   const selectTest = async (testId) => {
     try {
-      const { data } = await axios.get(`http://localhost:4000/api/user/tests/${testId}`);
+      const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/user/tests/${testId}`);
       if (data.success) {
         setSelectedTest(data.test);
         setAnswers(new Array(data.test.questions.length).fill(null));
@@ -83,7 +83,7 @@ const Test = () => {
 
     setIsSubmitting(true);
     try {
-      const { data } = await axios.post("http://localhost:4000/api/user/submit-test", {
+      const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/submit-test`, {
         name: userDetails.name,
         email: userDetails.email,
         mobile: userDetails.mobile,
