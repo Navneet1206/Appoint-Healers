@@ -1,59 +1,83 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { DoctorContext } from '../../context/DoctorContext'
-import { AppContext } from '../../context/AppContext'
-import { toast } from 'react-toastify'
-import axios from 'axios'
+import React, { useContext, useEffect, useState } from 'react';
+import { DoctorContext } from '../../context/DoctorContext';
+import { AppContext } from '../../context/AppContext';
+import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const DoctorProfile = () => {
-    const { dToken, profileData, setProfileData, getProfileData } = useContext(DoctorContext)
-    const { currency, backendUrl } = useContext(AppContext)
-    const [isEdit, setIsEdit] = useState(false)
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const { dToken, profileData, setProfileData, getProfileData } = useContext(DoctorContext);
+    const { currency, backendUrl } = useContext(AppContext);
+    const [isEdit, setIsEdit] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [bannerImg, setBannerImg] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Ensure profileData.address is initialized
+    useEffect(() => {
+        if (profileData && !profileData.address) {
+            setProfileData(prev => ({
+                ...prev,
+                address: { line1: '', line2: '' }
+            }));
+        }
+    }, [profileData, setProfileData]);
 
     const updateProfile = async () => {
         try {
-            setIsSubmitting(true)
-            const updateData = {
-                address: profileData.address,
-                fees: profileData.fees,
-                about: profileData.about,
-                available: profileData.available
+            setIsSubmitting(true);
+            const formData = new FormData();
+            formData.append('docId', profileData._id);
+            formData.append('fees', profileData.fees);
+            formData.append('address', JSON.stringify(profileData.address || { line1: '', line2: '' }));
+            formData.append('available', profileData.available);
+            formData.append('about', profileData.about);
+            if (bannerImg) {
+                formData.append('bannerImage', bannerImg);
             }
 
             const { data } = await axios.post(
-                `${backendUrl}/api/doctor/update-profile`, 
-                updateData, 
+                `${backendUrl}/api/doctor/update-profile`,
+                formData,
                 { headers: { dToken } }
-            )
+            );
 
             if (data.success) {
-                toast.success(data.message)
-                setIsEdit(false)
-                getProfileData()
+                toast.success(data.message);
+                setProfileData(data.profileData); // Update profileData with new data
+                setIsEdit(false);
+                setBannerImg(null);
+                setIsModalOpen(false);
             } else {
-                toast.error(data.message)
+                toast.error(data.message);
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to update profile')
-            console.error(error)
+            toast.error(error.message || 'Failed to update profile');
+            console.error(error);
         } finally {
-            setIsSubmitting(false)
-            setIsEdit(false)
+            setIsSubmitting(false);
         }
-    }
+    };
+
+    const handleBannerSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setBannerImg(file);
+            setIsModalOpen(true); // Open modal on file selection
+        }
+    };
 
     useEffect(() => {
         if (dToken) {
-            getProfileData()
+            getProfileData();
         }
-    }, [dToken, getProfileData])
+    }, [dToken, getProfileData]);
 
     if (!profileData) {
         return (
             <div className="flex justify-center items-center h-96">
                 <div className="animate-pulse text-primary font-medium">Loading profile...</div>
             </div>
-        )
+        );
     }
 
     return (
@@ -114,7 +138,7 @@ const DoctorProfile = () => {
                                     onChange={(e) => setProfileData(prev => ({ ...prev, about: e.target.value }))} 
                                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                                     rows={6} 
-                                    value={profileData.about}
+                                    value={profileData.about || ''}
                                     placeholder="Write about your professional experience and expertise..."
                                 />
                             </div>
@@ -125,7 +149,7 @@ const DoctorProfile = () => {
                                 <input 
                                     type="number" 
                                     onChange={(e) => setProfileData(prev => ({ ...prev, fees: e.target.value }))} 
-                                    value={profileData.fees}
+                                    value={profileData.fees || ''}
                                     className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                                 />
                             </div>
@@ -137,17 +161,40 @@ const DoctorProfile = () => {
                                     <input 
                                         type="text" 
                                         onChange={(e) => setProfileData(prev => ({ ...prev, address: { ...prev.address, line1: e.target.value } }))} 
-                                        value={profileData.address.line1}
+                                        value={profileData.address?.line1 || ''}
                                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                                         placeholder="Address Line 1"
                                     />
                                     <input 
                                         type="text" 
                                         onChange={(e) => setProfileData(prev => ({ ...prev, address: { ...prev.address, line2: e.target.value } }))} 
-                                        value={profileData.address.line2}
+                                        value={profileData.address?.line2 || ''}
                                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                                         placeholder="Address Line 2"
                                     />
+                                </div>
+                            </div>
+                            
+                            {/* Banner Image Upload (Edit Mode) */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Banner Image</label>
+                                <div className="flex items-center gap-4">
+                                    {bannerImg ? (
+                                        <img src={URL.createObjectURL(bannerImg)} alt="Banner Preview" className="w-32 h-16 object-cover rounded" />
+                                    ) : profileData.bannerImage ? (
+                                        <img src={profileData.bannerImage} alt="Current Banner" className="w-32 h-16 object-cover rounded" />
+                                    ) : (
+                                        <p className="text-gray-500">No banner image</p>
+                                    )}
+                                    <label className="cursor-pointer bg-primary text-white px-4 py-2 rounded-lg">
+                                        {bannerImg ? 'Change Image' : 'Upload Image'}
+                                        <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            onChange={handleBannerSelect} 
+                                            accept="image/*"
+                                        />
+                                    </label>
                                 </div>
                             </div>
                             
@@ -157,7 +204,7 @@ const DoctorProfile = () => {
                                     type="checkbox" 
                                     id="availability"
                                     onChange={() => setProfileData(prev => ({ ...prev, available: !prev.available }))} 
-                                    checked={profileData.available}
+                                    checked={profileData.available || false}
                                     className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded"
                                 />
                                 <label htmlFor="availability" className="ml-2 block text-sm text-gray-700">
@@ -168,7 +215,11 @@ const DoctorProfile = () => {
                             {/* Action Buttons */}
                             <div className="flex gap-3 pt-2">
                                 <button 
-                                    onClick={() => setIsEdit(false)} 
+                                    onClick={() => {
+                                        setIsEdit(false);
+                                        setBannerImg(null);
+                                        setIsModalOpen(false);
+                                    }} 
                                     className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
                                     disabled={isSubmitting}
                                 >
@@ -185,11 +236,25 @@ const DoctorProfile = () => {
                         </div>
                     ) : (
                         <div className="space-y-6">
+                            {/* Banner Image Display */}
+                            {profileData.bannerImage ? (
+                                <div>
+                                    <h2 className="text-lg font-medium text-gray-800 mb-3">Banner</h2>
+                                    <img 
+                                        src={profileData.bannerImage} 
+                                        alt="Banner" 
+                                        className="w-full h-32 object-cover rounded-lg" 
+                                    />
+                                </div>
+                            ) : (
+                                <p className="text-gray-500">No banner image uploaded.</p>
+                            )}
+                            
                             {/* About Section */}
                             <div>
                                 <h2 className="text-lg font-medium text-gray-800 mb-3">About</h2>
                                 <div className="bg-gray-50 p-4 rounded-lg text-gray-700">
-                                    {profileData.about}
+                                    {profileData.about || 'No information provided.'}
                                 </div>
                             </div>
                             
@@ -197,16 +262,50 @@ const DoctorProfile = () => {
                             <div>
                                 <h2 className="text-lg font-medium text-gray-800 mb-3">Practice Location</h2>
                                 <div className="bg-gray-50 p-4 rounded-lg text-gray-700">
-                                    <p>{profileData.address.line1}</p>
-                                    <p>{profileData.address.line2}</p>
+                                    <p>{profileData.address?.line1 || 'Not provided'}</p>
+                                    <p>{profileData.address?.line2 || 'Not provided'}</p>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
-    )
-}
 
-export default DoctorProfile
+            {/* Banner Preview Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                        <h2 className="text-lg font-medium text-gray-800 mb-4">Banner Preview</h2>
+                        {bannerImg && (
+                            <img 
+                                src={URL.createObjectURL(bannerImg)} 
+                                alt="Banner Preview" 
+                                className="w-full h-32 object-cover rounded-lg mb-4" 
+                            />
+                        )}
+                        <p className="text-gray-600 mb-4">Would you like to use this image as your banner?</p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => {
+                                    setBannerImg(null);
+                                    setIsModalOpen(false);
+                                }} 
+                                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => setIsModalOpen(false)} 
+                                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default DoctorProfile;

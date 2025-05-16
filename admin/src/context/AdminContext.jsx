@@ -128,6 +128,24 @@ const AdminContextProvider = (props) => {
     }
   };
 
+  const changeAvailability = async (docId) => {
+    try {
+      const { data } = await axios.post(
+        backendUrl + '/api/admin/change-availability',
+        { docId },
+        { headers: { aToken } }
+      );
+      if (data.success) {
+        toast.success(data.message);
+        await getAllDoctors(); // Refresh the doctors list to reflect the updated availability
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   const value = {
     aToken, setAToken,
     backendUrl,
@@ -137,7 +155,8 @@ const AdminContextProvider = (props) => {
     acceptAppointment,
     completeAppointment,
     doctors, getAllDoctors,
-    dashData, getDashData
+    dashData, getDashData,
+    changeAvailability
   };
 
   return (

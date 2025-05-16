@@ -25,6 +25,7 @@ const doctorSchema = new mongoose.Schema({
     address: { type: Object, required: true },
     languages: { type: [String], required: true },
     date: { type: Number, required: true },
+    bannerImage: { type: String },
 }, { minimize: false });
 
 const doctorModel = mongoose.models.doctor || mongoose.model("doctor", doctorSchema);
