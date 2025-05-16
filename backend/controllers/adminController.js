@@ -514,24 +514,15 @@ const completeAppointment = async (req, res) => {
 const addTest = async (req, res) => {
   try {
     const { title, description, category, subCategory, questions, resultRanges } = req.body;
-
     if (!title || !category || !subCategory || !questions || !resultRanges) {
-      return res.json({ success: false, message: "Missing required fields" });
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
-
-    const test = new Test({
-      title,
-      description,
-      category,
-      subCategory,
-      questions,
-      resultRanges,
-    });
-    await test.save();
-    res.json({ success: true, message: "Test added successfully" });
+    const newTest = new Test({ title, description, category, subCategory, questions, resultRanges });
+    await newTest.save();
+    res.status(201).json({ success: true, message: 'Test added successfully' });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error('Error adding test:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

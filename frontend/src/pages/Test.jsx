@@ -76,7 +76,7 @@ const Test = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 min-h-screen">
+    <div className="container mt-28 mx-auto p-4 min-h-screen">
       <h1 className="text-3xl font-bold text-rose-600 mb-6 text-center">Take a Test</h1>
       {!selectedTest ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -160,7 +160,7 @@ const Test = () => {
             >
               <svg
                 className="animate-spin h-8 w-8 mx-auto text-rose-600"
-                viewBox="0 0 24 24"
+                viewBox="0 24 24"
               >
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path

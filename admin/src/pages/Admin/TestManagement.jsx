@@ -9,7 +9,7 @@ const TestManagement = () => {
     description: "",
     category: "",
     subCategory: "",
-    questions: [{ questionText: "", options: [{ text: "", points: 0 }], correctAnswer: 0 }],
+    questions: [{ questionText: "", options: [{ text: "", points: 0 }] }],
     resultRanges: [{ minScore: 0, maxScore: 0, resultText: "" }],
   });
 
@@ -18,37 +18,49 @@ const TestManagement = () => {
   }, []);
 
   const fetchTests = async () => {
-    const { data } = await axios.get("/api/admin/tests", {
-      headers: { aToken: localStorage.getItem("aToken") },
-    });
-    if (data.success) setTests(data.tests);
+    try {
+      const { data } = await axios.get("http://localhost:4000/api/admin/tests", {
+        headers: { aToken: localStorage.getItem("aToken") },
+      });
+      if (data.success) setTests(data.tests);
+    } catch (error) {
+      console.error("Error fetching tests:", error);
+      toast.error("Failed to fetch tests");
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { data } = await axios.post("/api/admin/add-test", formData, {
-      headers: { aToken: localStorage.getItem("aToken") },
-    });
-    if (data.success) {
-      toast.success("Test added");
-      fetchTests();
-      setFormData({
-        title: "",
-        description: "",
-        category: "",
-        subCategory: "",
-        questions: [{ questionText: "", options: [{ text: "", points: 0 }], correctAnswer: 0 }],
-        resultRanges: [{ minScore: 0, maxScore: 0, resultText: "" }],
+    try {
+      console.log('Sending request to:', 'http://localhost:4000/api/admin/add-test');
+      console.log('With data:', formData);
+      const { data } = await axios.post("http://localhost:4000/api/admin/add-test", formData, {
+        headers: { aToken: localStorage.getItem("aToken") },
       });
-    } else {
-      toast.error(data.message);
+      if (data.success) {
+        toast.success("Test added successfully");
+        fetchTests();
+        setFormData({
+          title: "",
+          description: "",
+          category: "",
+          subCategory: "",
+          questions: [{ questionText: "", options: [{ text: "", points: 0 }] }],
+          resultRanges: [{ minScore: 0, maxScore: 0, resultText: "" }],
+        });
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error("Error submitting test:", error);
+      toast.error("Failed to add test");
     }
   };
 
   const addQuestion = () => {
     setFormData({
       ...formData,
-      questions: [...formData.questions, { questionText: "", options: [{ text: "", points: 0 }], correctAnswer: 0 }],
+      questions: [...formData.questions, { questionText: "", options: [{ text: "", points: 0 }] }],
     });
   };
 
@@ -61,7 +73,9 @@ const TestManagement = () => {
   const deleteOption = (questionIndex, optionIndex) => {
     const questions = [...formData.questions];
     if (questions[questionIndex].options.length > 1) {
-      questions[questionIndex].options = questions[questionIndex].options.filter((_, index) => index !== optionIndex);
+      questions[questionIndex].options = questions[questionIndex].options.filter(
+        (_, index) => index !== optionIndex
+      );
       setFormData({ ...formData, questions });
     } else {
       toast.error("Each question must have at least one option");
@@ -155,23 +169,20 @@ const TestManagement = () => {
                 )}
               </div>
             ))}
-            <button type="button" onClick={() => addOption(qIndex)} className="bg-blue-500 text-white p-2 rounded mb-2">
+            <button
+              type="button"
+              onClick={() => addOption(qIndex)}
+              className="bg-blue-500 text-white p-2 rounded mb-2"
+            >
               Add Option
             </button>
-            <input
-              type="number"
-              placeholder="Correct Answer (0-based index)"
-              value={q.correctAnswer}
-              onChange={(e) => {
-                const questions = [...formData.questions];
-                questions[qIndex].correctAnswer = Number(e.target.value);
-                setFormData({ ...formData, questions });
-              }}
-              className="w-full p-2 border rounded"
-            />
           </div>
         ))}
-        <button type="button" onClick={addQuestion} className="bg-blue-500 text-white p-2 rounded">
+        <button
+          type="button"
+          onClick={addQuestion}
+          className="bg-blue-500 text-white p-2 rounded"
+        >
           Add Question
         </button>
 
@@ -212,11 +223,18 @@ const TestManagement = () => {
             />
           </div>
         ))}
-        <button type="button" onClick={addResultRange} className="bg-blue-500 text-white p-2 rounded">
+        <button
+          type="button"
+          onClick={addResultRange}
+          className="bg-blue-500 text-white p-2 rounded"
+        >
           Add Result Range
         </button>
 
-        <button type="submit" className="bg-green-500 text-white p-2 rounded w-full">
+        <button
+          type="submit"
+          className="bg-green-500 text-white p-2 rounded w-full"
+        >
           Add Test
         </button>
       </form>
