@@ -5,29 +5,53 @@ import { motion } from "framer-motion";
 
 const Test = () => {
   const [tests, setTests] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState(null);
   const [selectedTest, setSelectedTest] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [userDetails, setUserDetails] = useState({ name: "", email: "", mobile: "" });
 
+  // Fetch all tests on mount
   useEffect(() => {
     const fetchTests = async () => {
       try {
-        const { data } = await axios.get("/api/user/tests");
+        const { data } = await axios.get("http://localhost:4000/api/user/tests");
         if (data.success) {
           setTests(data.tests);
         }
       } catch (error) {
         toast.error("Error fetching tests");
+        console.error("Fetch tests error:", error);
       }
     };
     fetchTests();
   }, []);
 
+  // Get unique categories
+  const categories = [...new Set(tests.map((test) => test.category))];
+
+  // Get subcategories for the selected category
+  const subCategories = selectedCategory
+    ? [...new Set(tests
+        .filter((test) => test.category === selectedCategory)
+        .map((test) => test.subCategory))]
+    : [];
+
+  // Get tests for the selected subcategory
+  const filteredTests = selectedSubCategory
+    ? tests.filter(
+        (test) =>
+          test.category === selectedCategory &&
+          test.subCategory === selectedSubCategory
+      )
+    : [];
+
+  // Handle test selection
   const selectTest = async (testId) => {
     try {
-      const { data } = await axios.get(`/api/user/tests/${testId}`);
+      const { data } = await axios.get(`http://localhost:4000/api/user/tests/${testId}`);
       if (data.success) {
         setSelectedTest(data.test);
         setAnswers(new Array(data.test.questions.length).fill(null));
@@ -35,15 +59,18 @@ const Test = () => {
       }
     } catch (error) {
       toast.error("Error fetching test details");
+      console.error("Fetch test details error:", error);
     }
   };
 
+  // Handle answer selection
   const handleAnswer = (questionIndex, optionIndex) => {
     const newAnswers = [...answers];
     newAnswers[questionIndex] = optionIndex;
     setAnswers(newAnswers);
   };
 
+  // Submit test
   const submitTest = async () => {
     if (!userDetails.name || !userDetails.email || !userDetails.mobile) {
       toast.error("Please enter your name, email, and mobile number");
@@ -55,51 +82,132 @@ const Test = () => {
     }
 
     setIsSubmitting(true);
-    setTimeout(async () => {
-      try {
-        const { data } = await axios.post("/api/user/submit-test", {
-          name: userDetails.name,
-          email: userDetails.email,
-          mobile: userDetails.mobile,
-          testId: selectedTest._id,
-          answers,
-        });
-        if (data.success) {
-          setResult(data);
-        }
-      } catch (error) {
-        toast.error("Error submitting test");
-      } finally {
-        setIsSubmitting(false);
+    try {
+      const { data } = await axios.post("http://localhost:4000/api/user/submit-test", {
+        name: userDetails.name,
+        email: userDetails.email,
+        mobile: userDetails.mobile,
+        testId: selectedTest._id,
+        answers,
+      });
+      if (data.success) {
+        setResult(data);
       }
-    }, 5000); // 5-second delay
+    } catch (error) {
+      toast.error("Error submitting test");
+      console.error("Submit test error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Reset to category view
+  const resetToCategories = () => {
+    setSelectedCategory(null);
+    setSelectedSubCategory(null);
+    setSelectedTest(null);
+    setAnswers([]);
+    setResult(null);
+  };
+
+  // Reset to subcategory view
+  const resetToSubCategories = () => {
+    setSelectedSubCategory(null);
+    setSelectedTest(null);
+    setAnswers([]);
+    setResult(null);
   };
 
   return (
-    <div className="container mt-28 mx-auto p-4 min-h-screen">
+    <div className="container mx-auto p-4 min-h-screen mt-6">
       <h1 className="text-3xl font-bold text-rose-600 mb-6 text-center">Take a Test</h1>
-      {!selectedTest ? (
+
+      {/* Category View */}
+      {!selectedCategory && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tests.map((test) => (
+          {categories.map((category) => (
             <motion.div
-              key={test._id}
+              key={category}
               className="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition"
-              onClick={() => selectTest(test._id)}
+              onClick={() => setSelectedCategory(category)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <h2 className="text-xl font-semibold">{test.title}</h2>
-              <p className="text-gray-600">{test.description}</p>
-              <p className="text-sm text-gray-500 mt-2">
-                Category: {test.category} | Subcategory: {test.subCategory}
-              </p>
+              <h2 className="text-xl font-semibold text-rose-600">{category}</h2>
+              <p className="text-gray-600">Explore tests in this category</p>
             </motion.div>
           ))}
         </div>
-      ) : (
+      )}
+
+      {/* Subcategory View */}
+      {selectedCategory && !selectedSubCategory && (
+        <div>
+          <button
+            onClick={resetToCategories}
+            className="mb-4 text-rose-600 hover:underline"
+          >
+            Back to Categories
+          </button>
+          <h2 className="text-2xl font-semibold mb-4">{selectedCategory} Subcategories</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {subCategories.map((subCategory) => (
+              <motion.div
+                key={subCategory}
+                className="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition"
+                onClick={() => setSelectedSubCategory(subCategory)}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <h3 className="text-lg font-medium text-rose-600">{subCategory}</h3>
+                <p className="text-gray-600">View tests in this subcategory</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Test List View */}
+      {selectedSubCategory && !selectedTest && (
+        <div>
+          <button
+            onClick={resetToSubCategories}
+            className="mb-4 text-rose-600 hover:underline"
+          >
+            Back to Subcategories
+          </button>
+          <h2 className="text-2xl font-semibold mb-4">{selectedSubCategory} Tests</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTests.map((test) => (
+              <motion.div
+                key={test._id}
+                className="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition"
+                onClick={() => selectTest(test._id)}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <h3 className="text-lg font-medium text-rose-600">{test.title}</h3>
+                <p className="text-gray-600">{test.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Test Taking View */}
+      {selectedTest && (
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-4">{selectedTest.title}</h2>
+          <button
+            onClick={() => setSelectedTest(null)}
+            className="mb-4 text-rose-600 hover:underline"
+          >
+            Back to Tests
+          </button>
+          <h2 className="text-2xl font-semibold mb-2">{selectedTest.title}</h2>
+          <p className="text-gray-600 mb-6">{selectedTest.description}</p>
           <div className="mb-6">
             <input
               type="text"
@@ -107,6 +215,7 @@ const Test = () => {
               value={userDetails.name}
               onChange={(e) => setUserDetails({ ...userDetails, name: e.target.value })}
               className="w-full p-2 border rounded mb-2"
+              required
             />
             <input
               type="email"
@@ -114,6 +223,7 @@ const Test = () => {
               value={userDetails.email}
               onChange={(e) => setUserDetails({ ...userDetails, email: e.target.value })}
               className="w-full p-2 border rounded mb-2"
+              required
             />
             <input
               type="tel"
@@ -121,6 +231,7 @@ const Test = () => {
               value={userDetails.mobile}
               onChange={(e) => setUserDetails({ ...userDetails, mobile: e.target.value })}
               className="w-full p-2 border rounded"
+              required
             />
           </div>
           {selectedTest.questions.map((q, qIndex) => (
@@ -160,7 +271,7 @@ const Test = () => {
             >
               <svg
                 className="animate-spin h-8 w-8 mx-auto text-rose-600"
-                viewBox="0 24 24"
+                viewBox="0 0 24 24"
               >
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path
