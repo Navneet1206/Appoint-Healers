@@ -14,25 +14,23 @@ cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
+});
 
-  
-  const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.NODEMAILER_EMAIL,
         pass: process.env.NODEMAILER_PASSWORD,
     },
 });
- 
 
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-  
-  const otpStore = new Map();
-  
-  const forgotPasswordDoctor = async (req, res) => {
+};
+
+const otpStore = new Map();
+
+const forgotPasswordDoctor = async (req, res) => {
     try {
       const { email } = req.body;
       const doctor = await doctorModel.findOne({ email });
@@ -175,7 +173,7 @@ const generateOTP = () => {
         </div>
         <div class="footer">
             <p>This is an automated message from SavayasHeal.com. Please do not reply to this email.</p>
-            <p>&copy; 2025 SavayasHeal.com | <a href="https://savayasheal.com/privacy">Privacy Policy</a> | <a href="https://savayasheal.com/terms">Terms of Service</a></p>
+            <p>© 2025 SavayasHeal.com | <a href="https://savayasheal.com/privacy">Privacy Policy</a> | <a href="https://savayasheal.com/terms">Terms of Service</a></p>
             <p>SavayasHeal Inc., 123 Wellness Avenue, Suite 200, Health City, HC 12345</p>
         </div>
     </div>
@@ -188,9 +186,9 @@ const generateOTP = () => {
       console.log(error);
       res.json({ success: false, message: error.message });
     }
-  };
-  
-  const resetPasswordDoctor = async (req, res) => {
+};
+
+const resetPasswordDoctor = async (req, res) => {
     try {
       const { email, otp, newPassword } = req.body;
       const doctor = await doctorModel.findOne({ email });
@@ -216,9 +214,9 @@ const generateOTP = () => {
       console.log(error);
       res.json({ success: false, message: error.message });
     }
-  };
-  
-  const loginDoctor = async (req, res) => {
+};
+
+const loginDoctor = async (req, res) => {
     try {
       const { email, password } = req.body;
       const doctor = await doctorModel.findOne({ email });
@@ -328,7 +326,7 @@ const generateOTP = () => {
         </div>
         <div class="footer">
             <p>This is an automated message, please do not reply to this email.</p>
-            <p>&copy; 2025 Savayas Heal | <a href="#">Privacy Policy</a> | <a href="#">Unsubscribe</a></p>
+            <p>© 2025 Savayas Heal | <a href="#">Privacy Policy</a> | <a href="#">Unsubscribe</a></p>
             <p>123 Health Street, Wellness City, WC 12345</p>
         </div>
     </div>
@@ -344,9 +342,9 @@ const generateOTP = () => {
       console.log(error);
       res.json({ success: false, message: error.message });
     }
-  };
-  
-  const verifyLoginOtpDoctor = async (req, res) => {
+};
+
+const verifyLoginOtpDoctor = async (req, res) => {
     try {
       const { doctorId, otp } = req.body;
       const storedData = otpStore.get(doctorId);
@@ -363,168 +361,177 @@ const generateOTP = () => {
       console.log(error);
       res.json({ success: false, message: error.message });
     }
-  };
-  
+};
 
 // API to get doctor appointments for doctor panel
 const appointmentsDoctor = async (req, res) => {
     try {
-
-        const { docId } = req.body
-        const appointments = await appointmentModel.find({ docId })
-
-        res.json({ success: true, appointments })
-
+        const { docId } = req.body;
+        const appointments = await appointmentModel.find({ docId });
+        res.json({ success: true, appointments });
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-}
-
+};
 
 // API to cancel appointment for doctor panel
 const appointmentCancel = async (req, res) => {
     try {
-
-        const { docId, appointmentId } = req.body
-
-        const appointmentData = await appointmentModel.findById(appointmentId)
+        const { docId, appointmentId } = req.body;
+        const appointmentData = await appointmentModel.findById(appointmentId);
         if (appointmentData && appointmentData.docId === docId) {
-            await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true })
-            return res.json({ success: true, message: 'Appointment Cancelled' })
+            await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
+            return res.json({ success: true, message: 'Appointment Cancelled' });
         }
-
-        res.json({ success: false, message: 'Appointment Cancelled' })
-
+        res.json({ success: false, message: 'Appointment Cancelled' });
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-
-}
+};
 
 // API to mark appointment completed for doctor panel
 const appointmentComplete = async (req, res) => {
     try {
-
-        const { docId, appointmentId } = req.body
-
-        const appointmentData = await appointmentModel.findById(appointmentId)
+        const { docId, appointmentId } = req.body;
+        const appointmentData = await appointmentModel.findById(appointmentId);
         if (appointmentData && appointmentData.docId === docId) {
-            await appointmentModel.findByIdAndUpdate(appointmentId, { isCompleted: true })
-            return res.json({ success: true, message: 'Appointment Completed' })
+            await appointmentModel.findByIdAndUpdate(appointmentId, { isCompleted: true });
+            return res.json({ success: true, message: 'Appointment Completed' });
         }
-
-        res.json({ success: false, message: 'Appointment Cancelled' })
-
+        res.json({ success: false, message: 'Appointment Cancelled' });
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-
-}
+};
 
 // API to get all doctors list for Frontend
 const doctorList = async (req, res) => {
     try {
-
-        const doctors = await doctorModel.find({}).select(['-password', '-email'])
-        res.json({ success: true, doctors })
-
+        const doctors = await doctorModel.find({}).select(['-password', '-email']);
+        res.json({ success: true, doctors });
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-
-}
+};
 
 // API to change doctor availablity for Admin and Doctor Panel
 const changeAvailablity = async (req, res) => {
     try {
-
-        const { docId } = req.body
-
-        const docData = await doctorModel.findById(docId)
-        await doctorModel.findByIdAndUpdate(docId, { available: !docData.available })
-        res.json({ success: true, message: 'Availablity Changed' })
-
+        const { docId } = req.body;
+        const docData = await doctorModel.findById(docId);
+        await doctorModel.findByIdAndUpdate(docId, { available: !docData.available });
+        res.json({ success: true, message: 'Availablity Changed' });
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-}
+};
 
-// API to get doctor profile for  Doctor Panel
+// API to get doctor profile for Doctor Panel
 const doctorProfile = async (req, res) => {
     try {
-
-        const { docId } = req.body
-        const profileData = await doctorModel.findById(docId).select('-password')
-
-        res.json({ success: true, profileData })
-
+        const { docId } = req.body;
+        const profileData = await doctorModel.findById(docId).select('-password');
+        res.json({ success: true, profileData });
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-}
+};
 
-// API to update doctor profile data from  Doctor Panel
+// API to update doctor profile data from Doctor Panel
 const updateDoctorProfile = async (req, res) => {
     try {
+        const { docId, fees, address, available, about } = req.body;
+        console.log('Request body:', req.body);
+        console.log('File received:', req.file);
 
-        const { docId, fees, address, available } = req.body
+        const doctor = await doctorModel.findById(docId);
+        if (!doctor) {
+            console.log('Doctor not found for ID:', docId);
+            return res.json({ success: false, message: "Doctor not found" });
+        }
 
-        await doctorModel.findByIdAndUpdate(docId, { fees, address, available })
+        // Update fields
+        doctor.fees = fees;
+        doctor.available = available;
+        doctor.about = about;
 
-        res.json({ success: true, message: 'Profile Updated' })
+        // Handle address
+        if (address) {
+            try {
+                doctor.address = JSON.parse(address);
+            } catch (e) {
+                console.error('Address parsing error:', e.message);
+                return res.json({ success: false, message: "Invalid address format" });
+            }
+        }
 
+        // Handle banner image upload
+        if (req.file) {
+            console.log('Uploading banner image to Cloudinary:', req.file);
+            const imageUpload = await cloudinary.uploader.upload(req.file.path, { 
+                resource_type: "image",
+                folder: "savayas_heal/banners"
+            });
+            if (!imageUpload.secure_url) {
+                console.error('Cloudinary upload failed, no secure_url');
+                return res.json({ success: false, message: "Failed to upload banner image" });
+            }
+            doctor.bannerImage = imageUpload.secure_url;
+            console.log('Banner image URL saved:', doctor.bannerImage);
+        } else {
+            console.log('No banner image provided');
+        }
+
+        // Save the updated document
+        await doctor.save();
+        console.log('Doctor profile saved:', doctor);
+
+        // Fetch the updated document to ensure changes are reflected
+        const updatedDoctor = await doctorModel.findById(docId).select('-password');
+        console.log('Fetched updated doctor:', updatedDoctor);
+
+        res.json({ success: true, message: 'Profile Updated', profileData: updatedDoctor });
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.error('Update profile error:', error);
+        res.json({ success: false, message: error.message });
     }
-}
+};
 
 // API to get dashboard data for doctor panel
 const doctorDashboard = async (req, res) => {
     try {
-
-        const { docId } = req.body
-
-        const appointments = await appointmentModel.find({ docId })
-
-        let earnings = 0
-
+        const { docId } = req.body;
+        const appointments = await appointmentModel.find({ docId });
+        let earnings = 0;
         appointments.map((item) => {
             if (item.isCompleted || item.payment) {
-                earnings += item.amount
+                earnings += item.amount;
             }
-        })
-
-        let patients = []
-
+        });
+        let patients = [];
         appointments.map((item) => {
             if (!patients.includes(item.userId)) {
-                patients.push(item.userId)
+                patients.push(item.userId);
             }
-        })
-
-
-
+        });
         const dashData = {
             earnings,
             appointments: appointments.length,
             patients: patients.length,
             latestAppointments: appointments.reverse()
-        }
-
-        res.json({ success: true, dashData })
-
+        };
+        res.json({ success: true, dashData });
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-}
+};
 
 // API for doctor to create a slot
 const createSlot = async (req, res) => {
@@ -571,7 +578,7 @@ const updateSlot = async (req, res) => {
     }
 };
 
-// (Optional) API to get all slots for a doctor
+// API to get all slots for a doctor
 const getSlots = async (req, res) => {
     try {
         const { docId } = req.body;
@@ -584,9 +591,6 @@ const getSlots = async (req, res) => {
     }
 };
 
-
-
-
 const sendMeetingLink = async (req, res) => {
     try {
         const { appointmentId, meetingLink } = req.body;
@@ -594,13 +598,10 @@ const sendMeetingLink = async (req, res) => {
         if (!appointment) {
             return res.json({ success: false, message: 'Appointment not found' });
         }
-
         const userEmail = appointment.userData.email;
         const userName = appointment.userData.name;
         const doctorName = appointment.docData.name;
         const doctorEmail = appointment.docData.email;
-
-        // Email content for user
         const userMailOptions = {
             from: process.env.NODEMAILER_EMAIL,
             to: userEmail,
@@ -619,8 +620,6 @@ const sendMeetingLink = async (req, res) => {
                 </div>
             `,
         };
-
-        // Send email to user
         transporter.sendMail(userMailOptions, (error, info) => {
             if (error) {
                 console.error('Error sending email to user:', error);
@@ -642,13 +641,10 @@ const acceptAppointment = async (req, res) => {
         if (!appointment) {
             return res.json({ success: false, message: 'Appointment not found' });
         }
-
         const userEmail = appointment.userData.email;
         const userName = appointment.userData.name;
         const doctorName = appointment.docData.name;
         const doctorEmail = appointment.docData.email;
-
-        // Email content for user
         const userMailOptions = {
             from: process.env.NODEMAILER_EMAIL,
             to: userEmail,
@@ -667,8 +663,6 @@ const acceptAppointment = async (req, res) => {
                 </div>
             `,
         };
-
-        // Send email to user
         transporter.sendMail(userMailOptions, (error, info) => {
             if (error) {
                 console.error('Error sending email to user:', error);
@@ -696,9 +690,8 @@ const getDashData = async (req, res) => {
         .slice(0, 5)
         .map((app) => ({
           ...app.toObject(),
-          userData: { name: 'User Name', image: 'user_image_url' }, // Populate user data
+          userData: { name: 'User Name', image: 'user_image_url' },
         }));
-  
       res.json({
         success: true,
         earnings,
@@ -708,42 +701,32 @@ const getDashData = async (req, res) => {
         doctorId,
       });
     } catch (error) {
-      console.log(error);
-      res.json({ success: false, message: error.message });
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-  };
+};
 
-
-  const submitProfessionalRequest = async (req, res) => {
+const submitProfessionalRequest = async (req, res) => {
     try {
       const { name, email, speciality, degree, experience, about, fees, address, languages } = req.body;
       const imageFile = req.file;
-  
-      // Validation
       if (!name || !email || !speciality || !degree || !experience || !about || !fees || !address || !languages || !imageFile) {
         return res.json({ success: false, message: "Missing Details" });
       }
-  
       if (!validator.isEmail(email)) {
         return res.json({ success: false, message: "Invalid email" });
       }
-  
-      // Upload image to Cloudinary
       const imageUpload = await cloudinary.uploader.upload(imageFile.path, {
         resource_type: "image",
-        folder: "savayas_heal/professionals", // Optional: organize images in a folder
+        folder: "savayas_heal/professionals",
       });
       const imageUrl = imageUpload.secure_url;
-  
-      // Parse address
       let parsedAddress;
       try {
         parsedAddress = JSON.parse(address);
       } catch (error) {
         return res.json({ success: false, message: "Invalid address format" });
       }
-  
-      // Store request
       const requestData = {
         name,
         email,
@@ -757,11 +740,8 @@ const getDashData = async (req, res) => {
         image: imageUrl,
         status: "Pending",
       };
-  
       const newRequest = new professionalRequestModel(requestData);
       await newRequest.save();
-  
-      // Send email to professional
       await transporter.sendMail({
         from: process.env.NODEMAILER_EMAIL,
         to: email,
@@ -786,8 +766,6 @@ const getDashData = async (req, res) => {
           </div>
         `,
       });
-  
-      // Send email to admin
       await transporter.sendMail({
         from: process.env.NODEMAILER_EMAIL,
         to: process.env.ADMIN_EMAIL,
@@ -802,7 +780,7 @@ const getDashData = async (req, res) => {
               <li><strong>Email:</strong> ${email}</li>
               <li><strong>Speciality:</strong> ${speciality}</li>
               <li><strong>Degree:</strong> ${degree}</li>
-              <li><strong>Experience:</strong> ${experience}</li>
+              <li><strong>Experience:</DCS> ${experience}</li>
               <li><strong>About:</strong> ${about}</li>
               <li><strong>Fees:</strong> ₹${fees}</li>
               <li><strong>Address:</strong> ${parsedAddress.line1}, ${parsedAddress.line2}</li>
@@ -815,19 +793,18 @@ const getDashData = async (req, res) => {
           </div>
         `,
       });
-  
       res.json({ success: true, message: 'Request submitted successfully. You will be notified via email.' });
     } catch (error) {
-      console.log(error);
-      res.json({ success: false, message: error.message });
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
-  };
+};
 
 export {
     loginDoctor,
-  forgotPasswordDoctor,
-  resetPasswordDoctor,
-  verifyLoginOtpDoctor,
+    forgotPasswordDoctor,
+    resetPasswordDoctor,
+    verifyLoginOtpDoctor,
     appointmentsDoctor,
     appointmentCancel,
     doctorList,
@@ -843,4 +820,4 @@ export {
     acceptAppointment,
     getDashData,
     submitProfessionalRequest,
-}
+};

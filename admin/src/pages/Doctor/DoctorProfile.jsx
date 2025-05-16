@@ -33,6 +33,9 @@ const DoctorProfile = () => {
             formData.append('about', profileData.about);
             if (bannerImg) {
                 formData.append('bannerImage', bannerImg);
+                console.log('Banner image added to FormData:', bannerImg);
+            } else {
+                console.log('No banner image in FormData');
             }
 
             const { data } = await axios.post(
@@ -41,9 +44,11 @@ const DoctorProfile = () => {
                 { headers: { dToken } }
             );
 
+            console.log('Update profile response:', data);
+
             if (data.success) {
                 toast.success(data.message);
-                setProfileData(data.profileData); // Update profileData with new data
+                await getProfileData(); // Force refresh to ensure bannerImage is fetched
                 setIsEdit(false);
                 setBannerImg(null);
                 setIsModalOpen(false);
@@ -52,7 +57,7 @@ const DoctorProfile = () => {
             }
         } catch (error) {
             toast.error(error.message || 'Failed to update profile');
-            console.error(error);
+            console.error('Update profile error:', error);
         } finally {
             setIsSubmitting(false);
         }
@@ -62,7 +67,8 @@ const DoctorProfile = () => {
         const file = e.target.files[0];
         if (file) {
             setBannerImg(file);
-            setIsModalOpen(true); // Open modal on file selection
+            setIsModalOpen(true);
+            console.log('Banner image selected:', file);
         }
     };
 
@@ -178,6 +184,7 @@ const DoctorProfile = () => {
                             {/* Banner Image Upload (Edit Mode) */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Banner Image</label>
+                                <p className="text-xs text-gray-500 mb-2">Recommended size: 1584 x 396 pixels (LinkedIn banner size)</p>
                                 <div className="flex items-center gap-4">
                                     {bannerImg ? (
                                         <img src={URL.createObjectURL(bannerImg)} alt="Banner Preview" className="w-32 h-16 object-cover rounded" />
@@ -187,7 +194,7 @@ const DoctorProfile = () => {
                                         <p className="text-gray-500">No banner image</p>
                                     )}
                                     <label className="cursor-pointer bg-primary text-white px-4 py-2 rounded-lg">
-                                        {bannerImg ? 'Change Image' : 'Upload Image'}
+                                        {bannerImg || profileData.bannerImage ? 'Change Image' : 'Upload Image'}
                                         <input 
                                             type="file" 
                                             className="hidden" 
@@ -196,6 +203,7 @@ const DoctorProfile = () => {
                                         />
                                     </label>
                                 </div>
+                               
                             </div>
                             
                             {/* Availability Toggle (Edit Mode) */}
@@ -245,7 +253,7 @@ const DoctorProfile = () => {
                                         alt="Banner" 
                                         className="w-full h-32 object-cover rounded-lg" 
                                     />
-                                </div>
+                                       </div>
                             ) : (
                                 <p className="text-gray-500">No banner image uploaded.</p>
                             )}
