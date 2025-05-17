@@ -18,6 +18,7 @@ import {
   updateDoctorProfile,
   sendMeetingLink,
   acceptAppointment,
+  getOwnReviews,
 } from "../controllers/doctorController.js";
 import authDoctor from "../middleware/authDoctor.js";
 import upload from "../middleware/multer.js";
@@ -41,5 +42,6 @@ doctorRouter.post("/slots", authDoctor, getSlots);
 doctorRouter.post("/send-meeting-link", authDoctor, sendMeetingLink);
 doctorRouter.post("/accept-appointment", authDoctor, acceptAppointment);
 doctorRouter.post("/request-professional", upload.single('image'), submitProfessionalRequest);
+doctorRouter.get("/reviews", authDoctor, getOwnReviews);
 
 export default doctorRouter;

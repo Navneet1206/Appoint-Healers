@@ -17,7 +17,7 @@ const AdminReviewManagement = () => {
   // Fetch all doctors for the filter dropdown
   const fetchDoctors = async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/api/admin/doctors`, {
+      const { data } = await axios.get(`${backendUrl}/api/admin/all-doctors`, {
         headers: { aToken },
       });
       if (data.success) {
@@ -135,11 +135,13 @@ const AdminReviewManagement = () => {
                 <div className="flex items-center gap-3">
                   <img
                     className="w-10 h-10 rounded-full"
-                    src={review.userId?.image || assets.default_user}
-                    alt={review.userId?.name || 'User'}
+                    src={review.isFake ? assets.default_user : (review.userId?.image || assets.default_user)}
+                    alt={review.isFake ? review.fakeUserName : (review.userId?.name || 'User')}
                   />
                   <div>
-                    <p className="font-medium text-gray-700">{review.userId?.name || 'Anonymous'}</p>
+                    <p className="font-medium text-gray-700">
+                      {review.isFake ? review.fakeUserName : (review.userId?.name || 'Anonymous')}
+                    </p>
                     <div className="flex items-center gap-1">
                       {renderStars(review.rating)}
                       <span className="text-sm text-gray-500">

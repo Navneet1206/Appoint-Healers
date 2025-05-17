@@ -19,6 +19,7 @@ import {
   getCouponById,
   updateCoupon,
   deleteCoupon,
+  postFakeReview,
 } from "../controllers/adminController.js";
 import { changeAvailablity } from "../controllers/doctorController.js";
 import authAdmin from "../middleware/authAdmin.js";
@@ -48,4 +49,6 @@ adminRouter.get('/coupons', authAdmin, getAllCoupons);
 adminRouter.get('/coupons/:id', authAdmin, getCouponById);
 adminRouter.put('/coupons/:id', authAdmin, updateCoupon);
 adminRouter.delete('/coupons/:id', authAdmin, deleteCoupon);
+
+adminRouter.post("/post-fake-review", authAdmin, postFakeReview); 
 export default adminRouter;

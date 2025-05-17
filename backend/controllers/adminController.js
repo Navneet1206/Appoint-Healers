@@ -8,7 +8,7 @@ import userModel from "../models/userModel.js";
 import nodemailer from "nodemailer";
 import Test from "../models/testModel.js";
 import Coupon from '../models/couponModel.js';
-
+import reviewModel from "../models/reviewModel.js";
 
 // Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
@@ -431,84 +431,21 @@ const acceptAppointment = async (req, res) => {
 const completeAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.body;
-    const appointment = await appointmentModel.findById(appointmentId);
+
+    // Update the appointment to mark it as completed
+    const appointment = await appointmentModel.findByIdAndUpdate(
+      appointmentId,
+      { isCompleted: true },
+      { new: true } // Returns the updated document
+    );
+
     if (!appointment) {
       return res.json({ success: false, message: "Appointment not found" });
     }
 
-    appointment.isCompleted = true;
-    await appointment.save();
-
-    const userEmail = appointment.userData.email;
-    const userName = appointment.userData.name;
-    const doctorEmail = appointment.docData.email;
-    const doctorName = appointment.docData.name;
-
-    const userMailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
-      to: userEmail,
-      subject: "Appointment Completed",
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #4CAF50;">Appointment Completed</h2>
-          </div>
-          <p>Dear ${userName},</p>
-          <p>Your appointment with ${doctorName} (${doctorEmail}) has been successfully completed.</p>
-          <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
-          <p>Thank you for choosing our services.</p>
-          <p>Best regards,</p>
-          <p>The SAVAYAS HEALS Team</p>
-        </div>
-      `,
-    };
-
-    const doctorMailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
-      to: doctorEmail,
-      subject: "Appointment Completed",
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #4CAF50;">Appointment Completed</h2>
-          </div>
-          <p>Dear ${doctorName},</p>
-          <p>The appointment with ${userName} (${userEmail}) has been successfully completed.</p>
-          <p>Date & Time: ${appointment.slotDate} at ${appointment.slotTime}</p>
-          <p>Best regards,</p>
-          <p>The SAVAYAS HEALS Team</p>
-        </div>
-      `,
-    };
-
-    const sendUserEmail = new Promise((resolve, reject) => {
-      transporter.sendMail(userMailOptions, (error, info) => {
-        if (error) {
-          console.error("Error sending email to user:", error);
-          reject(error);
-        } else {
-          console.log("Email sent to user:", info.response);
-          resolve(info);
-        }
-      });
-    });
-
-    const sendDoctorEmail = new Promise((resolve, reject) => {
-      transporter.sendMail(doctorMailOptions, (error, info) => {
-        if (error) {
-          console.error("Error sending email to doctor:", error);
-          reject(error);
-        } else {
-          console.log("Email sent to doctor:", info.response);
-          resolve(info);
-        }
-      });
-    });
-
-    await Promise.all([sendUserEmail, sendDoctorEmail]);
-    res.json({ success: true, message: "Appointment completed and notifications sent to both user and doctor" });
+    res.json({ success: true, message: "Appointment completed successfully" });
   } catch (error) {
-    console.error(error);
+    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -642,6 +579,34 @@ const deleteCoupon = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+const postFakeReview = async (req, res) => {
+  try {
+    const { doctorId, rating, comment, userName } = req.body;
+    if (!doctorId || !rating || !userName) {
+      return res.json({ success: false, message: "Doctor ID, rating, and user name are required" });
+    }
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return res.json({ success: false, message: "Rating must be an integer between 1 and 5" });
+    }
+    const newReview = new reviewModel({
+      doctorId,
+      rating,
+      comment,
+      isFake: true,
+      fakeUserName: userName,
+      timestamp: Date.now(),
+    });
+    await newReview.save();
+    res.json({ success: true, message: "Fake review posted successfully" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+
+
 export {
   loginAdmin,
   verifyLoginOtpAdmin,
@@ -662,4 +627,5 @@ export {
   getCouponById,
   updateCoupon,
   deleteCoupon,
+  postFakeReview,
 };

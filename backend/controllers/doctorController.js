@@ -8,6 +8,7 @@ import userModel from "../models/userModel.js";
 import { v2 as cloudinary } from 'cloudinary';
 import validator from 'validator';
 import professionalRequestModel from "../models/professionalRequestModel.js";
+import reviewModel from "../models/reviewModel.js";
 
 dotenv.config();
 cloudinary.config({
@@ -800,6 +801,20 @@ const submitProfessionalRequest = async (req, res) => {
     }
 };
 
+const getOwnReviews = async (req, res) => {
+  try {
+    const { docId } = req.body; // From authDoctor middleware
+    const reviews = await reviewModel
+      .find({ doctorId: docId })
+      .populate("userId", "name image")
+      .sort({ timestamp: -1 });
+    res.json({ success: true, reviews });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 export {
     loginDoctor,
     forgotPasswordDoctor,
@@ -820,4 +835,5 @@ export {
     acceptAppointment,
     getDashData,
     submitProfessionalRequest,
+    getOwnReviews,
 };
