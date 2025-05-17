@@ -136,9 +136,12 @@ const JoinProfessional = () => {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-400 transition"
               >
                 <option value="" disabled>Select Speciality</option>
-                <option value="Counseling Professional">Counseling Professional</option>
-                <option value="Relational Therapist">Relational Therapist</option>
-                <option value="Listeners">Listeners</option>
+                <option value="Psychiatrist">Psychiatrist</option>
+                <option value="Therapist">Therapist</option>
+                <option value="Sexologist">Sexologist</option>
+                <option value="Child Psychologist">Child Psychologist</option>
+                <option value="Relationship Counselor">Relationship Counselor</option>
+                <option value="Active Listener">Active Listener</option>
               </select>
             </div>
             <div>

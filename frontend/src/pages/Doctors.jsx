@@ -24,9 +24,12 @@ const Doctors = () => {
   // Available specialities for filter
   const filterSpecialities = [
     'All',
-    'Counseling professional',
-    'Relational therapist',
-    'Listeners',
+    'Psychiatrist',
+    'Therapist',
+    'Sexologist',
+    'Child Psychologist',
+    'Relationship Counselor',
+    'Active Listener',
   ];
 
   // Fetch reviews for all doctors
@@ -96,6 +99,7 @@ const Doctors = () => {
   // Update filters when doctors, speciality, or reviews change
   useEffect(() => {
     if (doctors && doctors.length > 0) {
+      setIsLoading(true);
       fetchReviews().then(() => {
         applyFilter();
         setIsLoading(false);
@@ -144,7 +148,10 @@ const Doctors = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-rose-50">
-        <p className="text-gray-600 text-lg">Loading professionals...</p>
+        <div className="flex flex-col items-center">
+          <div className="w-16 h-16 border-4 border-rose-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-600 text-lg">Loading professionals...</p>
+        </div>
       </div>
     );
   }
