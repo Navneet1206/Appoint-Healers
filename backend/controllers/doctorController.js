@@ -10,7 +10,7 @@ import validator from 'validator';
 import professionalRequestModel from "../models/professionalRequestModel.js";
 import reviewModel from "../models/reviewModel.js";
 import transactionModel from "../models/transactionModel.js";
-        
+
 dotenv.config();
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -818,18 +818,34 @@ const getOwnReviews = async (req, res) => {
 
 const getDoctorTransactions = async (req, res) => {
   try {
-    const { docId } = req.body; // From authDoctor middleware
+    const doctorId = req.body.doctorId; // Assuming doctorId is sent in the request body or from auth middleware
+
+    if (!doctorId) {
+      return res.json({
+        success: false,
+        message: "Doctor ID is required",
+      });
+    }
+
     const transactions = await transactionModel
-      .find({ doctorId: docId })
-      .populate('userId', 'name') // Only name, no email
-      .populate('appointmentId', 'date')
+      .find({ doctorId })
+      .populate("userId", "name email")
+      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount")
       .sort({ timestamp: -1 });
-    res.json({ success: true, transactions });
+
+    res.json({
+      success: true,
+      transactions,
+    });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("Error fetching doctor transactions:", error);
+    res.json({
+      success: false,
+      message: error.message,
+    });
   }
 };
+
 
 export {
     loginDoctor,

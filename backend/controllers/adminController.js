@@ -609,15 +609,22 @@ const postFakeReview = async (req, res) => {
 const getAllTransactions = async (req, res) => {
   try {
     const transactions = await transactionModel
-      .find()
-      .populate('userId', 'name email') // Include both name and email
-      .populate('doctorId', 'name email') // Include both name and email
-      .populate('appointmentId', 'date')
-      .sort({ timestamp: -1 });
-    res.json({ success: true, transactions });
+      .find({})
+      .populate("userId", "name email")
+      .populate("doctorId", "name email")
+      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount")
+      .sort({ timestamp: -1 }); // Sort by newest first
+
+    res.json({
+      success: true,
+      transactions,
+    });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("Error fetching transactions:", error);
+    res.json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 

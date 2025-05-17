@@ -674,6 +674,18 @@ const paymentRazorpay = async (req, res) => {
 
     const order = await razorpayInstance.orders.create(options);
 
+    // Create a pending transaction
+    const newTransaction = new transactionModel({
+      userId: appointmentData.userId,
+      doctorId: appointmentData.docId,
+      appointmentId: appointmentData._id,
+      amount: amountToPay,
+      status: "pending",
+      paymentMethod: "razorpay",
+      transactionId: order.id,
+    });
+    await newTransaction.save();
+
     res.json({ success: true, order });
   } catch (error) {
     console.log(error);
@@ -687,9 +699,16 @@ const verifyRazorpay = async (req, res) => {
     const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
 
     if (orderInfo.status === "paid") {
+      // Update appointment payment status
       await appointmentModel.findByIdAndUpdate(orderInfo.receipt, {
         payment: true,
       });
+
+      // Update transaction status to completed
+      await transactionModel.findOneAndUpdate(
+        { transactionId: razorpay_order_id },
+        { status: "completed" }
+      );
 
       const appointment = await appointmentModel.findById(orderInfo.receipt);
       const userData = await userModel.findById(appointment.userId).select("-password");
@@ -780,6 +799,11 @@ const verifyRazorpay = async (req, res) => {
 
       res.json({ success: true, message: "Payment Successful" });
     } else {
+      // Update transaction to failed
+      await transactionModel.findOneAndUpdate(
+        { transactionId: razorpay_order_id },
+        { status: "failed" }
+      );
       res.json({ success: false, message: "Payment Failed" });
     }
   } catch (error) {
@@ -787,7 +811,6 @@ const verifyRazorpay = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
-
 const submitTest = async (req, res) => {
   try {
     const { name, email, mobile, testId, answers } = req.body;
