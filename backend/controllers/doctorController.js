@@ -9,7 +9,8 @@ import { v2 as cloudinary } from 'cloudinary';
 import validator from 'validator';
 import professionalRequestModel from "../models/professionalRequestModel.js";
 import reviewModel from "../models/reviewModel.js";
-
+import transactionModel from "../models/transactionModel.js";
+        
 dotenv.config();
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -815,6 +816,21 @@ const getOwnReviews = async (req, res) => {
   }
 };
 
+const getDoctorTransactions = async (req, res) => {
+  try {
+    const { docId } = req.body; // From authDoctor middleware
+    const transactions = await transactionModel
+      .find({ doctorId: docId })
+      .populate('userId', 'name') // Only name, no email
+      .populate('appointmentId', 'date')
+      .sort({ timestamp: -1 });
+    res.json({ success: true, transactions });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 export {
     loginDoctor,
     forgotPasswordDoctor,
@@ -836,4 +852,5 @@ export {
     getDashData,
     submitProfessionalRequest,
     getOwnReviews,
+    getDoctorTransactions,
 };

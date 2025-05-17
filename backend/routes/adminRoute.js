@@ -20,6 +20,7 @@ import {
   updateCoupon,
   deleteCoupon,
   postFakeReview,
+  getAllTransactions,
 } from "../controllers/adminController.js";
 import { changeAvailablity } from "../controllers/doctorController.js";
 import authAdmin from "../middleware/authAdmin.js";
@@ -51,4 +52,6 @@ adminRouter.put('/coupons/:id', authAdmin, updateCoupon);
 adminRouter.delete('/coupons/:id', authAdmin, deleteCoupon);
 
 adminRouter.post("/post-fake-review", authAdmin, postFakeReview); 
+adminRouter.get('/all-transactions', authAdmin, getAllTransactions);
+
 export default adminRouter;

@@ -12,7 +12,7 @@ import Test from "../models/testModel.js";
 import UserTestResult from "../models/userTestResultModel.js";
 import reviewModel from "../models/reviewModel.js";
 import Coupon from "../models/couponModel.js";
-
+import transactionModel from "../models/transactionModel.js";
 dotenv.config();
 
 const razorpayInstance = new razorpay({
@@ -950,6 +950,21 @@ const validateCoupon = async (req, res) => {
   }
 };
 
+const getUserTransactions = async (req, res) => {
+  try {
+    const { userId } = req.body; // From authUser middleware
+    const transactions = await transactionModel
+      .find({ userId })
+      .populate('doctorId', 'name') // Only name, no email
+      .populate('appointmentId', 'date')
+      .sort({ timestamp: -1 });
+    res.json({ success: true, transactions });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 export {
   loginUser,
   registerUser,
@@ -970,4 +985,6 @@ export {
   getTests,
   getTestById,
   validateCoupon,
+  getUserTransactions,
+
 };

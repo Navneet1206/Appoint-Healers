@@ -19,7 +19,7 @@ import {
   getTests,
   getTestById,
   validateCoupon,
-  
+  getUserTransactions,
 } from "../controllers/userController.js";
 import upload from "../middleware/multer.js";
 import authUser from "../middleware/authUser.js";
@@ -50,4 +50,6 @@ userRouter.post("/submit-test", submitTest);
 userRouter.get("/tests", getTests); 
 userRouter.get("/tests/:testId", getTestById); 
 userRouter.post('/validate-coupon', authUser, validateCoupon);
+userRouter.get('/transactions', authUser, getUserTransactions);
+
 export default userRouter;

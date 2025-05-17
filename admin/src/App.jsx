@@ -19,8 +19,9 @@ import DoctorSlots from './pages/Doctor/DoctorSlots';
 import TestManagement from './pages/Admin/TestManagement';
 import CouponManagement from './pages/Admin/CouponManagement';
 import AdminReviewManagement from './pages/Admin/AdminReviewManagement'
-import DoctorReviews from './pages/Doctor/DoctorReviews'; // Added
-
+import DoctorReviews from './pages/Doctor/DoctorReviews'; 
+import AllTransactions from './pages/Admin/AllTransactions';
+import DoctorTransactions from './pages/Doctor/DoctorTransactions';
 
 const App = () => {
   const { dToken } = useContext(DoctorContext);
@@ -48,6 +49,9 @@ const App = () => {
               <Route path="/coupon-management" element={<CouponManagement />} />
               <Route path="/managereview" element={<AdminReviewManagement/>}/>
               <Route path='/doctor-reviews' element={<DoctorReviews />} />
+              
+              <Route path='/all-transactions' element={<AllTransactions />} />
+              <Route path='/doctor-transactions' element={<DoctorTransactions />} />
             </Routes>
           </div>
         </>

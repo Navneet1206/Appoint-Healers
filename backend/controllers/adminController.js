@@ -9,7 +9,7 @@ import nodemailer from "nodemailer";
 import Test from "../models/testModel.js";
 import Coupon from '../models/couponModel.js';
 import reviewModel from "../models/reviewModel.js";
-
+import transactionModel from "../models/transactionModel.js";
 // Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -606,6 +606,20 @@ const postFakeReview = async (req, res) => {
 };
 
 
+const getAllTransactions = async (req, res) => {
+  try {
+    const transactions = await transactionModel
+      .find()
+      .populate('userId', 'name email') // Include both name and email
+      .populate('doctorId', 'name email') // Include both name and email
+      .populate('appointmentId', 'date')
+      .sort({ timestamp: -1 });
+    res.json({ success: true, transactions });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
 
 export {
   loginAdmin,
@@ -628,4 +642,5 @@ export {
   updateCoupon,
   deleteCoupon,
   postFakeReview,
+  getAllTransactions,
 };
