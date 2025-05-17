@@ -14,7 +14,6 @@ const DoctorDashboard = () => {
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch dashboard data with error handling
   const fetchDashData = async () => {
     try {
       setIsLoading(true);
@@ -28,21 +27,26 @@ const DoctorDashboard = () => {
     }
   };
 
-  // Fetch reviews for the doctor
   const fetchReviews = async () => {
-    if (!dashData?.doctorId) return;
+    if (!dashData?.doctorId) {
+      console.log('No doctorId available yet');
+      return;
+    }
     try {
       setIsLoadingReviews(true);
+      console.log(`Fetching reviews for doctorId: ${dashData.doctorId}`);
       const { data } = await axios.get(`${backendUrl}/api/user/reviews/${dashData.doctorId}`, {
         headers: { dToken },
       });
+      console.log('Reviews fetch response:', data);
       if (data.success) {
-        setReviews(data.reviews);
+        setReviews(data.reviews || []);
       } else {
+        console.error('Failed to load reviews:', data.message);
         toast.error(data.message || 'Failed to load reviews');
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      console.error('Error fetching reviews:', error.response || error);
       toast.error('Error loading reviews');
     } finally {
       setIsLoadingReviews(false);
@@ -61,13 +65,11 @@ const DoctorDashboard = () => {
     }
   }, [dashData]);
 
-  // Calculate average rating
   const averageRating =
     reviews.length > 0
       ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
       : 'N/A';
 
-  // Render star rating
   const renderStars = (rating) => {
     return [...Array(5)].map((_, index) => (
       <span
@@ -79,18 +81,6 @@ const DoctorDashboard = () => {
     ));
   };
 
-  // Framer Motion variants
-  const cardVariant = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
-  };
-
-  const reviewVariant = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0 },
-  };
-
-  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-rose-50">
@@ -99,7 +89,6 @@ const DoctorDashboard = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-rose-50">
@@ -118,7 +107,6 @@ const DoctorDashboard = () => {
 
   return (
     <div className="m-5">
-      {/* Stats Section */}
       <motion.div
         className="flex flex-wrap gap-4"
         initial="hidden"
@@ -134,7 +122,7 @@ const DoctorDashboard = () => {
         ].map((stat, index) => (
           <motion.div
             key={index}
-            variants={cardVariant}
+            variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
             className="flex items-center gap-3 bg-white p-4 min-w-52 rounded-lg shadow-md border border-gray-100 cursor-pointer hover:scale-105 transition-all"
           >
             <img className="w-12" src={stat.icon} alt={stat.label} />
@@ -146,12 +134,11 @@ const DoctorDashboard = () => {
         ))}
       </motion.div>
 
-      {/* Reviews Section */}
       <motion.div
         className="bg-white mt-10 rounded-lg shadow-md border"
         initial="hidden"
         animate="visible"
-        variants={cardVariant}
+        variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
       >
         <div className="flex items-center gap-2.5 px-4 py-4 rounded-t border-b">
           <img src={assets.review_icon || assets.list_icon} alt="Reviews" className="w-6" />
@@ -175,7 +162,7 @@ const DoctorDashboard = () => {
                 {reviews.map((review, index) => (
                   <motion.div
                     key={index}
-                    variants={reviewVariant}
+                    variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
                     className="p-4 bg-gray-50 rounded-lg shadow-sm"
                   >
                     <div className="flex items-center gap-3">
@@ -207,12 +194,11 @@ const DoctorDashboard = () => {
         </div>
       </motion.div>
 
-      {/* Latest Bookings Section */}
       <motion.div
         className="bg-white mt-10 rounded-lg shadow-md border"
         initial="hidden"
         animate="visible"
-        variants={cardVariant}
+        variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
       >
         <div className="flex items-center gap-2.5 px-4 py-4 rounded-t border-b">
           <img src={assets.list_icon} alt="Bookings" />
@@ -222,7 +208,7 @@ const DoctorDashboard = () => {
           {dashData.latestAppointments?.slice(0, 5).map((item, index) => (
             <motion.div
               key={index}
-              variants={reviewVariant}
+              variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
               className="flex items-center px-6 py-3 gap-3 hover:bg-gray-100"
             >
               <img

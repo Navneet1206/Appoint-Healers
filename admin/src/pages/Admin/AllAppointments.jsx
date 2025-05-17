@@ -13,7 +13,6 @@ const AllAppointments = () => {
   const [selectedAppointmentId, setSelectedAppointmentId] = useState('');
   const [meetingLink, setMeetingLink] = useState('');
 
-  // Debug context values
   useEffect(() => {
     console.log('AdminContext values:', { aToken, appointments, cancelAppointment, getAllAppointments, sendMeetingLink, acceptAppointment, completeAppointment });
   }, [aToken, appointments, cancelAppointment, getAllAppointments, sendMeetingLink, acceptAppointment, completeAppointment]);
@@ -84,7 +83,7 @@ const AllAppointments = () => {
               <img src={item.docData.image} className='w-8 rounded-full bg-gray-200' alt='' />
               <p>{item.docData.name}</p>
             </div>
-            <p>{currency}{item.amount}</p>
+            <p>{currency}{item.discountedAmount ? item.discountedAmount : item.originalAmount}</p>
             <div className='flex gap-2'>
               {item.cancelled ? (
                 <p className='text-red-400 text-xs font-medium'>Cancelled</p>
@@ -126,7 +125,6 @@ const AllAppointments = () => {
         ))}
       </div>
 
-      {/* Modal for Sending Meeting Link */}
       {showModal && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
           <div className='bg-white rounded-lg p-6 w-full max-w-md'>

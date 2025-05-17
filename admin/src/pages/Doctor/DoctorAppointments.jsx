@@ -7,7 +7,7 @@ import axios from 'axios';
 
 const DoctorAppointments = () => {
     const { dToken, appointments, getAppointments } = useContext(DoctorContext);
-    const { backendUrl, slotDateFormat, currency } = useContext(AppContext);
+    const { backendUrl, slotDateFormat, currency, calculateAge } = useContext(AppContext);
     const [meetingLink, setMeetingLink] = useState('');
     const [selectedAppointment, setSelectedAppointment] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,7 +31,6 @@ const DoctorAppointments = () => {
                 toast.success('Meeting link sent successfully');
                 setMeetingLink('');
                 setSelectedAppointment(null);
-                // Mark this appointment as having link sent
                 setProcessedAppointments(prev => ({
                     ...prev,
                     [appointmentId]: {
@@ -39,7 +38,7 @@ const DoctorAppointments = () => {
                         linkSent: true
                     }
                 }));
-                getAppointments(); // Refresh appointments
+                getAppointments();
             } else {
                 toast.error(data.message);
             }
@@ -61,7 +60,6 @@ const DoctorAppointments = () => {
             );
             if (data.success) {
                 toast.success('Appointment accepted successfully');
-                // Mark this appointment as accepted
                 setProcessedAppointments(prev => ({
                     ...prev,
                     [appointmentId]: {
@@ -69,7 +67,7 @@ const DoctorAppointments = () => {
                         accepted: true
                     }
                 }));
-                getAppointments(); // Refresh appointments
+                getAppointments();
             } else {
                 toast.error(data.message);
             }
@@ -91,7 +89,7 @@ const DoctorAppointments = () => {
             );
             if (data.success) {
                 toast.success('Appointment cancelled successfully');
-                getAppointments(); // Refresh appointments
+                getAppointments();
             } else {
                 toast.error(data.message);
             }
@@ -120,7 +118,7 @@ const DoctorAppointments = () => {
                         completed: true
                     }
                 }));
-                getAppointments(); // Refresh appointments
+                getAppointments();
             } else {
                 toast.error(data.message);
             }
@@ -132,7 +130,6 @@ const DoctorAppointments = () => {
         }
     };
 
-    // Check if an appointment has been processed (accepted or link sent)
     const isAppointmentAccepted = (appointmentId) => {
         return processedAppointments[appointmentId]?.accepted;
     };
@@ -173,7 +170,7 @@ const DoctorAppointments = () => {
                                     <img src={item.userData.image} className="w-10 h-10 rounded-full object-cover border" alt={item.userData.name} />
                                     <div>
                                         <p className="font-medium text-gray-800">{item.userData.name}</p>
-                                        <p className="text-xs text-gray-500 sm:hidden">{item.userData.age} years</p>
+                                        <p className="text-xs text-gray-500 sm:hidden">{calculateAge(item.userData.dob)} years</p>
                                     </div>
                                 </div>
                                 
@@ -183,14 +180,14 @@ const DoctorAppointments = () => {
                                     </span>
                                 </div>
                                 
-                                <p className="max-sm:hidden">{item.userData.age} years</p>
+                                <p className="max-sm:hidden">{calculateAge(item.userData.dob)} years</p>
                                 
                                 <div>
                                     <p className="font-medium">{slotDateFormat(item.slotDate)}</p>
                                     <p className="text-sm text-gray-500">{item.slotTime}</p>
                                 </div>
                                 
-                                <p className="font-medium text-gray-800">{currency}{item.amount}</p>
+                                <p className="font-medium text-gray-800">{currency}{item.discountedAmount ? item.discountedAmount : item.originalAmount}</p>
                                 
                                 <div className="flex flex-wrap gap-2 items-center">
                                     {item.cancelled ? (
@@ -255,7 +252,6 @@ const DoctorAppointments = () => {
                 </div>
             )}
 
-            {/* Modal for meeting link */}
             {selectedAppointment && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 animate-fadeIn">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-slideUp">
