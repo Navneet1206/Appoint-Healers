@@ -62,7 +62,7 @@ const Hero = () => {
 
   return (
     <section
-      className="relative w-full min-h-[600px] md:min-h-[700px] flex items-center justify-center overflow-hidden"
+      className="relative w-full min-h-[500px] md:min-h-[500px] flex items-center justify-center overflow-hidden"
       aria-label="Hero Slider Section"
     >
       <AnimatePresence mode="wait">

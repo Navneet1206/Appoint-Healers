@@ -12,6 +12,7 @@ import Test from "../models/testModel.js";
 import UserTestResult from "../models/userTestResultModel.js";
 import reviewModel from "../models/reviewModel.js";
 import Coupon from "../models/couponModel.js";
+
 dotenv.config();
 
 const razorpayInstance = new razorpay({
@@ -314,7 +315,7 @@ const updateProfile = async (req, res) => {
 
 const bookAppointment = async (req, res) => {
   try {
-    const { userId, docId, slotId } = req.body;
+    const { userId, docId, slotId, sessionType, couponCode } = req.body;
     const doctor = await doctorModel.findById(docId);
     if (!doctor) {
       return res.json({ success: false, message: "Doctor not found" });
@@ -326,16 +327,33 @@ const bookAppointment = async (req, res) => {
     slot.status = "Booked";
     await doctor.save();
 
+    let originalAmount = doctor.fees;
+    let discountedAmount = null;
+    let discountPercentage = 0;
+
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode });
+      if (coupon && new Date() <= coupon.expirationDate) {
+        discountPercentage = coupon.discountPercentage;
+        discountedAmount = originalAmount - (originalAmount * discountPercentage) / 100;
+      } else {
+        return res.json({ success: false, message: "Invalid or expired coupon" });
+      }
+    }
+
     const userData = await userModel.findById(userId).select("-password");
     const appointmentData = {
       userId,
       docId,
       userData,
       docData: doctor,
-      amount: doctor.fees,
+      originalAmount,
+      discountedAmount: discountedAmount || originalAmount,
+      couponCode: couponCode || null,
       slotId,
       slotDate: slot.slotDate,
       slotTime: slot.slotTime,
+      sessionType,
       date: Date.now(),
     };
 
@@ -363,10 +381,13 @@ const bookAppointment = async (req, res) => {
           }) has been successfully booked for ${slot.slotDate} at ${
             slot.slotTime
           }.<br><br>
+                    Please complete the payment of ₹${
+                      discountedAmount || originalAmount
+                    } using Razorpay to confirm your booking.
                     ${
-                      newAppointment.payment
-                        ? "Your online payment has been completed."
-                        : "Please make the payment at the time of your appointment."
+                      couponCode
+                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
+                        : ""
                     }
                     `
         ),
@@ -384,10 +405,11 @@ const bookAppointment = async (req, res) => {
                     } (${userData.email}) on ${slot.slotDate} at ${
             slot.slotTime
           }.<br><br>
+                    Payment of ₹${discountedAmount || originalAmount} is pending via Razorpay.
                     ${
-                      newAppointment.payment
-                        ? "The user has completed the online payment."
-                        : "The user will make the payment at the time of their appointment."
+                      couponCode
+                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
+                        : ""
                     }
                     `
         ),
@@ -403,43 +425,35 @@ const bookAppointment = async (req, res) => {
                     User: ${userData.name} (${userData.email})<br>
                     Doctor: ${doctor.name} (${doctor.email})<br>
                     Date & Time: ${slot.slotDate} at ${slot.slotTime}<br><br>
+                    Payment: ₹${discountedAmount || originalAmount} - Pending via Razorpay
                     ${
-                      newAppointment.payment
-                        ? "Payment: Online"
-                        : "Payment: Cash (To be collected at appointment time)"
+                      couponCode
+                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
+                        : ""
                     }
                     `
         ),
       };
 
       transporter.sendMail(userMailOptions, (error, info) => {
-        if (error) {
-          console.error("Error sending email to user:", error);
-        } else {
-          console.log("Email sent to user:", info.response);
-        }
+        if (error) console.error("Error sending email to user:", error);
+        else console.log("Email sent to user:", info.response);
       });
 
       transporter.sendMail(doctorMailOptions, (error, info) => {
-        if (error) {
-          console.error("Error sending email to doctor:", error);
-        } else {
-          console.log("Email sent to doctor:", info.response);
-        }
+        if (error) console.error("Error sending email to doctor:", error);
+        else console.log("Email sent to doctor:", info.response);
       });
 
       transporter.sendMail(adminMailOptions, (error, info) => {
-        if (error) {
-          console.error("Error sending email to admin:", error);
-        } else {
-          console.log("Email sent to admin:", info.response);
-        }
+        if (error) console.error("Error sending email to admin:", error);
+        else console.log("Email sent to admin:", info.response);
       });
     }
 
     sendAppointmentConfirmationEmail();
 
-    res.json({ success: true, message: "Appointment Booked" });
+    res.json({ success: true, message: "Appointment Booked", appointmentId: newAppointment._id });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -650,8 +664,10 @@ const paymentRazorpay = async (req, res) => {
       });
     }
 
+    const amountToPay = appointmentData.discountedAmount || appointmentData.originalAmount;
+
     const options = {
-      amount: appointmentData.amount * 100,
+      amount: amountToPay * 100,
       currency: process.env.CURRENCY,
       receipt: appointmentId,
     };
@@ -696,6 +712,11 @@ const verifyRazorpay = async (req, res) => {
             "Payment Confirmation",
             `Dear ${userData.name},<br><br>
                         Your payment for the appointment with ${doctor.name} (${doctor.email}) scheduled for ${appointment.slotDate} at ${appointment.slotTime} has been successfully processed.<br><br>
+                        ${
+                          appointment.couponCode
+                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                            : `Amount Paid: ₹${appointment.originalAmount}`
+                        }
                         Thank you for choosing Savayas Heal.
                         `
           ),
@@ -709,6 +730,11 @@ const verifyRazorpay = async (req, res) => {
             "Payment Received",
             `Dear ${doctor.name},<br><br>
                         You have received a payment from ${userData.name} (${userData.email}) for the appointment scheduled for ${appointment.slotDate} at ${appointment.slotTime}.<br><br>
+                        ${
+                          appointment.couponCode
+                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                            : `Amount Paid: ₹${appointment.originalAmount}`
+                        }
                         Thank you for using Savayas Heal.
                         `
           ),
@@ -724,33 +750,29 @@ const verifyRazorpay = async (req, res) => {
                         User: ${userData.name} (${userData.email})<br>
                         Doctor: ${doctor.name} (${doctor.email})<br>
                         Date & Time: ${appointment.slotDate} at ${appointment.slotTime}<br><br>
+                        ${
+                          appointment.couponCode
+                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                            : `Amount Paid: ₹${appointment.originalAmount}`
+                        }
                         Payment: Online - Completed
                         `
           ),
         };
 
         transporter.sendMail(userMailOptions, (error, info) => {
-          if (error) {
-            console.error("Error sending email to user:", error);
-          } else {
-            console.log("Email sent to user:", info.response);
-          }
+          if (error) console.error("Error sending email to user:", error);
+          else console.log("Email sent to user:", info.response);
         });
 
         transporter.sendMail(doctorMailOptions, (error, info) => {
-          if (error) {
-            console.error("Error sending email to doctor:", error);
-          } else {
-            console.log("Email sent to doctor:", info.response);
-          }
+          if (error) console.error("Error sending email to doctor:", error);
+          else console.log("Email sent to doctor:", info.response);
         });
 
         transporter.sendMail(adminMailOptions, (error, info) => {
-          if (error) {
-            console.error("Error sending email to admin:", error);
-          } else {
-            console.log("Email sent to admin:", info.response);
-          }
+          if (error) console.error("Error sending email to admin:", error);
+          else console.log("Email sent to admin:", info.response);
         });
       }
 
