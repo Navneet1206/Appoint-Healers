@@ -18,6 +18,8 @@ import {
   getDoctorReviews,
   getTests,
   getTestById,
+  validateCoupon,
+  
 } from "../controllers/userController.js";
 import upload from "../middleware/multer.js";
 import authUser from "../middleware/authUser.js";
@@ -44,8 +46,8 @@ userRouter.post("/payment-razorpay", authUser, paymentRazorpay);
 userRouter.post("/verifyRazorpay", authUser, verifyRazorpay);
 userRouter.post("/add-review", authUser, addReview);
 userRouter.get("/reviews/:doctorId", getDoctorReviews);
-userRouter.post("/submit-test", submitTest); // No auth required
-userRouter.get("/tests", getTests); // Publicly accessible
-userRouter.get("/tests/:testId", getTestById); // Publicly accessible
-
+userRouter.post("/submit-test", submitTest);
+userRouter.get("/tests", getTests); 
+userRouter.get("/tests/:testId", getTestById); 
+userRouter.post('/validate-coupon', authUser, validateCoupon);
 export default userRouter;

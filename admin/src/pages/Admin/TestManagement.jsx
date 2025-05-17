@@ -4,6 +4,8 @@ import { toast } from "react-toastify";
 
 const TestManagement = () => {
   const [tests, setTests] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTestId, setEditingTestId] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -29,31 +31,108 @@ const TestManagement = () => {
     }
   };
 
+  const startEditing = (testId) => {
+    const testToEdit = tests.find((test) => test._id === testId);
+    if (testToEdit) {
+      setFormData({
+        title: testToEdit.title,
+        description: testToEdit.description,
+        category: testToEdit.category,
+        subCategory: testToEdit.subCategory,
+        questions: testToEdit.questions.map((q) => ({
+          questionText: q.questionText,
+          options: q.options.map((opt) => ({ text: opt.text, points: opt.points })),
+        })),
+        resultRanges: testToEdit.resultRanges.map((r) => ({
+          minScore: r.minScore,
+          maxScore: r.maxScore,
+          resultText: r.resultText,
+        })),
+      });
+      setIsEditing(true);
+      setEditingTestId(testId);
+    }
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditingTestId(null);
+    setFormData({
+      title: "",
+      description: "",
+      category: "",
+      subCategory: "",
+      questions: [{ questionText: "", options: [{ text: "", points: 0 }] }],
+      resultRanges: [{ minScore: 0, maxScore: 0, resultText: "" }],
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      console.log('Sending request to:', `${import.meta.env.VITE_BACKEND_URL}/api/admin/add-test`);
-      console.log('With data:', formData);
-      const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/admin/add-test`, formData, {
-        headers: { aToken: localStorage.getItem("aToken") },
-      });
-      if (data.success) {
-        toast.success("Test added successfully");
-        fetchTests();
-        setFormData({
-          title: "",
-          description: "",
-          category: "",
-          subCategory: "",
-          questions: [{ questionText: "", options: [{ text: "", points: 0 }] }],
-          resultRanges: [{ minScore: 0, maxScore: 0, resultText: "" }],
-        });
+      if (isEditing) {
+        const { data } = await axios.put(
+          `${import.meta.env.VITE_BACKEND_URL}/api/admin/tests/${editingTestId}`,
+          formData,
+          {
+            headers: { aToken: localStorage.getItem("aToken") },
+          }
+        );
+        if (data.success) {
+          toast.success("Test updated successfully");
+          cancelEditing();
+          fetchTests();
+        } else {
+          toast.error(data.message);
+        }
       } else {
-        toast.error(data.message);
+        const { data } = await axios.post(
+          `${import.meta.env.VITE_BACKEND_URL}/api/admin/add-test`,
+          formData,
+          {
+            headers: { aToken: localStorage.getItem("aToken") },
+          }
+        );
+        if (data.success) {
+          toast.success("Test added successfully");
+          fetchTests();
+          setFormData({
+            title: "",
+            description: "",
+            category: "",
+            subCategory: "",
+            questions: [{ questionText: "", options: [{ text: "", points: 0 }] }],
+            resultRanges: [{ minScore: 0, maxScore: 0, resultText: "" }],
+          });
+        } else {
+          toast.error(data.message);
+        }
       }
     } catch (error) {
       console.error("Error submitting test:", error);
-      toast.error("Failed to add test");
+      toast.error("Failed to submit test");
+    }
+  };
+
+  const deleteTest = async (testId) => {
+    if (window.confirm("Are you sure you want to delete this test?")) {
+      try {
+        const { data } = await axios.delete(
+          `${import.meta.env.VITE_BACKEND_URL}/api/admin/tests/${testId}`,
+          {
+            headers: { aToken: localStorage.getItem("aToken") },
+          }
+        );
+        if (data.success) {
+          toast.success("Test deleted successfully");
+          fetchTests();
+        } else {
+          toast.error(data.message);
+        }
+      } catch (error) {
+        console.error("Error deleting test:", error);
+        toast.error("Failed to delete test");
+      }
     }
   };
 
@@ -62,6 +141,15 @@ const TestManagement = () => {
       ...formData,
       questions: [...formData.questions, { questionText: "", options: [{ text: "", points: 0 }] }],
     });
+  };
+
+  const deleteQuestion = (questionIndex) => {
+    if (formData.questions.length > 1) {
+      const questions = formData.questions.filter((_, index) => index !== questionIndex);
+      setFormData({ ...formData, questions });
+    } else {
+      toast.error("Each test must have at least one question");
+    }
   };
 
   const addOption = (questionIndex) => {
@@ -87,6 +175,15 @@ const TestManagement = () => {
       ...formData,
       resultRanges: [...formData.resultRanges, { minScore: 0, maxScore: 0, resultText: "" }],
     });
+  };
+
+  const deleteResultRange = (rangeIndex) => {
+    if (formData.resultRanges.length > 1) {
+      const resultRanges = formData.resultRanges.filter((_, index) => index !== rangeIndex);
+      setFormData({ ...formData, resultRanges });
+    } else {
+      toast.error("Each test must have at least one result range");
+    }
   };
 
   return (
@@ -164,7 +261,7 @@ const TestManagement = () => {
                     onClick={() => deleteOption(qIndex, oIndex)}
                     className="bg-red-500 text-white p-2 rounded hover:bg-red-600"
                   >
-                    Delete
+                    Delete Option
                   </button>
                 )}
               </div>
@@ -176,6 +273,15 @@ const TestManagement = () => {
             >
               Add Option
             </button>
+            {formData.questions.length > 1 && (
+              <button
+                type="button"
+                onClick={() => deleteQuestion(qIndex)}
+                className="bg-red-500 text-white p-2 rounded hover:bg-red-600"
+              >
+                Remove Question
+              </button>
+            )}
           </div>
         ))}
         <button
@@ -221,6 +327,15 @@ const TestManagement = () => {
               }}
               className="w-full p-2 border rounded"
             />
+            {formData.resultRanges.length > 1 && (
+              <button
+                type="button"
+                onClick={() => deleteResultRange(idx)}
+                className="bg-red-500 text-white p-2 rounded hover:bg-red-600 mt-2"
+              >
+                Remove Result Range
+              </button>
+            )}
           </div>
         ))}
         <button
@@ -231,19 +346,39 @@ const TestManagement = () => {
           Add Result Range
         </button>
 
-        <button
-          type="submit"
-          className="bg-green-500 text-white p-2 rounded w-full"
-        >
-          Add Test
+        <button type="submit" className="bg-green-500 text-white p-2 rounded w-full">
+          {isEditing ? "Update Test" : "Add Test"}
         </button>
+        {isEditing && (
+          <button
+            type="button"
+            onClick={cancelEditing}
+            className="bg-gray-500 text-white p-2 rounded w-full mt-2"
+          >
+            Cancel Editing
+          </button>
+        )}
       </form>
 
       <h2 className="text-xl font-bold mt-6">Existing Tests</h2>
       <ul>
         {tests.map((test) => (
-          <li key={test._id} className="border p-2 my-2 rounded">
-            {test.title} - {test.category} - {test.subCategory}
+          <li key={test._id} className="border p-2 my-2 rounded flex justify-between items-center">
+            <span>{test.title} - {test.category} - {test.subCategory}</span>
+            <div>
+              <button
+                onClick={() => startEditing(test._id)}
+                className="bg-yellow-500 text-white p-1 rounded mr-2"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => deleteTest(test._id)}
+                className="bg-red-500 text-white p-1 rounded"
+              >
+                Delete
+              </button>
+            </div>
           </li>
         ))}
       </ul>

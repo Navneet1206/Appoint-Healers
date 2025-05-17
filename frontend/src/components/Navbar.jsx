@@ -2,21 +2,21 @@ import React, { useState, useContext } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   ChevronDownIcon,
-  ChevronRightIcon,
   PhoneIcon,
   MenuIcon,
-  XIcon
+  XIcon,
+  UserIcon
 } from 'lucide-react';
 import { AppContext } from '../context/AppContext';
 
-// WhatsApp SVG icon (simplified, using official brand color)
+// WhatsApp SVG icon (official logo, using brand color)
 const WhatsAppIcon = () => (
   <svg
     viewBox="0 0 24 24"
     className="w-6 h-6 fill-[#25D366]"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M12 2C6.48 2 2 6.48 2 12c0 1.77.46 3.43 1.26 4.87L2 22l5.13-1.26A9.94 9.94 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm3.79 15.21c-.45.67-1.32 1.05-2.18 1.05-.86 0-1.73-.35-2.36-.95-.86-.82-1.58-1.83-2.1-2.96-.52-1.13-.8-2.34-.8-3.54 0-1.22.29-2.39.81-3.44.45-.89 1.14-1.45 2.05-1.45.39 0 .77.09 1.12.26.35.17.65.42.88.74l.55 1.09c.18.36.22.78.1 1.17-.12.39-.39.69-.74.85l-.36.18c-.32.16-.58.44-.69.78.11.62.37 1.24.77 1.83.39.59.91 1.11 1.51 1.51.34.23.73.29 1.09.17l.37-.14c.39-.15.71-.44.85-.82.14-.38.09-.79-.13-1.13l-.55-1.09c-.23-.46-.59-.82-1.04-.99-.45-.17-.92-.22-1.38-.13l-.77.18c-.34.08-.69-.02-.95-.27-.26-.25-.37-.6-.29-.95l.14-.73c.08-.42.31-.79.65-.99.34-.2.73-.26 1.1-.17l.73.18c.74.18 1.36.63 1.75 1.27.39.64.56 1.39.48 2.14-.08.75-.34 1.47-.79 2.09z" />
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.134.297-.347.446-.52.149-.174.297-.298.397-.447.099-.149.099-.347-.002-.496-.099-.149-.445-.566-.682-.634-.237-.087-.512-.056-.69-.01-.177.044-.396.135-.574.356-.178.222-.623.652-.989.896-.367.243-.669.406-.669.548 0 .142.099.397.347.694.247.297.986 1.006 1.382 1.553.396.547.892 1.52 1.288 2.067.396.547.641.743.892.892.251.149.471.222.669.123.198-.099.842-.467 1.414-.694.572-.227 1.08-.148 1.255.099.173.247.494.742.692 1.038.198.297.198.645-.099.794-.297.149-.644.298-1.185.447zm-5.466 5.466c-2.468 0-4.916-.664-7.07-1.973l-.507 1.503-1.975-.698c-.686-2.154-1.05-4.602-1.05-7.07 0-6.627 5.373-12 12-12s12 5.373 12 12-5.373 12-12 12zm0-22C5.373 2 0 7.373 0 14c0 2.468.664 4.916 1.973 7.07L3 24l-2.973-.973C.664 18.916 0 16.468 0 14c0-6.627 5.373-12 12-12s12 5.373 12 12-5.373 12-12 12z" />
   </svg>
 );
 
@@ -188,7 +188,7 @@ const Navbar = () => {
               Contact Us
             </NavLink>
 
-            {/* Icons and Login/Logout */}
+            {/* Icons and Profile/Login */}
             <div className="flex items-center space-x-4">
               <a
                 href="tel:+1234567890"
@@ -205,12 +205,33 @@ const Navbar = () => {
                 <WhatsAppIcon />
               </a>
               {token ? (
-                <button
-                  onClick={logout}
-                  className="bg-rose-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-rose-700"
-                >
-                  Log Out
-                </button>
+                <div className="relative group">
+                  <button
+                    className="w-8 h-8 bg-rose-500 rounded-full flex items-center justify-center text-white hover:bg-rose-600"
+                  >
+                    <UserIcon size={16} />
+                  </button>
+                  <div className="absolute top-full right-0 w-48 bg-white shadow-md opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200">
+                    <NavLink
+                      to="/my-profile"
+                      className="block px-4 py-2 text-sm hover:bg-rose-50"
+                    >
+                      My Profile
+                    </NavLink>
+                    <NavLink
+                      to="/my-appointments"
+                      className="block px-4 py-2 text-sm hover:bg-rose-50"
+                    >
+                      My Appointments
+                    </NavLink>
+                    <button
+                      onClick={logout}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-rose-50 text-rose-600"
+                    >
+                      Log Out
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <NavLink
                   to="/login"
@@ -391,44 +412,52 @@ const Navbar = () => {
                 Contact Us
               </NavLink>
 
-              {/* Icons and Login/Logout */}
-              <div className="mt-4 flex items-center space-x-4">
-                <a
-                  href="tel:+1234567890"
-                  className="w-8 h-8 bg-rose-500 rounded-full flex items-center justify-center text-white hover:bg-rose-600"
-                  onClick={() => setIsMobileOpen(false)}
-                >
-                  <PhoneIcon size={16} />
-                </a>
-                <a
-                  href="https://wa.me/1234567890?text=Hello,%20I'm%20interested%20in%20Savayas%20services!"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 bg-[#25D366] rounded-full flex items-center justify-center hover:bg-[#20b858]"
-                  onClick={() => setIsMobileOpen(false)}
-                >
-                  <WhatsAppIcon />
-                </a>
-                {token ? (
+              {/* Profile/Login */}
+              {token ? (
+                <>
                   <button
-                    onClick={() => {
-                      logout();
-                      setIsMobileOpen(false);
-                    }}
-                    className="bg-rose-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-rose-700"
+                    onClick={() => toggleNested('profile')}
+                    className="w-full flex justify-between items-center font-medium text-black hover:text-rose-600"
                   >
-                    Log Out
+                    Profile <ChevronDownIcon size={20} />
                   </button>
-                ) : (
-                  <NavLink
-                    to="/login"
-                    className="bg-rose-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-rose-700"
-                    onClick={() => setIsMobileOpen(false)}
-                  >
-                    Log In
-                  </NavLink>
-                )}
-              </div>
+                  {openNested.profile && (
+                    <div className="pl-4 space-y-2">
+                      <NavLink
+                        to="/my-profile"
+                        onClick={() => setIsMobileOpen(false)}
+                        className="block text-sm hover:text-rose-600"
+                      >
+                        My Profile
+                      </NavLink>
+                      <NavLink
+                        to="/my-appointments"
+                        onClick={() => setIsMobileOpen(false)}
+                        className="block text-sm hover:text-rose-600"
+                      >
+                        My Appointments
+                      </NavLink>
+                      <button
+                        onClick={() => {
+                          logout();
+                          setIsMobileOpen(false);
+                        }}
+                        className="block text-sm hover:text-rose-600 text-rose-600"
+                      >
+                        Log Out
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <NavLink
+                  to="/login"
+                  className="block font-medium text-black hover:text-rose-600"
+                  onClick={() => setIsMobileOpen(false)}
+                >
+                  Log In
+                </NavLink>
+              )}
             </div>
           </div>
         </div>

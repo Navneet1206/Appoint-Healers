@@ -11,7 +11,7 @@ import dotenv from "dotenv";
 import Test from "../models/testModel.js";
 import UserTestResult from "../models/userTestResultModel.js";
 import reviewModel from "../models/reviewModel.js";
-
+import Coupon from "../models/couponModel.js";
 dotenv.config();
 
 const razorpayInstance = new razorpay({
@@ -908,6 +908,26 @@ const getDoctorReviews = async (req, res) => {
   }
 };
 
+const validateCoupon = async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Coupon code is required' });
+    }
+    const coupon = await Coupon.findOne({ code: { $regex: new RegExp(`^${code}$`, 'i') } });
+    if (!coupon) {
+      return res.status(404).json({ success: false, message: 'Invalid coupon code' });
+    }
+    const currentDate = new Date();
+    if (currentDate > coupon.expirationDate) {
+      return res.status(400).json({ success: false, message: 'Coupon has expired' });
+    }
+    res.status(200).json({ success: true, discountPercentage: coupon.discountPercentage });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export {
   loginUser,
   registerUser,
@@ -927,4 +947,5 @@ export {
   getDoctorReviews,
   getTests,
   getTestById,
+  validateCoupon,
 };

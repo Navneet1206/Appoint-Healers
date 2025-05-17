@@ -7,6 +7,8 @@ import { v2 as cloudinary } from "cloudinary";
 import userModel from "../models/userModel.js";
 import nodemailer from "nodemailer";
 import Test from "../models/testModel.js";
+import Coupon from '../models/couponModel.js';
+
 
 // Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
@@ -536,6 +538,110 @@ const getTests = async (req, res) => {
   }
 };
 
+const updateTest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedData = req.body;
+    const test = await Test.findByIdAndUpdate(id, updatedData, { new: true });
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found' });
+    }
+    res.json({ success: true, message: 'Test updated successfully' });
+  } catch (error) {
+    console.error('Error updating test:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+const deleteTest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const test = await Test.findByIdAndDelete(id);
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found' });
+    }
+    res.json({ success: true, message: 'Test deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting test:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+
+
+
+
+// Create a new coupon
+const createCoupon = async (req, res) => {
+  try {
+    const { code, discountPercentage, expirationDate } = req.body;
+    if (!code || !discountPercentage || !expirationDate) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    const newCoupon = new Coupon({ code, discountPercentage, expirationDate });
+    await newCoupon.save();
+    res.status(201).json({ success: true, message: 'Coupon created successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get all coupons
+const getAllCoupons = async (req, res) => {
+  try {
+    const coupons = await Coupon.find({});
+    res.status(200).json({ success: true, coupons });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get coupon by ID
+const getCouponById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const coupon = await Coupon.findById(id);
+    if (!coupon) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+    res.status(200).json({ success: true, coupon });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Update a coupon
+const updateCoupon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, discountPercentage, expirationDate } = req.body;
+    const coupon = await Coupon.findByIdAndUpdate(
+      id,
+      { code, discountPercentage, expirationDate, updatedAt: Date.now() },
+      { new: true }
+    );
+    if (!coupon) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+    res.status(200).json({ success: true, message: 'Coupon updated successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete a coupon
+const deleteCoupon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const coupon = await Coupon.findByIdAndDelete(id);
+    if (!coupon) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+    res.status(200).json({ success: true, message: 'Coupon deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 export {
   loginAdmin,
   verifyLoginOtpAdmin,
@@ -549,4 +655,11 @@ export {
   completeAppointment,
   addTest,
   getTests,
+  updateTest,
+  deleteTest,
+  createCoupon,
+  getAllCoupons,
+  getCouponById,
+  updateCoupon,
+  deleteCoupon,
 };
