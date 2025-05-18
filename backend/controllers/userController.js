@@ -954,20 +954,30 @@ const validateCoupon = async (req, res) => {
 // Get user transactions
 const getUserTransactions = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.body.userId; // Set by authUser middleware
     const transactions = await transactionModel
-      .find({ userId })
-      .populate("doctorId", "name")
-      .populate("appointmentId", "date")
-      .sort({ timestamp: -1 });
+      .find({ userId }) // Filter by userId
+      .populate("doctorId", "name") // Populate doctor details
+      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount") // Populate appointment details
+      .sort({ timestamp: -1 }); // Sort by timestamp, newest first
+
+    if (!transactions || transactions.length === 0) {
+      return res.json({
+        success: true,
+        transactions: [],
+        message: "No transactions found for this user",
+      });
+    }
 
     res.json({ success: true, transactions });
   } catch (error) {
     console.log(error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching transactions",
+    });
   }
 };
-
 export {
   loginUser,
   registerUser,

@@ -741,17 +741,12 @@ const getOwnReviews = async (req, res) => {
 // Get doctor transactions
 const getDoctorTransactions = async (req, res) => {
   try {
-    const doctorId = req.docId; // Assumes auth middleware sets this
-
-    if (!doctorId) {
-      return res.status(400).json({ success: false, message: "Doctor ID is required" });
-    }
-
+    const doctorId = req.body.docId; // Set by authDoctor middleware
     const transactions = await transactionModel
-      .find({ doctorId })
-      .populate("userId", "name email")
-      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount")
-      .sort({ timestamp: -1 });
+      .find({ doctorId }) // Filter by doctorId
+      .populate("userId", "name email") // Populate user details
+      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount") // Populate appointment details
+      .sort({ timestamp: -1 }); // Sort by timestamp, newest first
 
     if (!transactions || transactions.length === 0) {
       return res.json({
@@ -770,7 +765,6 @@ const getDoctorTransactions = async (req, res) => {
     });
   }
 };
-
 export {
   loginDoctor,
   forgotPasswordDoctor,

@@ -7,7 +7,10 @@ import userRouter from "./routes/userRoute.js";
 import doctorRouter from "./routes/doctorRoute.js";
 import adminRouter from "./routes/adminRoute.js";
 import contactRoutes from "./routes/contactRoutes.js";
-
+import userModel from "./models/userModel.js";
+import doctorModel from "./models/doctorModel.js";
+import appointmentModel from "./models/appointmentModel.js";
+import transactionModel from "./models/transactionModel.js";
 // app config
 const app = express();
 const port = process.env.PORT || 4000;
