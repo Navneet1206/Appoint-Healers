@@ -27,7 +27,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+const generateOTP = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
 
 const otpStore = new Map();
 
@@ -218,7 +219,11 @@ const loginDoctor = async (req, res) => {
       `,
     });
 
-    res.json({ success: true, message: "OTP sent to your email", doctorId: doctor._id });
+    res.json({
+      success: true,
+      message: "OTP sent to your email",
+      doctorId: doctor._id,
+    });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -265,10 +270,15 @@ const appointmentCancel = async (req, res) => {
     const appointmentData = await appointmentModel.findById(appointmentId);
 
     if (!appointmentData || appointmentData.docId.toString() !== docId) {
-      return res.json({ success: false, message: "Unauthorized or invalid appointment" });
+      return res.json({
+        success: false,
+        message: "Unauthorized or invalid appointment",
+      });
     }
 
-    await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
+    await appointmentModel.findByIdAndUpdate(appointmentId, {
+      cancelled: true,
+    });
 
     res.json({ success: true, message: "Appointment Cancelled" });
   } catch (error) {
@@ -284,10 +294,15 @@ const appointmentComplete = async (req, res) => {
     const appointmentData = await appointmentModel.findById(appointmentId);
 
     if (!appointmentData || appointmentData.docId.toString() !== docId) {
-      return res.json({ success: false, message: "Unauthorized or invalid appointment" });
+      return res.json({
+        success: false,
+        message: "Unauthorized or invalid appointment",
+      });
     }
 
-    await appointmentModel.findByIdAndUpdate(appointmentId, { isCompleted: true });
+    await appointmentModel.findByIdAndUpdate(appointmentId, {
+      isCompleted: true,
+    });
 
     res.json({ success: true, message: "Appointment Completed" });
   } catch (error) {
@@ -317,7 +332,9 @@ const changeAvailablity = async (req, res) => {
       return res.json({ success: false, message: "Doctor not found" });
     }
 
-    await doctorModel.findByIdAndUpdate(docId, { available: !docData.available });
+    await doctorModel.findByIdAndUpdate(docId, {
+      available: !docData.available,
+    });
 
     res.json({ success: true, message: "Availability Changed" });
   } catch (error) {
@@ -373,7 +390,11 @@ const updateDoctorProfile = async (req, res) => {
     await doctor.save();
     const updatedDoctor = await doctorModel.findById(docId).select("-password");
 
-    res.json({ success: true, message: "Profile Updated", profileData: updatedDoctor });
+    res.json({
+      success: true,
+      message: "Profile Updated",
+      profileData: updatedDoctor,
+    });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -393,7 +414,9 @@ const doctorDashboard = async (req, res) => {
       }
     });
 
-    const patients = [...new Set(appointments.map((item) => item.userId.toString()))];
+    const patients = [
+      ...new Set(appointments.map((item) => item.userId.toString())),
+    ];
 
     const dashData = {
       earnings,
@@ -429,7 +452,11 @@ const createSlot = async (req, res) => {
     doctor.slots.push({ slotDate, slotTime, description, status: "Active" });
     await doctor.save();
 
-    res.json({ success: true, message: "Slot created successfully", slots: doctor.slots });
+    res.json({
+      success: true,
+      message: "Slot created successfully",
+      slots: doctor.slots,
+    });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -582,9 +609,14 @@ const getDashData = async (req, res) => {
 
     const earnings = appointments
       .filter((app) => app.payment && !app.cancelled)
-      .reduce((sum, app) => sum + (app.discountedAmount || app.originalAmount), 0);
+      .reduce(
+        (sum, app) => sum + (app.discountedAmount || app.originalAmount),
+        0
+      );
 
-    const patients = [...new Set(appointments.map((app) => app.userId.toString()))].length;
+    const patients = [
+      ...new Set(appointments.map((app) => app.userId.toString())),
+    ].length;
 
     const latestAppointments = appointments
       .sort((a, b) => new Date(b.slotDate) - new Date(a.slotDate))
@@ -611,7 +643,17 @@ const getDashData = async (req, res) => {
 // Submit professional request
 const submitProfessionalRequest = async (req, res) => {
   try {
-    const { name, email, speciality, degree, experience, about, fees, address, languages } = req.body;
+    const {
+      name,
+      email,
+      speciality,
+      degree,
+      experience,
+      about,
+      fees,
+      address,
+      languages,
+    } = req.body;
     const imageFile = req.file;
 
     if (
@@ -714,7 +756,8 @@ const submitProfessionalRequest = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Request submitted successfully. You will be notified via email.",
+      message:
+        "Request submitted successfully. You will be notified via email.",
     });
   } catch (error) {
     console.log(error);
@@ -745,7 +788,10 @@ const getDoctorTransactions = async (req, res) => {
     const transactions = await transactionModel
       .find({ doctorId }) // Filter by doctorId
       .populate("userId", "name email") // Populate user details
-      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount") // Populate appointment details
+      .populate(
+        "appointmentId",
+        "slotDate slotTime couponCode originalAmount discountedAmount"
+      ) // Populate appointment details
       .sort({ timestamp: -1 }); // Sort by timestamp, newest first
 
     if (!transactions || transactions.length === 0) {
@@ -765,6 +811,24 @@ const getDoctorTransactions = async (req, res) => {
     });
   }
 };
+
+const updatePaymentDetails = async (req, res) => {
+  try {
+    const { docId, paymentDetails } = req.body;
+    const doctor = await doctorModel.findByIdAndUpdate(
+      docId,
+      { paymentDetails },
+      { new: true }
+    );
+    if (!doctor)
+      return res.json({ success: false, message: "Doctor not found" });
+    res.json({ success: true, message: "Payment details updated" });
+  } catch (error) {
+    console.error(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 export {
   loginDoctor,
   forgotPasswordDoctor,
@@ -787,4 +851,5 @@ export {
   submitProfessionalRequest,
   getOwnReviews,
   getDoctorTransactions,
+  updatePaymentDetails,
 };

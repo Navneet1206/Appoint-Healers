@@ -20,6 +20,7 @@ import {
   acceptAppointment,
   getOwnReviews,
   getDoctorTransactions,
+  updatePaymentDetails,
 } from "../controllers/doctorController.js";
 import authDoctor from "../middleware/authDoctor.js";
 import upload from "../middleware/multer.js";
@@ -45,5 +46,6 @@ doctorRouter.post("/accept-appointment", authDoctor, acceptAppointment);
 doctorRouter.post("/request-professional", upload.single('image'), submitProfessionalRequest);
 doctorRouter.get("/reviews", authDoctor, getOwnReviews);
 doctorRouter.get('/transactions', authDoctor, getDoctorTransactions);
+doctorRouter.post("/update-payment-details", authDoctor, updatePaymentDetails);
 
 export default doctorRouter;

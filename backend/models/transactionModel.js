@@ -38,6 +38,7 @@ const transactionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  type: { type: String, enum: ["payment", "payout"], required: true },
 });
 
 const Transaction = mongoose.model("Transaction", transactionSchema);

@@ -26,6 +26,14 @@ const doctorSchema = new mongoose.Schema({
     languages: { type: [String], required: true },
     date: { type: Number, required: true },
     bannerImage: { type: String },
+    paymentDetails: {
+    bankAccount: {
+      accountNumber: String,
+      ifscCode: String,
+      accountHolderName: String,
+    },
+    upiId: String,
+  },
 }, { minimize: false });
 
 const doctorModel = mongoose.models.doctor || mongoose.model("doctor", doctorSchema);

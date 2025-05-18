@@ -23,6 +23,7 @@ import {
   getAllTransactions,
 } from "../controllers/adminController.js";
 import { changeAvailablity } from "../controllers/doctorController.js";
+import { initiatePaymentToDoctor } from "../controllers/paymentController.js";
 import authAdmin from "../middleware/authAdmin.js";
 import upload from "../middleware/multer.js";
 const adminRouter = express.Router();
@@ -53,5 +54,5 @@ adminRouter.delete('/coupons/:id', authAdmin, deleteCoupon);
 
 adminRouter.post("/post-fake-review", authAdmin, postFakeReview); 
 adminRouter.get('/all-transactions', authAdmin, getAllTransactions);
-
+adminRouter.post("/initiate-payment", authAdmin, initiatePaymentToDoctor);
 export default adminRouter;

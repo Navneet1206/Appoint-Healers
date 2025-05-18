@@ -651,6 +651,7 @@ const paymentRazorpay = async (req, res) => {
       status: "pending",
       paymentMethod: "razorpay",
       transactionId: order.id,
+      type: "payment",
     });
     await newTransaction.save();
 
