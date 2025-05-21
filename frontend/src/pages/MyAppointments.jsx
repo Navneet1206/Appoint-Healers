@@ -7,6 +7,7 @@ import { assets } from "../assets/assets";
 
 const MyAppointments = () => {
   const { backendUrl, token, currencySymbol } = useContext(AppContext);
+  console.log("Token of mine: ",token);
   const navigate = useNavigate();
 
   const [appointments, setAppointments] = useState([]);
@@ -31,10 +32,14 @@ const MyAppointments = () => {
       const { data } = await axios.get(`${backendUrl}/api/user/appointments`, {
         headers: { token },
       });
-      setAppointments(data.appointments.reverse());
+      if (data.success) {
+        setAppointments(data.appointments.reverse());
+      } else {
+        toast.error(data.message);
+      }
     } catch (error) {
-      console.log(error);
-      toast.error(error.message);
+      console.error("Error fetching appointments:", error);
+      toast.error(error.response?.data?.message || "Error fetching appointments");
     }
   };
 
@@ -42,11 +47,6 @@ const MyAppointments = () => {
   const submitReview = async (appointmentId) => {
     try {
       setIsSubmittingReview(true);
-      console.log("Submitting review for appointment:", appointmentId);
-      console.log("Backend URL:", backendUrl);
-      console.log("Token:", token ? "Token exists" : "No token");
-
-      // Find the appointment to get doctorId
       const appointment = appointments.find((app) => app._id === appointmentId);
       if (!appointment) {
         toast.error("Appointment not found");
@@ -56,18 +56,13 @@ const MyAppointments = () => {
       const { data } = await axios.post(
         `${backendUrl}/api/user/add-review`,
         {
-          userId: localStorage.getItem("userId"), // Adjust based on your auth setup
+          userId: localStorage.getItem("userId"),
           doctorId: appointment.docId,
           appointmentId,
           rating: reviewRating,
           comment: reviewComment,
         },
-        {
-          headers: {
-            token,
-            "Content-Type": "application/json",
-          },
-        }
+        { headers: { token } }
       );
 
       if (data.success) {
@@ -75,31 +70,19 @@ const MyAppointments = () => {
         setShowReviewForm(null);
         setReviewRating(5);
         setReviewComment("");
-        getUserAppointments(); // Refresh appointments to show the new review
+        await getUserAppointments();
       } else {
-        toast.error(data.message || "Failed to submit review");
+        toast.error(data.message);
       }
     } catch (error) {
-      console.error("Error submitting review:", error);
-      console.error("Error details:", error.response?.data);
-      console.error("Error status:", error.response?.status);
-      console.error("Error headers:", error.response?.headers);
-
-      if (error.response?.status === 404) {
-        toast.error("Review API endpoint not found. Please contact support.");
-      } else if (error.response?.status === 403) {
-        toast.error("You are not authorized to review this appointment.");
-      } else if (error.response?.status === 400) {
-        toast.error(error.response.data.message || "Invalid review data.");
-      } else {
-        toast.error(error.response?.data?.message || "Failed to submit review. Please try again later.");
-      }
+      toast.error(error.response?.data?.message || "Error submitting review");
+      console.error("Review submission error:", error);
     } finally {
       setIsSubmittingReview(false);
     }
   };
 
-  // Cancel appointment API call
+  // Cancel appointment
   const cancelAppointment = async (appointmentId) => {
     try {
       const { data } = await axios.post(
@@ -109,23 +92,40 @@ const MyAppointments = () => {
       );
       if (data.success) {
         toast.success(data.message);
-        getUserAppointments();
+        await getUserAppointments();
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      console.log(error);
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || "Error cancelling appointment");
+      console.error("Cancellation error:", error);
     }
   };
 
+  // Load Razorpay script dynamically
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   // Initialize Razorpay payment
-  const initPay = (order) => {
+  const initPay = async (order) => {
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      toast.error("Failed to load Razorpay SDK. Please check your internet connection.");
+      return;
+    }
+
     const options = {
       key: import.meta.env.VITE_RAZORPAY_KEY_ID,
       amount: order.amount,
       currency: order.currency,
-      name: "Appointment Payment",
+      name: "Savayas Heals",
       description: "Appointment Payment",
       order_id: order.id,
       receipt: order.receipt,
@@ -133,20 +133,37 @@ const MyAppointments = () => {
         try {
           const { data } = await axios.post(
             `${backendUrl}/api/user/verifyRazorpay`,
-            response,
+            {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            },
             { headers: { token } }
           );
           if (data.success) {
+            toast.success("Payment successful! Appointment confirmed.");
+            await getUserAppointments();
             navigate("/my-appointments");
-            getUserAppointments();
+          } else {
+            toast.error(data.message || "Payment verification failed");
           }
         } catch (error) {
-          console.log(error);
-          toast.error(error.message);
+          toast.error(error.response?.data?.message || "Error verifying payment");
+          console.error("Payment verification error:", error);
         }
       },
+      theme: { color: "#F37254" },
+      modal: {
+        ondismiss: () => {
+          toast.info("Payment cancelled by user");
+        },
+      },
     };
+
     const rzp = new window.Razorpay(options);
+    rzp.on('payment.failed', (response) => {
+      toast.error(response.error.description || "Payment failed. Please try again.");
+    });
     rzp.open();
   };
 
@@ -159,13 +176,13 @@ const MyAppointments = () => {
         { headers: { token } }
       );
       if (data.success) {
-        initPay(data.order);
+        await initPay(data.order);
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      console.log(error);
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || "Error initiating payment");
+      console.error("Payment initiation error:", error);
     }
   };
 
@@ -355,9 +372,7 @@ const MyAppointments = () => {
               <button
                 onClick={() => submitReview(showReviewForm)}
                 disabled={isSubmittingReview}
-                className={`px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 ${
-                  isSubmittingReview ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className={`px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 ${isSubmittingReview ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {isSubmittingReview ? "Submitting..." : "Submit Review"}
               </button>

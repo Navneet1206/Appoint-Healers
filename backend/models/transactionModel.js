@@ -16,31 +16,61 @@ const transactionSchema = new mongoose.Schema({
     ref: "appointment",
     required: true,
   },
-  amount: {
+  originalAmount: {
+    type: Number,
+    required: true,
+  },
+  paidAmount: {
     type: Number,
     required: true,
   },
   status: {
     type: String,
-    enum: ["pending", "completed", "failed"],
+    enum: ["pending", "completed", "failed", "refunded"],
     default: "pending",
   },
   paymentMethod: {
     type: String,
-    enum: ["credit_card", "debit_card", "paypal", "wallet", "razorpay"],
+    default: "razorpay",
     required: true,
   },
   transactionId: {
     type: String,
     required: true,
+    unique: true,
   },
   timestamp: {
     type: Date,
     default: Date.now,
   },
-  type: { type: String, enum: ["payment", "payout"], required: true },
+  type: {
+    type: String,
+    enum: ["payment", "payout"],
+    required: true
+  },
+  couponCode: {
+    type: String,
+    default: null,
+  },
+  walletUsed: {
+    type: Number,
+    default: 0,
+  },
+  meta: {
+    ipAddress: { type: String, default: null },
+    userAgent: { type: String, default: null },
+    location: { type: String, default: null },
+    gatewayResponse: { type: Object, default: {} },
+  },
+  retries: {
+    type: Number,
+    default: 0,
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
-
 export default Transaction;

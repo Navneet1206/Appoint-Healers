@@ -6,7 +6,7 @@ import RelatedDoctors from '../components/RelatedDoctors';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// Helper functions (unchanged from original)
+// Helper functions to format time and dates
 const convertToAmPm = (timeStr) => {
   const [hourStr, minuteStr] = timeStr.split(':');
   let hour = parseInt(hourStr, 10);
@@ -61,12 +61,19 @@ const Appointment = () => {
   const [finalPrice, setFinalPrice] = useState(null);
   const [isCouponApplied, setIsCouponApplied] = useState(false);
 
+  // Fetch doctor information from the context
   const fetchDocInfo = () => {
     const doc = doctors.find((doc) => doc._id === docId);
-    setDocInfo(doc);
-    setFinalPrice(doc?.fees || 0);
+    if (doc) {
+      setDocInfo(doc);
+      setFinalPrice(doc.fees || 0);
+    } else {
+      toast.error('Doctor not found');
+      navigate('/doctors');
+    }
   };
 
+  // Fetch reviews for the doctor
   const fetchReviews = async () => {
     try {
       const response = await axios.get(`${backendUrl}/api/user/reviews/${docId}`, { headers: { token } });
@@ -76,12 +83,16 @@ const Appointment = () => {
         setReviews(reviews);
         setAverageRating(avgRating);
         setReviewCount(reviews.length);
+      } else {
+        toast.error('Failed to load reviews');
       }
     } catch (error) {
-      toast.error('Failed to load reviews');
+      toast.error('Error fetching reviews');
+      console.error(error);
     }
   };
 
+  // Process and group slots by date
   const processSlots = () => {
     if (!docInfo || !docInfo.slots) return;
     const activeSlots = docInfo.slots.filter(slot => slot.status === "Active").map(slot => ({
@@ -103,6 +114,7 @@ const Appointment = () => {
     setSelectedSlotId("");
   };
 
+  // Handle slot selection
   const handleSlotSelect = (slot) => {
     if (!token) {
       toast.warning('Please login to book an appointment');
@@ -113,11 +125,13 @@ const Appointment = () => {
     setSelectedSessionType(slot.sessionType || "video");
   };
 
+  // Handle session type change
   const handleSessionTypeChange = (type) => {
     setSelectedSessionType(type);
     setSelectedSlotId("");
   };
 
+  // Apply coupon code
   const applyCoupon = async () => {
     if (!couponCode) {
       toast.error("Please enter a coupon code");
@@ -141,9 +155,11 @@ const Appointment = () => {
       }
     } catch (error) {
       toast.error("Error applying coupon");
+      console.error(error);
     }
   };
 
+  // Book appointment
   const bookAppointment = async () => {
     if (!token) {
       toast.warning('Please login to book an appointment');
@@ -174,19 +190,38 @@ const Appointment = () => {
       );
       if (data.success) {
         toast.success(data.message);
-        initiatePayment(data.appointmentId);
+        await initiatePayment(data.appointmentId);
       } else {
         toast.error(data.message);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error booking appointment');
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Load Razorpay script dynamically
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  // Initiate Razorpay payment
   const initiatePayment = async (appointmentId) => {
     try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error("Failed to load Razorpay SDK. Please check your internet connection.");
+        return;
+      }
+
       const { data } = await axios.post(
         `${backendUrl}/api/user/payment-razorpay`,
         { appointmentId },
@@ -197,25 +232,30 @@ const Appointment = () => {
           key: import.meta.env.VITE_RAZORPAY_KEY_ID,
           amount: data.order.amount,
           currency: data.order.currency,
-          name: "Appointment Payment",
+          name: "Savayas Heals",
           description: "Appointment Payment",
           order_id: data.order.id,
           handler: async (response) => {
             try {
               const verifyRes = await axios.post(
                 `${backendUrl}/api/user/verifyRazorpay`,
-                response,
+                {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                },
                 { headers: { token } }
               );
               if (verifyRes.data.success) {
-                toast.success("Payment successful");
+                toast.success("Payment successful! Appointment confirmed.");
                 getDoctosData();
                 navigate("/my-appointments");
               } else {
-                toast.error("Payment verification failed");
+                toast.error(verifyRes.data.message || "Payment verification failed");
               }
             } catch (error) {
-              toast.error("Error verifying payment");
+              toast.error(error.response?.data?.message || "Error verifying payment");
+              console.error("Payment verification error:", error);
             }
           },
           prefill: {
@@ -231,16 +271,21 @@ const Appointment = () => {
           },
         };
         const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', (response) => {
+          toast.error(response.error.description || "Payment failed. Please try again.");
+        });
         rzp.open();
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error("Error initiating payment");
+      toast.error(error.response?.data?.message || "Error initiating payment");
+      console.error("Payment initiation error:", error);
     }
   };
 
-  function handlegotobookbutton() {
+  // Scroll to booking section
+  const handlegotobookbutton = () => {
     if (!token) {
       toast.warning('Please login to book an appointment');
       navigate('/login');
@@ -251,8 +296,9 @@ const Appointment = () => {
       return;
     }
     bookSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }
+  };
 
+  // Fetch doctor info and process slots/reviews on mount or change
   useEffect(() => {
     if (doctors.length > 0) fetchDocInfo();
   }, [doctors, docId]);
@@ -268,6 +314,7 @@ const Appointment = () => {
     <div className="min-h-screen pt-20">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* Doctor Info Section */}
           <div className="flex flex-col md:flex-row gap-8 p-8">
             <div className="md:w-1/4">
               <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden">
@@ -310,6 +357,8 @@ const Appointment = () => {
               <button className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 transition-all" onClick={handlegotobookbutton}>Book Now</button>
             </div>
           </div>
+
+          {/* Tabs Section */}
           <div className="border-t border-gray-100">
             <div className="p-8">
               <div className="flex gap-8 border-b border-gray-200 mb-6">
@@ -328,7 +377,7 @@ const Appointment = () => {
                     <ul className="space-y-2 text-gray-600">
                       <li>• {docInfo.degree}</li>
                       <li>• {docInfo.speciality}</li>
-                      <li>• {docInfo.experience} of experience</li>
+                      <li>• {docInfo.experience} years of experience</li>
                     </ul>
                   </div>
                   <div className="mb-6">
@@ -373,6 +422,8 @@ const Appointment = () => {
               {activeTab === "faq" && <div className="text-gray-600"><p>FAQ coming soon...</p></div>}
             </div>
           </div>
+
+          {/* Booking Section */}
           <div ref={bookSectionRef} className="border-t border-gray-100 p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Book a Session</h2>
             <div className="mb-8">

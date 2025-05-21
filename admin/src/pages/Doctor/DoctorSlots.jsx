@@ -5,8 +5,6 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, Edit, X, Save, Trash, Filter } from 'lucide-react';
-
-// Date & Time pickers
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import TimePicker from 'react-time-picker';
@@ -16,19 +14,13 @@ const DoctorSlots = () => {
   const { backendUrl } = useContext(AppContext);
   const { dToken } = useContext(DoctorContext);
 
-  // Loader state
+  // State management
   const [isLoading, setIsLoading] = useState(false);
-
-  // State for new slot creation
   const [newDate, setNewDate] = useState(new Date());
   const [newTime, setNewTime] = useState('10:00');
   const [newDescription, setNewDescription] = useState('');
-
-  // Fetched slots and filter
   const [slots, setSlots] = useState([]);
   const [filterStatus, setFilterStatus] = useState('All');
-
-  // Editing states
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [editStatus, setEditStatus] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -36,46 +28,45 @@ const DoctorSlots = () => {
   // Filter options
   const statusOptions = ['All', 'Active', 'Booked', 'Cancelled', 'Coming Soon'];
 
-  // On load, fetch the slots
+  // Fetch slots on component mount or when dToken changes
   useEffect(() => {
     if (dToken) {
       fetchSlots();
     }
   }, [dToken]);
 
-  // Function to fetch all slots
+  // Fetch all slots from the backend
   const fetchSlots = async () => {
     try {
       setIsLoading(true);
       const { data } = await axios.post(
         `${backendUrl}/api/doctor/slots`,
-        { docId: '' },
+        {},
         { headers: { dToken } }
       );
-      setIsLoading(false);
       if (data.success) {
-        setSlots(data.slots);
+        setSlots(data.slots || []);
       } else {
-        toast.error(data.message);
+        toast.error(data.message || 'Failed to fetch slots');
       }
     } catch (error) {
-      setIsLoading(false);
-      console.log(error);
       toast.error(error.response?.data?.message || 'Error fetching slots');
+      console.error('Fetch slots error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Create new slot
+  // Handle slot creation
   const createSlotHandler = async (e) => {
     e.preventDefault();
-
     if (!newDate || !newTime) {
       toast.error('Please select both date and time');
       return;
     }
 
     const dd = String(newDate.getDate()).padStart(2, '0');
-    const mm = String(newDate.getMonth() + 1).padStart(2, '0');
+    const mm = String(newDate.getMonth() + 1).padStart(2, '0'); // Months are 0-based
     const yyyy = newDate.getFullYear();
     const slotDate = `${dd}_${mm}_${yyyy}`;
     const slotTime = newTime;
@@ -86,24 +77,26 @@ const DoctorSlots = () => {
         slotDate,
         slotTime,
         description: newDescription,
-        docId: '',
       };
-      const { data } = await axios.post(`${backendUrl}/api/doctor/create-slot`, payload, { headers: { dToken } });
-      setIsLoading(false);
-
+      const { data } = await axios.post(
+        `${backendUrl}/api/doctor/create-slot`,
+        payload,
+        { headers: { dToken } }
+      );
       if (data.success) {
-        toast.success(data.message);
+        toast.success(data.message || 'Slot created successfully');
         setNewDate(new Date());
         setNewTime('10:00');
         setNewDescription('');
         fetchSlots();
       } else {
-        toast.error(data.message);
+        toast.error(data.message || 'Failed to create slot');
       }
     } catch (error) {
-      setIsLoading(false);
-      console.log(error);
       toast.error(error.response?.data?.message || 'Error creating slot');
+      console.error('Create slot error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -111,7 +104,7 @@ const DoctorSlots = () => {
   const startEdit = (slot) => {
     setEditingSlotId(slot._id);
     setEditStatus(slot.status);
-    setEditDescription(slot.description);
+    setEditDescription(slot.description || '');
   };
 
   // Cancel editing
@@ -121,60 +114,68 @@ const DoctorSlots = () => {
     setEditDescription('');
   };
 
-  // Update slot
+  // Update an existing slot
   const updateSlotHandler = async (slotId) => {
     try {
       setIsLoading(true);
       const payload = {
-        docId: '',
         slotId,
         status: editStatus,
         description: editDescription,
       };
-      const { data } = await axios.post(`${backendUrl}/api/doctor/update-slot`, payload, { headers: { dToken } });
-      setIsLoading(false);
+      const { data } = await axios.post(
+        `${backendUrl}/api/doctor/update-slot`,
+        payload,
+        { headers: { dToken } }
+      );
       if (data.success) {
-        toast.success(data.message);
+        toast.success(data.message || 'Slot updated successfully');
         cancelEdit();
         fetchSlots();
       } else {
-        toast.error(data.message);
+        toast.error(data.message || 'Failed to update slot');
       }
     } catch (error) {
-      setIsLoading(false);
-      console.log(error);
       toast.error(error.response?.data?.message || 'Error updating slot');
+      console.error('Update slot error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Cancel slot (set status to "Cancelled")
+  // Cancel a slot by setting its status to "Cancelled"
   const cancelSlotHandler = async (slotId) => {
     try {
       setIsLoading(true);
       const payload = {
-        docId: '',
         slotId,
         status: 'Cancelled',
       };
-      const { data } = await axios.post(`${backendUrl}/api/doctor/update-slot`, payload, { headers: { dToken } });
-      setIsLoading(false);
+      const { data } = await axios.post(
+        `${backendUrl}/api/doctor/update-slot`,
+        payload,
+        { headers: { dToken } }
+      );
       if (data.success) {
-        toast.success('Slot cancelled');
+        toast.success(data.message || 'Slot cancelled successfully');
         fetchSlots();
       } else {
-        toast.error(data.message);
+        toast.error(data.message || 'Failed to cancel slot');
       }
     } catch (error) {
-      setIsLoading(false);
-      console.log(error);
       toast.error(error.response?.data?.message || 'Error cancelling slot');
+      console.error('Cancel slot error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Filter slots by status
-  const filteredSlots = filterStatus === 'All' ? slots : slots.filter(slot => slot.status === filterStatus);
+  // Filter slots based on status
+  const filteredSlots = filterStatus === 'All' 
+    ? slots 
+    : slots.filter(slot => slot.status === filterStatus);
 
-  // Animation variants
+  // Animation variants for smooth transitions
   const cardVariant = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
@@ -182,7 +183,7 @@ const DoctorSlots = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50 to-purple-50 p-6 md:p-8">
-      {/* Loader */}
+      {/* Loading Overlay */}
       {isLoading && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
           <div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
@@ -198,7 +199,7 @@ const DoctorSlots = () => {
           Manage Your Availability
         </motion.h2>
 
-        {/* Create New Slot */}
+        {/* Create New Slot Section */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -243,23 +244,24 @@ const DoctorSlots = () => {
             <div className="md:col-span-3">
               <button
                 type="submit"
-                className="w-full bg-rose-500 text-white py-2 rounded-lg hover:bg-rose-600 transition flex items-center justify-center"
+                disabled={isLoading}
+                className="w-full bg-rose-500 text-white py-2 rounded-lg hover:bg-rose-600 transition flex items-center justify-center disabled:bg-rose-300"
               >
                 <Calendar className="w-4 h-4 mr-2" />
-                Create Slot
+                {isLoading ? 'Creating...' : 'Create Slot'}
               </button>
             </div>
           </form>
         </motion.div>
 
-        {/* Slots Section */}
+        {/* Slots Management Section */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+            <h3 className="text-xl font-semibold text-gray-800 flex items-center mb-4 md:mb-0">
               <Clock className="w-5 h-5 text-rose-500 mr-2" />
               Your Slots
             </h3>
-            <div className="flex items-center gap-4 mt-4 md:mt-0">
+            <div className="flex items-center gap-4">
               <div className="flex items-center">
                 <Filter className="w-4 h-4 text-gray-600 mr-2" />
                 <select
@@ -274,7 +276,8 @@ const DoctorSlots = () => {
               </div>
               <button
                 onClick={fetchSlots}
-                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition flex items-center"
+                disabled={isLoading}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition flex items-center disabled:bg-gray-300"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -291,9 +294,7 @@ const DoctorSlots = () => {
               className="space-y-4"
               initial="hidden"
               animate="visible"
-              variants={{
-                visible: { transition: { staggerChildren: 0.1 } },
-              }}
+              variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
             >
               <AnimatePresence>
                 {filteredSlots.map((slot) => (
@@ -321,10 +322,9 @@ const DoctorSlots = () => {
                               onChange={(e) => setEditStatus(e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                             >
-                              <option value="Active">Active</option>
-                              <option value="Booked">Booked</option>
-                              <option value="Cancelled">Cancelled</option>
-                              <option value="Coming Soon">Coming Soon</option>
+                              {statusOptions.slice(1).map((status) => (
+                                <option key={status} value={status}>{status}</option>
+                              ))}
                             </select>
                           </div>
                           <div>
@@ -342,7 +342,8 @@ const DoctorSlots = () => {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             onClick={() => updateSlotHandler(slot._id)}
-                            className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center"
+                            disabled={isLoading}
+                            className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center disabled:bg-green-300"
                           >
                             <Save className="w-4 h-4 mr-2" />
                             Save
@@ -350,7 +351,8 @@ const DoctorSlots = () => {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             onClick={cancelEdit}
-                            className="bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center"
+                            disabled={isLoading}
+                            className="bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center disabled:bg-gray-300"
                           >
                             <X className="w-4 h-4 mr-2" />
                             Cancel
@@ -392,7 +394,8 @@ const DoctorSlots = () => {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             onClick={() => startEdit(slot)}
-                            className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center"
+                            disabled={isLoading}
+                            className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center disabled:bg-blue-300"
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
@@ -401,7 +404,8 @@ const DoctorSlots = () => {
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               onClick={() => cancelSlotHandler(slot._id)}
-                              className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center"
+                              disabled={isLoading}
+                              className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center disabled:bg-red-300"
                             >
                               <Trash className="w-4 h-4 mr-2" />
                               Cancel
