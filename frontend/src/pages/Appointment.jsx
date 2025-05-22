@@ -6,7 +6,7 @@ import RelatedDoctors from '../components/RelatedDoctors';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// Helper functions to format time and dates
+// Helper functions for formatting
 const convertToAmPm = (timeStr) => {
   const [hourStr, minuteStr] = timeStr.split(':');
   let hour = parseInt(hourStr, 10);
@@ -61,7 +61,7 @@ const Appointment = () => {
   const [finalPrice, setFinalPrice] = useState(null);
   const [isCouponApplied, setIsCouponApplied] = useState(false);
 
-  // Fetch doctor information from the context
+  // Fetch doctor info
   const fetchDocInfo = () => {
     const doc = doctors.find((doc) => doc._id === docId);
     if (doc) {
@@ -73,7 +73,7 @@ const Appointment = () => {
     }
   };
 
-  // Fetch reviews for the doctor
+  // Fetch reviews
   const fetchReviews = async () => {
     try {
       const response = await axios.get(`${backendUrl}/api/user/reviews/${docId}`, { headers: { token } });
@@ -92,7 +92,7 @@ const Appointment = () => {
     }
   };
 
-  // Process and group slots by date
+  // Process slots
   const processSlots = () => {
     if (!docInfo || !docInfo.slots) return;
     const activeSlots = docInfo.slots.filter(slot => slot.status === "Active").map(slot => ({
@@ -131,7 +131,7 @@ const Appointment = () => {
     setSelectedSlotId("");
   };
 
-  // Apply coupon code
+  // Apply coupon
   const applyCoupon = async () => {
     if (!couponCode) {
       toast.error("Please enter a coupon code");
@@ -159,7 +159,7 @@ const Appointment = () => {
     }
   };
 
-  // Book appointment
+  // Book appointment with payment initiation
   const bookAppointment = async () => {
     if (!token) {
       toast.warning('Please login to book an appointment');
@@ -177,6 +177,7 @@ const Appointment = () => {
 
     setIsLoading(true);
     try {
+      // Reserve the slot temporarily and initiate payment
       const { data } = await axios.post(
         `${backendUrl}/api/user/book-appointment`,
         {
@@ -189,20 +190,20 @@ const Appointment = () => {
         { headers: { token } }
       );
       if (data.success) {
-        toast.success(data.message);
-        await initiatePayment(data.appointmentId);
+        toast.success("Slot reserved. Please complete payment.");
+        await initiatePayment(data.transactionId);
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error booking appointment');
+      toast.error(error.response?.data?.message || 'Error reserving slot');
       console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load Razorpay script dynamically
+  // Load Razorpay script
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -213,23 +214,23 @@ const Appointment = () => {
     });
   };
 
-  // Initiate Razorpay payment
-  const initiatePayment = async (appointmentId) => {
+  // Initiate payment
+  const initiatePayment = async (transactionId) => {
     try {
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
-        toast.error("Failed to load Razorpay SDK. Please check your internet connection.");
+        toast.error("Failed to load Razorpay SDK.");
         return;
       }
 
       const { data } = await axios.post(
-        `${backendUrl}/api/user/payment-razorpay`,
-        { appointmentId },
+        `${backendUrl}/api/user/book-appointment`,
+        { docId, slotId: selectedSlotId, userId: userData._id, sessionType: selectedSessionType, couponCode: isCouponApplied ? couponCode : null }, // Re-fetch order details
         { headers: { token } }
       );
       if (data.success) {
         const options = {
-          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+          key: data.key, // Use the key returned from backend
           amount: data.order.amount,
           currency: data.order.currency,
           name: "Savayas Heals",
@@ -243,6 +244,7 @@ const Appointment = () => {
                   razorpay_order_id: response.razorpay_order_id,
                   razorpay_payment_id: response.razorpay_payment_id,
                   razorpay_signature: response.razorpay_signature,
+                  transactionId,
                 },
                 { headers: { token } }
               );
@@ -265,14 +267,25 @@ const Appointment = () => {
           },
           theme: { color: "#F37254" },
           modal: {
-            ondismiss: () => {
+            ondismiss: async () => {
               toast.info("Payment cancelled by user");
+              // Release the slot if payment is cancelled
+              try {
+                await axios.post(
+                  `${backendUrl}/api/user/cancel-appointment`,
+                  { transactionId },
+                  { headers: { token } }
+                );
+                getDoctosData();
+              } catch (error) {
+                console.error("Error releasing slot:", error);
+              }
             },
           },
         };
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', (response) => {
-          toast.error(response.error.description || "Payment failed. Please try again.");
+          toast.error(response.error.description || "Payment failed.");
         });
         rzp.open();
       } else {
@@ -292,13 +305,12 @@ const Appointment = () => {
       return;
     }
     if (!userData) {
-      toast.error('Unable to fetch user data. Please try logging in again.');
+      toast.error('Unable to fetch user data.');
       return;
     }
     bookSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fetch doctor info and process slots/reviews on mount or change
   useEffect(() => {
     if (doctors.length > 0) fetchDocInfo();
   }, [doctors, docId]);

@@ -30,7 +30,7 @@ const transporter = nodemailer.createTransport({
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 const otpStore = new Map();
 
-// ### Forgot Password for Doctor
+// Forgot Password for Doctor
 const forgotPasswordDoctor = async (req, res) => {
   try {
     const { email } = req.body;
@@ -100,7 +100,7 @@ const forgotPasswordDoctor = async (req, res) => {
   }
 };
 
-// ### Reset Doctor Password
+// Reset Doctor Password
 const resetPasswordDoctor = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
@@ -138,7 +138,7 @@ const resetPasswordDoctor = async (req, res) => {
   }
 };
 
-// ### Doctor Login
+// Doctor Login
 const loginDoctor = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -206,7 +206,7 @@ const loginDoctor = async (req, res) => {
   }
 };
 
-// ### Verify Doctor Login OTP
+// Verify Doctor Login OTP
 const verifyLoginOtpDoctor = async (req, res) => {
   try {
     const { doctorId, otp } = req.body;
@@ -234,7 +234,7 @@ const verifyLoginOtpDoctor = async (req, res) => {
   }
 };
 
-// ### Get Doctor Appointments
+// Get Doctor Appointments
 const appointmentsDoctor = async (req, res) => {
   try {
     const { docId } = req.body;
@@ -254,7 +254,7 @@ const appointmentsDoctor = async (req, res) => {
   }
 };
 
-// ### Cancel Appointment (Doctor)
+// Cancel Appointment (Doctor)
 const appointmentCancel = async (req, res) => {
   try {
     const { docId, appointmentId } = req.body;
@@ -273,7 +273,7 @@ const appointmentCancel = async (req, res) => {
 
     appointment.status = "Cancelled";
     appointment.cancelled = true;
-    appointment.cancelledBy = "doctor"; // Set cancelledBy to "doctor"
+    appointment.cancelledBy = "doctor";
     await appointment.save();
 
     const doctor = await doctorModel.findById(docId);
@@ -333,7 +333,7 @@ const appointmentCancel = async (req, res) => {
   }
 };
 
-// ### Complete Appointment (Doctor)
+// Complete Appointment (Doctor)
 const appointmentComplete = async (req, res) => {
   try {
     const { docId, appointmentId } = req.body;
@@ -360,7 +360,7 @@ const appointmentComplete = async (req, res) => {
   }
 };
 
-// ### Get All Doctors List
+// Get All Doctors List
 const doctorList = async (req, res) => {
   try {
     const doctors = await doctorModel.find({}).select("-password -email").limit(50);
@@ -371,7 +371,7 @@ const doctorList = async (req, res) => {
   }
 };
 
-// ### Change Doctor Availability
+// Change Doctor Availability
 const changeAvailablity = async (req, res) => {
   try {
     const { docId } = req.body;
@@ -394,7 +394,7 @@ const changeAvailablity = async (req, res) => {
   }
 };
 
-// ### Get Doctor Profile
+// Get Doctor Profile
 const doctorProfile = async (req, res) => {
   try {
     const { docId } = req.body;
@@ -414,7 +414,7 @@ const doctorProfile = async (req, res) => {
   }
 };
 
-// ### Update Doctor Profile
+// Update Doctor Profile
 const updateDoctorProfile = async (req, res) => {
   try {
     const { docId, fees, address, available, about } = req.body;
@@ -463,7 +463,7 @@ const updateDoctorProfile = async (req, res) => {
   }
 };
 
-// ### Get Doctor Dashboard Data
+// Get Doctor Dashboard Data
 const doctorDashboard = async (req, res) => {
   try {
     const { docId } = req.body;
@@ -496,7 +496,7 @@ const doctorDashboard = async (req, res) => {
   }
 };
 
-// ### Create a Slot
+// Create a Slot
 const createSlot = async (req, res) => {
   try {
     const { docId, slotDate, slotTime, description } = req.body;
@@ -504,7 +504,6 @@ const createSlot = async (req, res) => {
       return res.json({ success: false, message: "Missing required fields" });
     }
 
-    // Validate slotDate (e.g., DD_MM_YYYY) and slotTime (e.g., HH:MM)
     const datePattern = /^\d{2}_\d{2}_\d{4}$/;
     const timePattern = /^\d{2}:\d{2}$/;
     if (!datePattern.test(slotDate) || !timePattern.test(slotTime)) {
@@ -516,7 +515,6 @@ const createSlot = async (req, res) => {
       return res.json({ success: false, message: "Doctor not found" });
     }
 
-    // Check for slot conflicts
     const slotExists = doctor.slots.some(
       (slot) => slot.slotDate === slotDate && slot.slotTime === slotTime
     );
@@ -524,7 +522,6 @@ const createSlot = async (req, res) => {
       return res.json({ success: false, message: "Slot already exists" });
     }
 
-    // Validate future date
     const [day, month, year] = slotDate.split("_").map(Number);
     const slotDateObj = new Date(year, month - 1, day);
     if (slotDateObj < new Date().setHours(0, 0, 0, 0)) {
@@ -541,7 +538,7 @@ const createSlot = async (req, res) => {
   }
 };
 
-// ### Update a Slot
+// Update a Slot
 const updateSlot = async (req, res) => {
   try {
     const { docId, slotId, status, description } = req.body;
@@ -559,7 +556,7 @@ const updateSlot = async (req, res) => {
       return res.json({ success: false, message: "Slot not found" });
     }
 
-    const validStatuses = ["Active", "Booked", "Cancelled"];
+    const validStatuses = ["Active", "Reserved", "Booked", "Cancelled", "paymentpending", "CancelledByUser", "CancelledByDoctor"];
     if (status && !validStatuses.includes(status)) {
       return res.json({ success: false, message: "Invalid status value" });
     }
@@ -575,7 +572,7 @@ const updateSlot = async (req, res) => {
   }
 };
 
-// ### Get All Slots
+// Get All Slots
 const getSlots = async (req, res) => {
   try {
     const { docId } = req.body;
@@ -601,7 +598,7 @@ const getSlots = async (req, res) => {
   }
 };
 
-// ### Send Meeting Link (Doctor)
+// Send Meeting Link (Doctor)
 const sendMeetingLink = async (req, res) => {
   try {
     const { appointmentId, meetingLink } = req.body;
@@ -638,7 +635,7 @@ const sendMeetingLink = async (req, res) => {
   }
 };
 
-// ### Accept Appointment (Doctor)
+// Accept Appointment (Doctor)
 const acceptAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.body;
@@ -677,7 +674,7 @@ const acceptAppointment = async (req, res) => {
   }
 };
 
-// ### Get Dashboard Data (Doctor)
+// Get Dashboard Data (Doctor)
 const getDashData = async (req, res) => {
   try {
     const doctorId = req.userId; // Assumes auth middleware
@@ -712,7 +709,7 @@ const getDashData = async (req, res) => {
   }
 };
 
-// ### Submit Professional Request
+// Submit Professional Request
 const submitProfessionalRequest = async (req, res) => {
   try {
     const { name, email, speciality, degree, experience, about, fees, address, languages } = req.body;
@@ -801,7 +798,7 @@ const submitProfessionalRequest = async (req, res) => {
   }
 };
 
-// ### Get Doctor's Own Reviews
+// Get Doctor's Own Reviews
 const getOwnReviews = async (req, res) => {
   try {
     const { docId } = req.body;
@@ -822,7 +819,7 @@ const getOwnReviews = async (req, res) => {
   }
 };
 
-// ### Get Doctor Transactions
+// Get Doctor Transactions
 const getDoctorTransactions = async (req, res) => {
   try {
     const { docId } = req.body;
@@ -844,7 +841,7 @@ const getDoctorTransactions = async (req, res) => {
   }
 };
 
-// ### Update Payment Details
+// Update Payment Details
 const updatePaymentDetails = async (req, res) => {
   try {
     const { docId, paymentDetails } = req.body;

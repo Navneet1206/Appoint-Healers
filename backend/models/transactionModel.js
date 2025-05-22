@@ -14,8 +14,7 @@ const transactionSchema = new mongoose.Schema({
   appointmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "appointment",
-    required: true,
-  },
+  }, // Made optional by removing required: true
   originalAmount: {
     type: Number,
     required: true,
@@ -26,7 +25,7 @@ const transactionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending", "completed", "failed", "refunded"],
+    enum: ["pending", "completed", "failed", "refunded", "cancelled"],
     default: "pending",
   },
   paymentMethod: {
@@ -46,7 +45,7 @@ const transactionSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: ["payment", "payout"],
-    required: true
+    required: true,
   },
   couponCode: {
     type: String,
@@ -69,6 +68,18 @@ const transactionSchema = new mongoose.Schema({
   isDeleted: {
     type: Boolean,
     default: false,
+  },
+  slotId: { // Added to temporarily store slot info
+    type: mongoose.Schema.Types.ObjectId,
+  },
+  slotDate: { // Added to temporarily store slot info
+    type: String,
+  },
+  slotTime: { // Added to temporarily store slot info
+    type: String,
+  },
+  sessionType: { // Added to temporarily store session type
+    type: String,
   },
 });
 

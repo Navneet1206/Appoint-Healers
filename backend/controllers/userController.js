@@ -360,7 +360,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// Book an appointment
+// Book an appointment (updated to avoid pending payments)
 const bookAppointment = async (req, res) => {
   try {
     const { userId, docId, slotId, sessionType, couponCode } = req.body;
@@ -369,202 +369,394 @@ const bookAppointment = async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    const doctor = await doctorModel.findById(docId);
-    if (!doctor) {
-      return res.status(404).json({ success: false, message: "Doctor not found" });
-    }
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    const slot = doctor.slots.id(slotId);
-    if (!slot || slot.status !== "Active") {
-      return res.status(400).json({ success: false, message: "Slot not available or already booked" });
-    }
-
-    let originalAmount = doctor.fees || 0;
-    let paidAmount = originalAmount;
-    let discountPercentage = 0;
-
-    if (couponCode) {
-      const coupon = await Coupon.findOne({ code: couponCode, status: "Active" });
-      if (!coupon || new Date() > coupon.expirationDate) {
-        return res.status(400).json({ success: false, message: "Invalid or expired coupon" });
+    try {
+      const doctor = await doctorModel.findById(docId).session(session);
+      if (!doctor) {
+        throw new Error("Doctor not found");
       }
-      discountPercentage = coupon.discountPercentage;
-      paidAmount = originalAmount - (originalAmount * discountPercentage) / 100;
+
+      const slot = doctor.slots.id(slotId);
+      if (!slot || slot.status !== "Active") {
+        throw new Error("Slot not available or already booked");
+      }
+
+      // Temporarily reserve the slot
+      slot.status = "Reserved";
+      await doctor.save({ session });
+
+      let originalAmount = doctor.fees || 0;
+      let paidAmount = originalAmount;
+      let discountPercentage = 0;
+
+      if (couponCode) {
+        const coupon = await Coupon.findOne({ code: couponCode, status: "Active" }).session(session);
+        if (!coupon || new Date() > coupon.expirationDate) {
+          throw new Error("Invalid or expired coupon");
+        }
+        discountPercentage = coupon.discountPercentage;
+        paidAmount = originalAmount - (originalAmount * discountPercentage) / 100;
+      }
+
+      const userData = await userModel.findById(userId).select("-password").session(session);
+      if (!userData) {
+        throw new Error("User not found");
+      }
+
+      // Create a transaction for payment tracking without appointmentId initially
+      const newTransaction = new transactionModel({
+        userId,
+        doctorId: docId,
+        originalAmount,
+        paidAmount,
+        status: "pending",
+        paymentMethod: "razorpay",
+        type: "payment",
+        couponCode: couponCode || null,
+        slotId, // Temporarily store slotId in transaction
+        slotDate: slot.slotDate,
+        slotTime: slot.slotTime,
+        sessionType,
+      });
+
+      await newTransaction.save({ session });
+
+      const options = {
+        amount: Math.round(paidAmount * 100), // Convert to paise
+        currency: process.env.CURRENCY || "INR",
+        receipt: newTransaction._id.toString(),
+      };
+
+      const order = await razorpayInstance.orders.create(options);
+      newTransaction.transactionId = order.id;
+      await newTransaction.save({ session });
+
+      await session.commitTransaction();
+
+      res.status(200).json({
+        success: true,
+        order: {
+          id: order.id,
+          amount: order.amount,
+          currency: order.currency,
+        },
+        key: process.env.RAZORPAY_KEY_ID,
+        transactionId: newTransaction._id, // Return transactionId instead of appointmentId
+      });
+    } catch (error) {
+      await session.abortTransaction();
+
+      // Revert slot status to Active if transaction fails
+      const doctor = await doctorModel.findById(docId);
+      const slot = doctor.slots.id(slotId);
+      if (slot && slot.status === "Reserved") {
+        slot.status = "Active";
+        await doctor.save();
+      }
+
+      console.error("Error in bookAppointment transaction:", error);
+      res.status(400).json({ success: false, message: error.message });
+    } finally {
+      session.endSession();
     }
-
-    slot.status = "paymentpending";
-    await doctor.save();
-
-    const userData = await userModel.findById(userId).select("-password");
-    if (!userData) {
-      slot.status = "Active";
-      await doctor.save();
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    const appointmentData = {
-      userId,
-      docId,
-      slotId,
-      slotDate: slot.slotDate,
-      slotTime: slot.slotTime,
-      duration: slot.duration || 45,
-      userData,
-      docData: doctor.toObject(),
-      originalAmount,
-      discountedAmount: paidAmount,
-      couponCode: couponCode || null,
-      sessionType,
-      status: "paymentpending",
-      payment: false,
-    };
-
-    const newAppointment = new appointmentModel(appointmentData);
-    await newAppointment.save();
-
-    const userMailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
-      to: userData.email,
-      subject: "Appointment Initiated - Complete Payment",
-      html: generateEmailTemplate(
-        "Appointment Initiated",
-        `Dear ${userData.name},<br><br>
-         You have initiated an appointment with ${doctor.name} on ${slot.slotDate} at ${slot.slotTime}.<br>
-         Please complete the payment of ₹${paidAmount} via Razorpay within 10 minutes to confirm your booking.<br>
-         ${
-           couponCode
-             ? `Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${paidAmount})`
-             : ""
-         }`
-      ),
-    };
-
-    const doctorMailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
-      to: doctor.email,
-      subject: "New Appointment Request",
-      html: generateEmailTemplate(
-        "New Appointment Request",
-        `Dear ${doctor.name},<br><br>
-         ${userData.name} has requested an appointment on ${slot.slotDate} at ${slot.slotTime}.<br>
-         Payment of ₹${paidAmount} is pending and must be completed within 10 minutes.<br>
-         ${
-           couponCode
-             ? `Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${paidAmount})`
-             : ""
-         }`
-      ),
-    };
-
-    await Promise.all([
-      transporter.sendMail(userMailOptions),
-      transporter.sendMail(doctorMailOptions),
-    ]);
-
-    res.status(201).json({
-      success: true,
-      message: "Appointment created, please complete payment",
-      appointmentId: newAppointment._id,
-    });
   } catch (error) {
     console.error("Error in bookAppointment:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Cancel an appointment
+// Verify Razorpay payment (updated to create appointment upon success)
+const verifyRazorpay = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, transactionId } = req.body;
+
+    const generatedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (generatedSignature !== razorpay_signature) {
+      await transactionModel.findOneAndUpdate(
+        { transactionId: razorpay_order_id },
+        { status: "failed" }
+      );
+      return res.status(400).json({ success: false, message: "Invalid payment signature" });
+    }
+
+    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
+    if (orderInfo.status !== "paid") {
+      await transactionModel.findOneAndUpdate(
+        { transactionId: razorpay_order_id },
+        { status: "failed" }
+      );
+      return res.status(400).json({ success: false, message: "Payment not completed" });
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const transaction = await transactionModel.findById(transactionId).session(session);
+      if (!transaction || transaction.status !== "pending") {
+        throw new Error("Invalid or already processed transaction");
+      }
+
+      const doctor = await doctorModel.findById(transaction.doctorId).session(session);
+      const slot = doctor.slots.id(transaction.slotId);
+      if (!slot || slot.status !== "Reserved") {
+        await transactionModel.findByIdAndUpdate(
+          transaction._id,
+          { status: "failed" },
+          { session }
+        );
+        throw new Error("Slot is no longer reserved");
+      }
+
+      const userData = await userModel.findById(transaction.userId).select("-password").session(session);
+
+      // Create appointment only after payment is verified
+      const appointmentData = {
+        userId: transaction.userId,
+        docId: transaction.doctorId,
+        slotId: transaction.slotId,
+        slotDate: transaction.slotDate,
+        slotTime: transaction.slotTime,
+        duration: slot.duration || 45,
+        userData,
+        docData: doctor.toObject(),
+        originalAmount: transaction.originalAmount,
+        discountedAmount: transaction.paidAmount,
+        couponCode: transaction.couponCode,
+        sessionType: transaction.sessionType,
+        status: "Booked",
+        payment: true,
+      };
+
+      const newAppointment = new appointmentModel(appointmentData);
+      await newAppointment.save({ session });
+
+      slot.status = "Booked";
+      slot.bookedBy = transaction.userId;
+      await doctor.save({ session });
+
+      transaction.status = "completed";
+      transaction.appointmentId = newAppointment._id;
+      transaction.meta = { gatewayResponse: { payment_id: razorpay_payment_id } };
+      await transaction.save({ session });
+
+      await session.commitTransaction();
+
+      const doctorEmail = doctor.email;
+
+      const userMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: userData.email,
+        subject: "Appointment Confirmed",
+        html: generateEmailTemplate(
+          "Appointment Confirmed",
+          `Dear ${userData.name},<br><br>
+           Your appointment with ${doctor.name} on ${transaction.slotDate} at ${transaction.slotTime} has been confirmed.<br>
+           Payment of ₹${transaction.paidAmount} has been successfully processed.<br>
+           ${transaction.couponCode ? `Coupon "${transaction.couponCode}" applied.` : ""}`
+        ),
+      };
+
+      const doctorMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: doctorEmail,
+        subject: "Appointment Confirmed",
+        html: generateEmailTemplate(
+          "Appointment Confirmed",
+          `Dear ${doctor.name},<br><br>
+           An appointment with ${userData.name} on ${transaction.slotDate} at ${transaction.slotTime} has been confirmed.<br>
+           Payment of ₹${transaction.paidAmount} has been received.<br>
+           ${transaction.couponCode ? `Coupon "${transaction.couponCode}" applied.` : ""}`
+        ),
+      };
+
+      await Promise.all([
+        transporter.sendMail(userMailOptions),
+        transporter.sendMail(doctorMailOptions),
+      ]);
+
+      res.status(200).json({ success: true, message: "Payment successful", appointmentId: newAppointment._id });
+    } catch (error) {
+      await session.abortTransaction();
+
+      // Revert slot status to Active if verification fails
+      const transaction = await transactionModel.findById(transactionId);
+      if (transaction && transaction.status === "pending") {
+        const doctor = await doctorModel.findById(transaction.doctorId);
+        const slot = doctor.slots.id(transaction.slotId);
+        if (slot && slot.status === "Reserved") {
+          slot.status = "Active";
+          await doctor.save();
+        }
+        transaction.status = "failed";
+        await transaction.save();
+      }
+
+      console.error("Error in verifyRazorpay transaction:", error);
+      res.status(400).json({ success: false, message: error.message });
+    } finally {
+      session.endSession();
+    }
+  } catch (error) {
+    console.error("Error in verifyRazorpay:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Cancel an appointment (updated to handle reserved slots)
 const cancelAppointment = async (req, res) => {
   try {
-    const { userId, appointmentId } = req.body;
+    const { userId, appointmentId, transactionId } = req.body;
 
-    const appointmentData = await appointmentModel.findById(appointmentId);
-    if (!appointmentData || appointmentData.userId.toString() !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized action or invalid appointment",
-      });
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      let doctor, slot;
+
+      // Check if an appointment exists
+      const appointmentData = appointmentId ? await appointmentModel.findById(appointmentId).session(session) : null;
+
+      if (appointmentData) {
+        if (appointmentData.userId.toString() !== userId) {
+          throw new Error("Unauthorized action or invalid appointment");
+        }
+
+        if (appointmentData.cancelled || appointmentData.status === "Cancelled") {
+          throw new Error("Appointment is already cancelled");
+        }
+
+        appointmentData.status = "Cancelled";
+        appointmentData.cancelled = true;
+        appointmentData.cancelledBy = "user";
+        await appointmentData.save({ session });
+
+        doctor = await doctorModel.findById(appointmentData.docId).session(session);
+        slot = doctor.slots.id(appointmentData.slotId);
+        if (slot) {
+          slot.status = "Active";
+          slot.bookedBy = null;
+          await doctor.save({ session });
+        }
+
+        const userData = await userModel.findById(userId).select("-password").session(session);
+        const doctorData = await doctorModel.findById(appointmentData.docId).session(session);
+
+        const userMailOptions = {
+          from: process.env.NODEMAILER_EMAIL,
+          to: userData.email,
+          subject: "Appointment Cancellation",
+          html: generateEmailTemplate(
+            "Appointment Cancellation",
+            `Dear ${userData.name},<br><br>
+             Your appointment with ${doctorData.name} scheduled for ${appointmentData.slotDate} at ${appointmentData.slotTime} has been cancelled by you.<br><br>
+             ${
+               appointmentData.payment
+                 ? "Our team will discuss your refund within 3-7 business days."
+                 : "No further action is required."
+             }`
+          ),
+        };
+
+        const doctorMailOptions = {
+          from: process.env.NODEMAILER_EMAIL,
+          to: doctorData.email,
+          subject: "Appointment Cancellation by User",
+          html: generateEmailTemplate(
+            "Appointment Cancellation",
+            `Dear ${doctorData.name},<br><br>
+             The appointment with ${userData.name} (${userData.email}) scheduled for ${appointmentData.slotDate} at ${appointmentData.slotTime} has been cancelled by the user.<br><br>
+             ${
+               appointmentData.payment
+                 ? "Our team will handle the refund process with the user."
+                 : "No further action is required."
+             }`
+          ),
+        };
+
+        const adminMailOptions = {
+          from: process.env.NODEMAILER_EMAIL,
+          to: process.env.NODEMAILER_EMAIL,
+          subject: "Appointment Cancellation Notification",
+          html: generateEmailTemplate(
+            "Appointment Cancellation Notification",
+            `An appointment has been cancelled by the user:<br><br>
+             User: ${userData.name} (${userData.email})<br>
+             Doctor: ${doctorData.name} (${doctorData.email})<br>
+             Date & Time: ${appointmentData.slotDate} at ${appointmentData.slotTime}<br><br>
+             ${
+               appointmentData.payment
+                 ? "Payment: Online - Refund discussion pending"
+                 : "Payment: None - No refund required"
+             }`
+          ),
+        };
+
+        await Promise.all([
+          transporter.sendMail(userMailOptions),
+          transporter.sendMail(doctorMailOptions),
+          transporter.sendMail(adminMailOptions),
+        ]);
+      } else if (transactionId) {
+        // Handle cancellation of a reserved slot (no appointment created yet)
+        const transaction = await transactionModel.findById(transactionId).session(session);
+        if (!transaction || transaction.userId.toString() !== userId || transaction.status !== "pending") {
+          throw new Error("Invalid or unauthorized transaction");
+        }
+
+        doctor = await doctorModel.findById(transaction.doctorId).session(session);
+        slot = doctor.slots.id(transaction.slotId);
+        if (slot && slot.status === "Reserved") {
+          slot.status = "Active";
+          await doctor.save({ session });
+        }
+
+        transaction.status = "cancelled";
+        await transaction.save({ session });
+      } else {
+        throw new Error("No appointment or transaction provided");
+      }
+
+      await session.commitTransaction();
+      res.status(200).json({ success: true, message: "Slot released or appointment cancelled successfully" });
+    } catch (error) {
+      await session.abortTransaction();
+
+      // Revert slot status if cancellation fails
+      if (appointmentId) {
+        const appointment = await appointmentModel.findById(appointmentId);
+        if (appointment && !appointment.cancelled) {
+          const doc = await doctorModel.findById(appointment.docId);
+          const slotToRevert = doc.slots.id(appointment.slotId);
+          if (slotToRevert && slotToRevert.status !== "Booked") {
+            slotToRevert.status = "Active";
+            slotToRevert.bookedBy = null;
+            await doc.save();
+          }
+        }
+      } else if (transactionId) {
+        const transaction = await transactionModel.findById(transactionId);
+        if (transaction && transaction.status === "pending") {
+          const doc = await doctorModel.findById(transaction.doctorId);
+          const slotToRevert = doc.slots.id(transaction.slotId);
+          if (slotToRevert && slotToRevert.status === "Reserved") {
+            slotToRevert.status = "Active";
+            await doc.save();
+          }
+        }
+      }
+
+      console.error("Error in cancelAppointment transaction:", error);
+      res.status(400).json({ success: false, message: error.message });
+    } finally {
+      session.endSession();
     }
-
-    if (appointmentData.cancelled || appointmentData.status === "Cancelled") {
-      return res.status(400).json({
-        success: false,
-        message: "Appointment is already cancelled",
-      });
-    }
-
-    appointmentData.status = "Cancelled";
-    appointmentData.cancelled = true;
-    appointmentData.cancelledBy = "user"; // Set cancelledBy to "user"
-    await appointmentData.save();
-
-    const doctor = await doctorModel.findById(appointmentData.docId);
-    const slot = doctor.slots.id(appointmentData.slotId);
-    if (slot) {
-      slot.status = "Active";
-      slot.bookedBy = null;
-      await doctor.save();
-    }
-
-    const userData = await userModel.findById(userId).select("-password");
-    const doctorData = await doctorModel.findById(appointmentData.docId);
-
-    const userMailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
-      to: userData.email,
-      subject: "Appointment Cancellation",
-      html: generateEmailTemplate(
-        "Appointment Cancellation",
-        `Dear ${userData.name},<br><br>
-         Your appointment with ${doctorData.name} scheduled for ${appointmentData.slotDate} at ${appointmentData.slotTime} has been cancelled by you.<br><br>
-         ${
-           appointmentData.payment
-             ? "Our team will discuss your refund within 3-7 business days."
-             : "No further action is required."
-         }`
-      ),
-    };
-
-    const doctorMailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
-      to: doctorData.email,
-      subject: "Appointment Cancellation by User",
-      html: generateEmailTemplate(
-        "Appointment Cancellation",
-        `Dear ${doctorData.name},<br><br>
-         The appointment with ${userData.name} (${userData.email}) scheduled for ${appointmentData.slotDate} at ${appointmentData.slotTime} has been cancelled by the user.<br><br>
-         ${
-           appointmentData.payment
-             ? "Our team will handle the refund process with the user."
-             : "No further action is required."
-         }`
-      ),
-    };
-
-    const adminMailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
-      to: process.env.NODEMAILER_EMAIL,
-      subject: "Appointment Cancellation Notification",
-      html: generateEmailTemplate(
-        "Appointment Cancellation Notification",
-        `An appointment has been cancelled by the user:<br><br>
-         User: ${userData.name} (${userData.email})<br>
-         Doctor: ${doctorData.name} (${doctorData.email})<br>
-         Date & Time: ${appointmentData.slotDate} at ${appointmentData.slotTime}<br><br>
-         ${
-           appointmentData.payment
-             ? "Payment: Online - Refund discussion pending"
-             : "Payment: None - No refund required"
-         }`
-      ),
-    };
-
-    await Promise.all([
-      transporter.sendMail(userMailOptions),
-      transporter.sendMail(doctorMailOptions),
-      transporter.sendMail(adminMailOptions),
-    ]);
-
-    res.status(200).json({ success: true, message: "Appointment cancelled successfully" });
   } catch (error) {
     console.error("Error in cancelAppointment:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -598,8 +790,8 @@ const listAppointment = async (req, res) => {
   }
 };
 
-// Initiate Razorpay payment
-const paymentRazorpay = async (req, res) => {
+// Initiate Razorpay payment (renamed from paymentRazorpay for clarity)
+const initiateRazorpayPayment = async (req, res) => {
   try {
     const { appointmentId } = req.body;
 
@@ -659,143 +851,7 @@ const paymentRazorpay = async (req, res) => {
       key: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error) {
-    console.error("Error in paymentRazorpay:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Verify Razorpay payment
-const verifyRazorpay = async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-
-    const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest("hex");
-
-    if (generatedSignature !== razorpay_signature) {
-      await transactionModel.findOneAndUpdate(
-        { transactionId: razorpay_order_id },
-        { status: "failed" }
-      );
-      return res.status(400).json({ success: false, message: "Invalid payment signature" });
-    }
-
-    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
-    if (orderInfo.status !== "paid") {
-      await transactionModel.findOneAndUpdate(
-        { transactionId: razorpay_order_id },
-        { status: "failed" }
-      );
-      return res.status(400).json({ success: false, message: "Payment not completed" });
-    }
-
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    try {
-      const appointment = await appointmentModel.findById(orderInfo.receipt).session(session);
-      if (!appointment) {
-        throw new Error("Appointment not found");
-      }
-
-      const doctor = await doctorModel.findById(appointment.docId).session(session);
-      const slot = doctor.slots.id(appointment.slotId);
-      if (!slot) {
-        throw new Error("Slot not found");
-      }
-
-      if (slot.status !== "paymentpending") {
-        await appointmentModel.findByIdAndUpdate(
-          appointment._id,
-          { status: "Failed" },
-          { session }
-        );
-        throw new Error("Slot is no longer available");
-      }
-
-      slot.status = "Booked";
-      slot.bookedBy = appointment.userId;
-      await doctor.save({ session });
-
-      appointment.status = "Booked";
-      appointment.payment = true;
-      await appointment.save({ session });
-
-      await appointmentModel.updateMany(
-        { slotId: slot._id, status: "paymentpending", _id: { $ne: appointment._id } },
-        { status: "Failed" },
-        { session }
-      );
-
-      await transactionModel.findOneAndUpdate(
-        { transactionId: razorpay_order_id },
-        {
-          status: "completed",
-          paidAmount: orderInfo.amount / 100,
-          meta: { gatewayResponse: { payment_id: razorpay_payment_id } },
-        },
-        { session }
-      );
-
-      await session.commitTransaction();
-
-      const userData = await userModel.findById(appointment.userId).select("-password");
-      const doctorEmail = doctor.email;
-
-      const userMailOptions = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: userData.email,
-        subject: "Appointment Confirmed",
-        html: generateEmailTemplate(
-          "Appointment Confirmed",
-          `Dear ${userData.name},<br><br>
-           Your appointment with ${doctor.name} on ${appointment.slotDate} at ${appointment.slotTime} has been confirmed.<br>
-           Payment of ₹${appointment.discountedAmount || appointment.originalAmount} has been successfully processed.<br>
-           ${
-             appointment.couponCode
-               ? `Coupon "${appointment.couponCode}" applied.`
-               : ""
-           }`
-        ),
-      };
-
-      const doctorMailOptions = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: doctorEmail,
-        subject: "Appointment Confirmed",
-        html: generateEmailTemplate(
-          "Appointment Confirmed",
-          `Dear ${doctor.name},<br><br>
-           An appointment with ${userData.name} on ${appointment.slotDate} at ${appointment.slotTime} has been confirmed.<br>
-           Payment of ₹${appointment.discountedAmount || appointment.originalAmount} has been received.<br>
-           ${
-             appointment.couponCode
-               ? `Coupon "${appointment.couponCode}" applied.`
-               : ""
-           }`
-        ),
-      };
-
-      await Promise.all([
-        transporter.sendMail(userMailOptions),
-        transporter.sendMail(doctorMailOptions),
-      ]);
-
-      res.status(200).json({ success: true, message: "Payment successful" });
-    } catch (error) {
-      await session.abortTransaction();
-      console.error("Error in verifyRazorpay transaction:", error);
-      await transactionModel.findOneAndUpdate(
-        { transactionId: razorpay_order_id },
-        { status: "failed" }
-      );
-      res.status(400).json({ success: false, message: error.message });
-    } finally {
-      session.endSession();
-    }
-  } catch (error) {
-    console.error("Error in verifyRazorpay:", error);
+    console.error("Error in initiateRazorpayPayment:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -980,7 +1036,7 @@ const validateCoupon = async (req, res) => {
 
     res.status(200).json({ success: true, discountPercentage: coupon.discountPercentage });
   } catch (error) {
-    console.error("Error in validateCoupon:", error);
+    console.error("Error in validateCoupon '' :", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -1014,7 +1070,7 @@ export {
   bookAppointment,
   listAppointment,
   cancelAppointment,
-  paymentRazorpay,
+  initiateRazorpayPayment,
   verifyRazorpay,
   submitTest,
   addReview,

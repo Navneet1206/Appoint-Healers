@@ -7,7 +7,6 @@ import { assets } from "../assets/assets";
 
 const MyAppointments = () => {
   const { backendUrl, token, currencySymbol } = useContext(AppContext);
-  console.log("Token of mine: ",token);
   const navigate = useNavigate();
 
   const [appointments, setAppointments] = useState([]);
@@ -20,13 +19,13 @@ const MyAppointments = () => {
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  // Function to format slot date (assumes format "dd_mm_yyyy")
+  // Format slot date
   const slotDateFormat = (slotDate) => {
     const dateArray = slotDate.split("_");
     return dateArray[0] + " " + months[Number(dateArray[1]) - 1] + " " + dateArray[2];
   };
 
-  // Get appointments from the backend
+  // Fetch appointments
   const getUserAppointments = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/user/appointments`, {
@@ -38,8 +37,8 @@ const MyAppointments = () => {
         toast.error(data.message);
       }
     } catch (error) {
-      console.error("Error fetching appointments:", error);
       toast.error(error.response?.data?.message || "Error fetching appointments");
+      console.error("Error fetching appointments:", error);
     }
   };
 
@@ -102,7 +101,7 @@ const MyAppointments = () => {
     }
   };
 
-  // Load Razorpay script dynamically
+  // Load Razorpay script
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -113,11 +112,11 @@ const MyAppointments = () => {
     });
   };
 
-  // Initialize Razorpay payment
+  // Initialize payment
   const initPay = async (order) => {
     const scriptLoaded = await loadRazorpayScript();
     if (!scriptLoaded) {
-      toast.error("Failed to load Razorpay SDK. Please check your internet connection.");
+      toast.error("Failed to load Razorpay SDK.");
       return;
     }
 
@@ -162,12 +161,12 @@ const MyAppointments = () => {
 
     const rzp = new window.Razorpay(options);
     rzp.on('payment.failed', (response) => {
-      toast.error(response.error.description || "Payment failed. Please try again.");
+      toast.error(response.error.description || "Payment failed.");
     });
     rzp.open();
   };
 
-  // Payment using Razorpay
+  // Handle Razorpay payment
   const appointmentRazorpay = async (appointmentId) => {
     try {
       const { data } = await axios.post(
@@ -192,7 +191,7 @@ const MyAppointments = () => {
     }
   }, [token]);
 
-  // Filter appointments based on search term
+  // Filter appointments
   const filteredAppointments = appointments.filter((item) => {
     return (
       item.docData.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -201,7 +200,7 @@ const MyAppointments = () => {
     );
   });
 
-  // Render star rating
+  // Render stars
   const renderStars = (rating) => {
     return [...Array(5)].map((_, index) => (
       <span
