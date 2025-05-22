@@ -14,6 +14,7 @@ const transactionSchema = new mongoose.Schema({
   appointmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "appointment",
+    required: true,
   }, // Made optional by removing required: true
   originalAmount: {
     type: Number,
