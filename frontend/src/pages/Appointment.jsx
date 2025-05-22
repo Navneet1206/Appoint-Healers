@@ -6,7 +6,7 @@ import RelatedDoctors from '../components/RelatedDoctors';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// Helper functions for formatting
+// Helper functions (unchanged from original)
 const convertToAmPm = (timeStr) => {
   const [hourStr, minuteStr] = timeStr.split(':');
   let hour = parseInt(hourStr, 10);
@@ -61,19 +61,12 @@ const Appointment = () => {
   const [finalPrice, setFinalPrice] = useState(null);
   const [isCouponApplied, setIsCouponApplied] = useState(false);
 
-  // Fetch doctor info
   const fetchDocInfo = () => {
     const doc = doctors.find((doc) => doc._id === docId);
-    if (doc) {
-      setDocInfo(doc);
-      setFinalPrice(doc.fees || 0);
-    } else {
-      toast.error('Doctor not found');
-      navigate('/doctors');
-    }
+    setDocInfo(doc);
+    setFinalPrice(doc?.fees || 0);
   };
 
-  // Fetch reviews
   const fetchReviews = async () => {
     try {
       const response = await axios.get(`${backendUrl}/api/user/reviews/${docId}`, { headers: { token } });
@@ -83,16 +76,12 @@ const Appointment = () => {
         setReviews(reviews);
         setAverageRating(avgRating);
         setReviewCount(reviews.length);
-      } else {
-        toast.error('Failed to load reviews');
       }
     } catch (error) {
-      toast.error('Error fetching reviews');
-      console.error(error);
+      toast.error('Failed to load reviews');
     }
   };
 
-  // Process slots
   const processSlots = () => {
     if (!docInfo || !docInfo.slots) return;
     const activeSlots = docInfo.slots.filter(slot => slot.status === "Active").map(slot => ({
@@ -114,7 +103,6 @@ const Appointment = () => {
     setSelectedSlotId("");
   };
 
-  // Handle slot selection
   const handleSlotSelect = (slot) => {
     if (!token) {
       toast.warning('Please login to book an appointment');
@@ -125,13 +113,11 @@ const Appointment = () => {
     setSelectedSessionType(slot.sessionType || "video");
   };
 
-  // Handle session type change
   const handleSessionTypeChange = (type) => {
     setSelectedSessionType(type);
     setSelectedSlotId("");
   };
 
-  // Apply coupon
   const applyCoupon = async () => {
     if (!couponCode) {
       toast.error("Please enter a coupon code");
@@ -155,11 +141,9 @@ const Appointment = () => {
       }
     } catch (error) {
       toast.error("Error applying coupon");
-      console.error(error);
     }
   };
 
-  // Book appointment with payment initiation
   const bookAppointment = async () => {
     if (!token) {
       toast.warning('Please login to book an appointment');
@@ -177,7 +161,6 @@ const Appointment = () => {
 
     setIsLoading(true);
     try {
-      // Reserve the slot temporarily and initiate payment
       const { data } = await axios.post(
         `${backendUrl}/api/user/book-appointment`,
         {
@@ -190,74 +173,49 @@ const Appointment = () => {
         { headers: { token } }
       );
       if (data.success) {
-        toast.success("Slot reserved. Please complete payment.");
-        await initiatePayment(data.transactionId);
+        toast.success(data.message);
+        initiatePayment(data.appointmentId);
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error reserving slot');
-      console.error(error);
+      toast.error(error.response?.data?.message || 'Error booking appointment');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load Razorpay script
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
-  // Initiate payment
-  const initiatePayment = async (transactionId) => {
+  const initiatePayment = async (appointmentId) => {
     try {
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        toast.error("Failed to load Razorpay SDK.");
-        return;
-      }
-
       const { data } = await axios.post(
-        `${backendUrl}/api/user/book-appointment`,
-        { docId, slotId: selectedSlotId, userId: userData._id, sessionType: selectedSessionType, couponCode: isCouponApplied ? couponCode : null }, // Re-fetch order details
+        `${backendUrl}/api/user/payment-razorpay`,
+        { appointmentId },
         { headers: { token } }
       );
       if (data.success) {
         const options = {
-          key: data.key, // Use the key returned from backend
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
           amount: data.order.amount,
           currency: data.order.currency,
-          name: "Savayas Heals",
+          name: "Appointment Payment",
           description: "Appointment Payment",
           order_id: data.order.id,
           handler: async (response) => {
             try {
               const verifyRes = await axios.post(
                 `${backendUrl}/api/user/verifyRazorpay`,
-                {
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  transactionId,
-                },
+                response,
                 { headers: { token } }
               );
               if (verifyRes.data.success) {
-                toast.success("Payment successful! Appointment confirmed.");
+                toast.success("Payment successful");
                 getDoctosData();
                 navigate("/my-appointments");
               } else {
-                toast.error(verifyRes.data.message || "Payment verification failed");
+                toast.error("Payment verification failed");
               }
             } catch (error) {
-              toast.error(error.response?.data?.message || "Error verifying payment");
-              console.error("Payment verification error:", error);
+              toast.error("Error verifying payment");
             }
           },
           prefill: {
@@ -267,49 +225,33 @@ const Appointment = () => {
           },
           theme: { color: "#F37254" },
           modal: {
-            ondismiss: async () => {
+            ondismiss: () => {
               toast.info("Payment cancelled by user");
-              // Release the slot if payment is cancelled
-              try {
-                await axios.post(
-                  `${backendUrl}/api/user/cancel-appointment`,
-                  { transactionId },
-                  { headers: { token } }
-                );
-                getDoctosData();
-              } catch (error) {
-                console.error("Error releasing slot:", error);
-              }
             },
           },
         };
         const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', (response) => {
-          toast.error(response.error.description || "Payment failed.");
-        });
         rzp.open();
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error initiating payment");
-      console.error("Payment initiation error:", error);
+      toast.error("Error initiating payment");
     }
   };
 
-  // Scroll to booking section
-  const handlegotobookbutton = () => {
+  function handlegotobookbutton() {
     if (!token) {
       toast.warning('Please login to book an appointment');
       navigate('/login');
       return;
     }
     if (!userData) {
-      toast.error('Unable to fetch user data.');
+      toast.error('Unable to fetch user data. Please try logging in again.');
       return;
     }
     bookSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }
 
   useEffect(() => {
     if (doctors.length > 0) fetchDocInfo();
@@ -326,7 +268,6 @@ const Appointment = () => {
     <div className="min-h-screen pt-20">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          {/* Doctor Info Section */}
           <div className="flex flex-col md:flex-row gap-8 p-8">
             <div className="md:w-1/4">
               <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden">
@@ -369,8 +310,6 @@ const Appointment = () => {
               <button className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 transition-all" onClick={handlegotobookbutton}>Book Now</button>
             </div>
           </div>
-
-          {/* Tabs Section */}
           <div className="border-t border-gray-100">
             <div className="p-8">
               <div className="flex gap-8 border-b border-gray-200 mb-6">
@@ -389,7 +328,7 @@ const Appointment = () => {
                     <ul className="space-y-2 text-gray-600">
                       <li>• {docInfo.degree}</li>
                       <li>• {docInfo.speciality}</li>
-                      <li>• {docInfo.experience} years of experience</li>
+                      <li>• {docInfo.experience} of experience</li>
                     </ul>
                   </div>
                   <div className="mb-6">
@@ -434,8 +373,6 @@ const Appointment = () => {
               {activeTab === "faq" && <div className="text-gray-600"><p>FAQ coming soon...</p></div>}
             </div>
           </div>
-
-          {/* Booking Section */}
           <div ref={bookSectionRef} className="border-t border-gray-100 p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Book a Session</h2>
             <div className="mb-8">

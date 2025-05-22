@@ -8,6 +8,7 @@ import {
   bookAppointment,
   listAppointment,
   cancelAppointment,
+  paymentRazorpay,
   submitTest,
   verifyRazorpay,
   verifyUser,
@@ -41,6 +42,7 @@ userRouter.post(
 userRouter.post("/book-appointment", authUser, bookAppointment);
 userRouter.get("/appointments", authUser, listAppointment);
 userRouter.post("/cancel-appointment", authUser, cancelAppointment);
+userRouter.post("/payment-razorpay", authUser, paymentRazorpay);
 userRouter.post("/verifyRazorpay", authUser, verifyRazorpay);
 userRouter.post("/add-review", authUser, addReview);
 userRouter.get("/reviews/:doctorId", getDoctorReviews);

@@ -5,7 +5,7 @@ import userModel from "../models/userModel.js";
 import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import { v2 as cloudinary } from "cloudinary";
-import Razorpay from "razorpay";
+import razorpay from "razorpay";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import Test from "../models/testModel.js";
@@ -13,12 +13,10 @@ import UserTestResult from "../models/userTestResultModel.js";
 import reviewModel from "../models/reviewModel.js";
 import Coupon from "../models/couponModel.js";
 import transactionModel from "../models/transactionModel.js";
-import mongoose from "mongoose";
-import crypto from "crypto";
 
 dotenv.config();
 
-const razorpayInstance = new Razorpay({
+const razorpayInstance = new razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
@@ -35,59 +33,24 @@ const verificationCodes = new Map();
 const resetOtps = new Map();
 const otpVerified = new Map();
 
-// Generate email template
-const generateEmailTemplate = (title, body) => `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Savayas Heals</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #fff5f7;">
-      <div style="max-width: 600px; margin: 30px auto; border: 1px solid #ffe0e6; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-          <div style="background-color: #ff5e8e; padding: 20px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px;">SAVAYAS HEALS</h1>
-          </div>
-          <div style="padding: 30px; color: #333;">
-              <h2 style="color: #ff5e8e; margin-top: 0; font-size: 24px;">${title}</h2>
-              <p style="font-size: 16px; line-height: 1.5;">${body}</p>
-              <div style="background-color: #ffe0e6; padding: 15px; border-radius: 5px; margin: 20px 0; color: #ff5e8e; font-style: italic;">
-                  "${body.split("<br>")[0]}"
-              </div>
-              <p style="font-size: 16px; line-height: 1.5;">
-                  If you have any urgent queries, please feel free to call us at <strong>(91) 8468938745</strong>.
-              </p>
-              <p style="font-size: 16px; line-height: 1.5; margin: 30px 0 0;">
-                  Best Regards,<br />SAVAYAS HEALS Team
-              </p>
-          </div>
-          <div style="background-color: #ff5e8e; padding: 10px; text-align: center;">
-              <p style="color: #ffffff; margin: 0; font-size: 12px;">© ${new Date().getFullYear()} SAVAYAS HEALS. All rights reserved.</p>
-          </div>
-      </div>
-  </body>
-  </html>
-`;
-
 // Register a new user
 const registerUser = async (req, res) => {
   try {
     const { name, email, password, phone, dob, gender } = req.body;
 
     if (!name || !email || !password || !phone || !dob || !gender) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: "Missing Details: Name, Email, Password, Phone, DOB, and Gender are required",
       });
     }
 
     if (!validator.isEmail(email)) {
-      return res.status(400).json({ success: false, message: "Please enter a valid email" });
+      return res.json({ success: false, message: "Please enter a valid email" });
     }
 
     if (password.length < 8) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: "Please enter a strong password (minimum 8 characters)",
       });
@@ -95,7 +58,7 @@ const registerUser = async (req, res) => {
 
     const existingUser = await userModel.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ success: false, message: "Email already exists" });
+      return res.json({ success: false, message: "Email already exists" });
     }
 
     let formattedPhone = phone.trim();
@@ -103,7 +66,7 @@ const registerUser = async (req, res) => {
       formattedPhone = `+91${formattedPhone}`;
     }
     if (!validator.isMobilePhone(formattedPhone, "any", { strictMode: true })) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: "Please enter a valid phone number",
       });
@@ -133,23 +96,35 @@ const registerUser = async (req, res) => {
       from: process.env.NODEMAILER_EMAIL,
       to: email,
       subject: "Welcome to Savayas Heals - Email Verification Code",
-      html: generateEmailTemplate(
-        "Email Verification",
-        `Dear ${name},<br><br>
-         Thank you for joining Savayas Heals. Please verify your email address using the code below:<br>
-         <strong style="font-size: 24px; color: #ff5e8e;">${emailOtp}</strong><br>
-         This code expires in 10 minutes.`
-      ),
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="https://via.placeholder.com/150" alt="Savayas Heals Logo" style="max-width: 100px; border-radius: 50%;">
+            <h2 style="color: #4CAF50;">Welcome to Savayas Heals</h2>
+          </div>
+          <p>Dear Valued User,</p>
+          <p>Thank you for joining <strong>Savayas Heals</strong>, where we prioritize your health and well-being. To complete your registration, please verify your email address using the code below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <span style="font-size: 24px; font-weight: bold; color: #4CAF50; border: 1px dashed #4CAF50; padding: 10px 20px; border-radius: 8px;">${emailOtp}</span>
+          </div>
+          <p>If you did not request this, please ignore this email or contact our support team immediately.</p>
+          <p>We are excited to have you on board and look forward to helping you on your healing journey.</p>
+          <p style="margin-top: 20px;">Warm regards,</p>
+          <p><strong>The Savayas Heals Team</strong></p>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          <p style="font-size: 12px; color: #777; text-align: center;">This is an automated email. Please do not reply to this message.</p>
+        </div>
+      `,
     });
 
-    res.status(201).json({
+    res.json({
       success: true,
-      message: "Verification code sent to your email",
+      message: "Verification codes sent to your phone and email",
       userId: user._id,
     });
   } catch (error) {
-    console.error("Error in registerUser:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -160,12 +135,12 @@ const verifyUser = async (req, res) => {
 
     const storedCodes = verificationCodes.get(userId);
     if (!storedCodes || storedCodes.emailOtp !== emailCode) {
-      return res.status(400).json({ success: false, message: "Invalid verification code" });
+      return res.json({ success: false, message: "Invalid verification code(s)" });
     }
 
     const user = await userModel.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.json({ success: false, message: "User not found" });
     }
 
     user.isMobileVerified = true;
@@ -175,10 +150,10 @@ const verifyUser = async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
     verificationCodes.delete(userId);
 
-    res.status(200).json({ success: true, message: "User verified successfully", token });
+    res.json({ success: true, message: "User verified successfully", token });
   } catch (error) {
-    console.error("Error in verifyUser:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -189,11 +164,11 @@ const loginUser = async (req, res) => {
     const user = await userModel.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User does not exist" });
+      return res.json({ success: false, message: "User does not exist" });
     }
 
     if (!user.isMobileVerified || !user.isEmailVerified) {
-      return res.status(403).json({
+      return res.json({
         success: false,
         message: "Please verify your phone and email first",
       });
@@ -201,14 +176,14 @@ const loginUser = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      return res.json({ success: false, message: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    res.status(200).json({ success: true, token });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    res.json({ success: true, token });
   } catch (error) {
-    console.error("Error in loginUser:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -219,7 +194,7 @@ const forgotPassword = async (req, res) => {
     const user = await userModel.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.json({ success: false, message: "User not found" });
     }
 
     const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -229,22 +204,44 @@ const forgotPassword = async (req, res) => {
       from: process.env.NODEMAILER_EMAIL,
       to: email,
       subject: "Password Reset OTP",
-      html: generateEmailTemplate(
-        "Password Reset OTP",
-        `Dear ${user.name},<br><br>
-         Your password reset OTP is: <strong style="font-size: 24px; color: #ff5e8e;">${resetOtp}</strong><br>
-         This OTP expires in 10 minutes.`
-      ),
+      html: `<p>Your password reset OTP is: <strong>${resetOtp}</strong>. It expires in 10 minutes.</p>`,
     });
 
-    res.status(200).json({
+    res.json({
       success: true,
       message: "Password reset OTP sent to your email",
       userId: user._id,
     });
   } catch (error) {
-    console.error("Error in forgotPassword:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Reset password
+const resetPassword = async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+
+    if (!otpVerified.get(userId)) {
+      return res.json({ success: false, message: "OTP not verified" });
+    }
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    user.password = hashedPassword;
+    await user.save();
+
+    otpVerified.delete(userId);
+    res.json({ success: true, message: "Password reset successfully" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -255,49 +252,15 @@ const verifyResetOtp = async (req, res) => {
     const storedOtp = resetOtps.get(userId);
 
     if (!storedOtp || storedOtp !== otp) {
-      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+      return res.json({ success: false, message: "Invalid or expired OTP" });
     }
 
     otpVerified.set(userId, true);
     resetOtps.delete(userId);
-    res.status(200).json({ success: true, message: "OTP verified successfully" });
+    res.json({ success: true, message: "OTP verified successfully" });
   } catch (error) {
-    console.error("Error in verifyResetOtp:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Reset password
-const resetPassword = async (req, res) => {
-  try {
-    const { userId, newPassword } = req.body;
-
-    if (!otpVerified.get(userId)) {
-      return res.status(403).json({ success: false, message: "OTP not verified" });
-    }
-
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 8 characters long",
-      });
-    }
-
-    const user = await userModel.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-    user.password = hashedPassword;
-    await user.save();
-
-    otpVerified.delete(userId);
-    res.status(200).json({ success: true, message: "Password reset successfully" });
-  } catch (error) {
-    console.error("Error in resetPassword:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -308,13 +271,13 @@ const getProfile = async (req, res) => {
     const userData = await userModel.findById(userId).select("-password");
 
     if (!userData) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.json({ success: false, message: "User not found" });
     }
 
-    res.status(200).json({ success: true, userData });
+    res.json({ success: true, userData });
   } catch (error) {
-    console.error("Error in getProfile:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -325,443 +288,310 @@ const updateProfile = async (req, res) => {
     const imageFile = req.file;
 
     if (!name || !phone || !dob || !gender) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+      return res.json({ success: false, message: "Data Missing" });
     }
 
     let formattedPhone = phone.trim();
     if (!formattedPhone.startsWith("+")) {
       formattedPhone = `+91${formattedPhone}`;
     }
-    if (!validator.isMobilePhone(formattedPhone, "any", { strictMode: true })) {
-      return res.status(400).json({ success: false, message: "Invalid phone number" });
-    }
 
     const updateData = {
       name,
       phone: formattedPhone,
-      address: address ? JSON.parse(address) : undefined,
+      address: JSON.parse(address),
       dob,
       gender,
     };
+
+    await userModel.findByIdAndUpdate(userId, updateData);
 
     if (imageFile) {
       const imageUpload = await cloudinary.uploader.upload(imageFile.path, {
         resource_type: "image",
       });
-      updateData.image = imageUpload.secure_url;
+      const imageURL = imageUpload.secure_url;
+      await userModel.findByIdAndUpdate(userId, { image: imageURL });
     }
 
-    await userModel.findByIdAndUpdate(userId, updateData, { new: true });
-
-    res.status(200).json({ success: true, message: "Profile updated successfully" });
+    res.json({ success: true, message: "Profile Updated" });
   } catch (error) {
-    console.error("Error in updateProfile:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
-// Book an appointment with immediate payment
+// Book an appointment
 const bookAppointment = async (req, res) => {
   try {
     const { userId, docId, slotId, sessionType, couponCode } = req.body;
 
-    if (!userId || !docId || !slotId || !sessionType) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+    const doctor = await doctorModel.findById(docId);
+    if (!doctor) {
+      return res.json({ success: false, message: "Doctor not found" });
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const doctor = await doctorModel.findById(docId).session(session);
-      if (!doctor) {
-        throw new Error("Doctor not found");
-      }
-
-      const slot = doctor.slots.id(slotId);
-      if (!slot || slot.status !== "Active") {
-        throw new Error("Slot not available or already booked");
-      }
-
-      // Temporarily reserve the slot
-      slot.status = "Reserved";
-      await doctor.save({ session });
-
-      let originalAmount = doctor.fees || 0;
-      let paidAmount = originalAmount;
-      let discountPercentage = 0;
-
-      if (couponCode) {
-        const coupon = await Coupon.findOne({ code: couponCode, status: "Active" }).session(session);
-        if (!coupon || new Date() > coupon.expirationDate) {
-          throw new Error("Invalid or expired coupon");
-        }
-        discountPercentage = coupon.discountPercentage;
-        paidAmount = originalAmount - (originalAmount * discountPercentage) / 100;
-      }
-
-      const userData = await userModel.findById(userId).select("-password").session(session);
-      if (!userData) {
-        throw new Error("User not found");
-      }
-
-      // Generate dummy values for required fields
-      const dummyTransactionId = `TEMP_${crypto.randomBytes(8).toString("hex")}`; // Temporary unique transaction ID
-      const dummyAppointmentId = new mongoose.Types.ObjectId(); // Temporary ObjectId
-
-      // Create transaction with dummy values
-      const newTransaction = new transactionModel({
-        userId,
-        doctorId: docId,
-        appointmentId: dummyAppointmentId, // Dummy appointmentId
-        originalAmount,
-        paidAmount,
-        status: "pending",
-        paymentMethod: "razorpay",
-        type: "payment",
-        transactionId: dummyTransactionId, // Dummy transactionId
-        couponCode: couponCode || null,
-        slotId,
-        slotDate: slot.slotDate,
-        slotTime: slot.slotTime,
-        sessionType,
-      });
-
-      await newTransaction.save({ session });
-
-      const options = {
-        amount: Math.round(paidAmount * 100), // Convert to paise
-        currency: process.env.CURRENCY || "INR",
-        receipt: newTransaction._id.toString(),
-      };
-
-      const order = await razorpayInstance.orders.create(options);
-
-      // Update transaction with Razorpay order ID (still temporary until payment is verified)
-      newTransaction.transactionId = order.id;
-      await newTransaction.save({ session });
-
-      await session.commitTransaction();
-
-      res.status(200).json({
-        success: true,
-        order: {
-          id: order.id,
-          amount: order.amount,
-          currency: order.currency,
-        },
-        key: process.env.RAZORPAY_KEY_ID,
-        transactionId: newTransaction._id,
-      });
-    } catch (error) {
-      await session.abortTransaction();
-
-      // Revert slot status to Active if transaction fails
-      const doctor = await doctorModel.findById(docId);
-      const slot = doctor.slots.id(slotId);
-      if (slot && slot.status === "Reserved") {
-        slot.status = "Active";
-        await doctor.save();
-      }
-
-      console.error("Error in bookAppointment transaction:", error);
-      res.status(400).json({ success: false, message: error.message });
-    } finally {
-      session.endSession();
-    }
-  } catch (error) {
-    console.error("Error in bookAppointment:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Verify Razorpay payment and finalize appointment
-const verifyRazorpay = async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, transactionId } = req.body;
-
-    const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest("hex");
-
-    if (generatedSignature !== razorpay_signature) {
-      await transactionModel.findByIdAndUpdate(transactionId, { status: "failed" });
-      return res.status(400).json({ success: false, message: "Invalid payment signature" });
+    const slot = doctor.slots.id(slotId);
+    if (!slot || slot.status !== "Active") {
+      return res.json({ success: false, message: "Slot not available" });
     }
 
-    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
-    if (orderInfo.status !== "paid") {
-      await transactionModel.findByIdAndUpdate(transactionId, { status: "failed" });
-      return res.status(400).json({ success: false, message: "Payment not completed" });
+    slot.status = "Booked";
+    await doctor.save();
+
+    let originalAmount = doctor.fees;
+    let discountedAmount = null;
+    let discountPercentage = 0;
+
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode });
+      if (!coupon || new Date() > coupon.expirationDate) {
+        return res.json({ success: false, message: "Invalid or expired coupon" });
+      }
+      discountPercentage = coupon.discountPercentage;
+      discountedAmount = originalAmount - (originalAmount * discountPercentage) / 100;
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const userData = await userModel.findById(userId).select("-password");
+    const appointmentData = {
+      userId,
+      docId,
+      userData,
+      docData: doctor,
+      originalAmount,
+      discountedAmount: discountedAmount || originalAmount,
+      couponCode: couponCode || null,
+      slotId,
+      slotDate: slot.slotDate,
+      slotTime: slot.slotTime,
+      sessionType,
+      date: Date.now(),
+    };
 
-    try {
-      const transaction = await transactionModel.findById(transactionId).session(session);
-      if (!transaction || transaction.status !== "pending") {
-        throw new Error("Invalid or already processed transaction");
-      }
+    const newAppointment = new appointmentModel(appointmentData);
+    await newAppointment.save();
 
-      const doctor = await doctorModel.findById(transaction.doctorId).session(session);
-      const slot = doctor.slots.id(transaction.slotId);
-      if (!slot || slot.status !== "Reserved") {
-        await transactionModel.findByIdAndUpdate(transaction._id, { status: "failed" }, { session });
-        throw new Error("Slot is no longer reserved");
-      }
-
-      const userData = await userModel.findById(transaction.userId).select("-password").session(session);
-
-      // Create appointment after payment verification
-      const appointmentData = {
-        userId: transaction.userId,
-        docId: transaction.doctorId,
-        slotId: transaction.slotId,
-        slotDate: transaction.slotDate,
-        slotTime: transaction.slotTime,
-        duration: slot.duration || 45,
-        userData,
-        docData: doctor.toObject(),
-        originalAmount: transaction.originalAmount,
-        discountedAmount: transaction.paidAmount,
-        couponCode: transaction.couponCode,
-        sessionType: transaction.sessionType,
-        status: "Booked",
-        payment: true,
-      };
-
-      const newAppointment = new appointmentModel(appointmentData);
-      await newAppointment.save({ session });
-
-      slot.status = "Booked";
-      slot.bookedBy = transaction.userId;
-      await doctor.save({ session });
-
-      // Update transaction with actual values
-      transaction.status = "completed";
-      transaction.appointmentId = newAppointment._id;
-      transaction.transactionId = razorpay_payment_id; // Update with actual payment ID
-      transaction.meta = { gatewayResponse: { payment_id: razorpay_payment_id } };
-      await transaction.save({ session });
-
-      await session.commitTransaction();
-
-      const doctorEmail = doctor.email;
-
+    const sendAppointmentConfirmationEmail = () => {
       const userMailOptions = {
         from: process.env.NODEMAILER_EMAIL,
         to: userData.email,
-        subject: "Appointment Confirmed",
+        subject: "Appointment Confirmation",
         html: generateEmailTemplate(
-          "Appointment Confirmed",
-          `Dear ${userData.name},<br><br>
-           Your appointment with ${doctor.name} on ${transaction.slotDate} at ${transaction.slotTime} has been confirmed.<br>
-           Payment of ₹${transaction.paidAmount} has been successfully processed.<br>
-           ${transaction.couponCode ? `Coupon "${transaction.couponCode}" applied.` : ""}`
+          "Appointment Confirmation",
+          `Dear ${userData.name},<br><br>    
+                    Your appointment with ${doctor.name} (${doctor.email}) has been successfully booked for ${slot.slotDate} at ${slot.slotTime}.<br><br>
+                    Please complete the payment of ₹${discountedAmount || originalAmount} using Razorpay to confirm your booking.
+                    ${
+                      couponCode
+                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
+                        : ""
+                    }`
         ),
       };
 
       const doctorMailOptions = {
         from: process.env.NODEMAILER_EMAIL,
-        to: doctorEmail,
-        subject: "Appointment Confirmed",
+        to: doctor.email,
+        subject: "New Appointment Scheduled",
         html: generateEmailTemplate(
-          "Appointment Confirmed",
+          "New Appointment Scheduled",
           `Dear ${doctor.name},<br><br>
-           An appointment with ${userData.name} on ${transaction.slotDate} at ${transaction.slotTime} has been confirmed.<br>
-           Payment of ₹${transaction.paidAmount} has been received.<br>
-           ${transaction.couponCode ? `Coupon "${transaction.couponCode}" applied.` : ""}`
+                    You have a new appointment scheduled with ${userData.name} (${userData.email}) on ${slot.slotDate} at ${slot.slotTime}.<br><br>
+                    Payment of ₹${discountedAmount || originalAmount} is pending via Razorpay.
+                    ${
+                      couponCode
+                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
+                        : ""
+                    }`
         ),
       };
 
-      await Promise.all([
-        transporter.sendMail(userMailOptions),
-        transporter.sendMail(doctorMailOptions),
-      ]);
+      const adminMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: process.env.NODEMAILER_EMAIL,
+        subject: "New Appointment Notification",
+        html: generateEmailTemplate(
+          "New Appointment Notification",
+          `A new appointment has been scheduled:<br><br>
+                    User: ${userData.name} (${userData.email})<br>
+                    Doctor: ${doctor.name} (${doctor.email})<br>
+                    Date & Time: ${slot.slotDate} at ${slot.slotTime}<br><br>
+                    Payment: ₹${discountedAmount || originalAmount} - Pending via Razorpay
+                    ${
+                      couponCode
+                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
+                        : ""
+                    }`
+        ),
+      };
 
-      res.status(200).json({ success: true, message: "Payment successful", appointmentId: newAppointment._id });
-    } catch (error) {
-      await session.abortTransaction();
+      transporter.sendMail(userMailOptions, (error, info) => {
+        if (error) console.error("Error sending email to user:", error);
+        else console.log("Email sent to user:", info.response);
+      });
 
-      // Revert slot status to Active if verification fails
-      const transaction = await transactionModel.findById(transactionId);
-      if (transaction && transaction.status === "pending") {
-        const doctor = await doctorModel.findById(transaction.doctorId);
-        const slot = doctor.slots.id(transaction.slotId);
-        if (slot && slot.status === "Reserved") {
-          slot.status = "Active";
-          await doctor.save();
-        }
-        transaction.status = "failed";
-        await transaction.save();
-      }
+      transporter.sendMail(doctorMailOptions, (error, info) => {
+        if (error) console.error("Error sending email to doctor:", error);
+        else console.log("Email sent to doctor:", info.response);
+      });
 
-      console.error("Error in verifyRazorpay transaction:", error);
-      res.status(400).json({ success: false, message: error.message });
-    } finally {
-      session.endSession();
-    }
+      transporter.sendMail(adminMailOptions, (error, info) => {
+        if (error) console.error("Error sending email to admin:", error);
+        else console.log("Email sent to admin:", info.response);
+      });
+    };
+
+    sendAppointmentConfirmationEmail();
+
+    res.json({
+      success: true,
+      message: "Appointment Booked",
+      appointmentId: newAppointment._id,
+    });
   } catch (error) {
-    console.error("Error in verifyRazorpay:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
-// Cancel an appointment or pending transaction
+// Cancel an appointment
 const cancelAppointment = async (req, res) => {
   try {
-    const { userId, appointmentId, transactionId } = req.body;
+    const { userId, appointmentId } = req.body;
+    const appointmentData = await appointmentModel.findById(appointmentId);
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      let doctor, slot;
-
-      // Check if an appointment exists
-      const appointmentData = appointmentId ? await appointmentModel.findById(appointmentId).session(session) : null;
-
-      if (appointmentData) {
-        if (appointmentData.userId.toString() !== userId) {
-          throw new Error("Unauthorized action or invalid appointment");
-        }
-
-        if (appointmentData.CancelledByUser || appointmentData.status === "CancelledByUser"|| appointmentData.status === "CancelledByDoctor") {
-          throw new Error("Appointment is already cancelled");
-        }
-
-        appointmentData.status = "CancelledByUser";
-        appointmentData.cancelled = true;
-        appointmentData.cancelledBy = "user";
-        await appointmentData.save({ session });
-
-        doctor = await doctorModel.findById(appointmentData.docId).session(session);
-        slot = doctor.slots.id(appointmentData.slotId);
-        if (slot) {
-          slot.status = "Active";
-          slot.bookedBy = null;
-          await doctor.save({ session });
-        }
-
-        const userData = await userModel.findById(userId).select("-password").session(session);
-        const doctorData = await doctorModel.findById(appointmentData.docId).session(session);
-
-        const userMailOptions = {
-          from: process.env.NODEMAILER_EMAIL,
-          to: userData.email,
-          subject: "Appointment Cancellation",
-          html: generateEmailTemplate(
-            "Appointment Cancellation",
-            `Dear ${userData.name},<br><br>
-             Your appointment with ${doctorData.name} scheduled for ${appointmentData.slotDate} at ${appointmentData.slotTime} has been cancelled by you.<br><br>
-             ${
-               appointmentData.payment
-                 ? "Our team will discuss your refund within 3-7 business days."
-                 : "No further action is required."
-             }`
-          ),
-        };
-
-        const doctorMailOptions = {
-          from: process.env.NODEMAILER_EMAIL,
-          to: doctorData.email,
-          subject: "Appointment Cancellation by User",
-          html: generateEmailTemplate(
-            "Appointment Cancellation",
-            `Dear ${doctorData.name},<br><br>
-             The appointment with ${userData.name} (${userData.email}) scheduled for ${appointmentData.slotDate} at ${appointmentData.slotTime} has been cancelled by the user.<br><br>
-             ${
-               appointmentData.payment
-                 ? "Our team will handle the refund process with the user."
-                 : "No further action is required."
-             }`
-          ),
-        };
-
-        const adminMailOptions = {
-          from: process.env.NODEMAILER_EMAIL,
-          to: process.env.NODEMAILER_EMAIL,
-          subject: "Appointment Cancellation Notification",
-          html: generateEmailTemplate(
-            "Appointment Cancellation Notification",
-            `An appointment has been cancelled by the user:<br><br>
-             User: ${userData.name} (${userData.email})<br>
-             Doctor: ${doctorData.name} (${doctorData.email})<br>
-             Date & Time: ${appointmentData.slotDate} at ${appointmentData.slotTime}<br><br>
-             ${
-               appointmentData.payment
-                 ? "Payment: Online - Refund discussion pending"
-                 : "Payment: None - No refund required"
-             }`
-          ),
-        };
-
-        await Promise.all([
-          transporter.sendMail(userMailOptions),
-          transporter.sendMail(doctorMailOptions),
-          transporter.sendMail(adminMailOptions),
-        ]);
-      } else if (transactionId) {
-        // Handle cancellation of a pending transaction (no appointment yet)
-        const transaction = await transactionModel.findById(transactionId).session(session);
-        if (!transaction || transaction.userId.toString() !== userId || transaction.status !== "pending") {
-          throw new Error("Invalid or unauthorized transaction");
-        }
-
-        doctor = await doctorModel.findById(transaction.doctorId).session(session);
-        slot = doctor.slots.id(transaction.slotId);
-        if (slot && slot.status === "Reserved") {
-          slot.status = "Active";
-          await doctor.save({ session });
-        }
-
-        transaction.status = "CancelledByUser";
-        await transaction.save({ session });
-      } else {
-        throw new Error("No appointment or transaction provided");
-      }
-
-      await session.commitTransaction();
-      res.status(200).json({ success: true, message: "Slot released or appointment cancelled successfully" });
-    } catch (error) {
-      await session.abortTransaction();
-
-      // Revert slot status if cancellation fails
-      if (appointmentId) {
-        const appointment = await appointmentModel.findById(appointmentId);
-        if (appointment && !appointment.CancelledByUser) {
-          const doc = await doctorModel.findById(appointment.docId);
-          const slotToRevert = doc.slots.id(appointment.slotId);
-          if (slotToRevert && slotToRevert.status !== "Booked") {
-            slotToRevert.status = "Active";
-            slotToRevert.bookedBy = null;
-            await doc.save();
-          }
-        }
-      } else if (transactionId) {
-        const transaction = await transactionModel.findById(transactionId);
-        if (transaction && transaction.status === "pending") {
-          const doc = await doctorModel.findById(transaction.doctorId);
-          const slotToRevert = doc.slots.id(transaction.slotId);
-          if (slotToRevert && slotToRevert.status === "Reserved") {
-            slotToRevert.status = "Active";
-            await doc.save();
-          }
-        }
-      }
-
-      console.error("Error in cancelAppointment transaction:", error);
-      res.status(400).json({ success: false, message: error.message });
-    } finally {
-      session.endSession();
+    if (!appointmentData || appointmentData.userId.toString() !== userId) {
+      return res.json({ success: false, message: "Unauthorized action" });
     }
+
+    await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
+
+    const { docId, slotDate, slotTime } = appointmentData;
+    const doctorData = await doctorModel.findById(docId);
+
+    if (!doctorData.slots_booked) doctorData.slots_booked = {};
+    if (!doctorData.slots_booked[slotDate]) doctorData.slots_booked[slotDate] = [];
+
+    doctorData.slots_booked[slotDate] = doctorData.slots_booked[slotDate].filter(
+      (e) => e !== slotTime
+    );
+    await doctorModel.findByIdAndUpdate(docId, { slots_booked: doctorData.slots_booked });
+
+    const sendCancellationNotificationEmail = async () => {
+      const userData = await userModel.findById(userId).select("-password");
+      const doctor = await doctorModel.findById(docId);
+
+      const userMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: userData.email,
+        subject: "Appointment Cancellation",
+        html: generateEmailTemplate(
+          "Appointment Cancellation",
+          `Dear ${userData.name},<br><br>
+                    Your appointment with ${doctor.name} (${doctor.email}) scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
+                    ${
+                      appointmentData.payment
+                        ? "Our team will discuss your refund within 3-7 business days."
+                        : "No further action is required."
+                    }`
+        ),
+      };
+
+      const doctorMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: doctor.email,
+        subject: "Appointment Cancellation",
+        html: generateEmailTemplate(
+          "Appointment Cancellation",
+          `Dear ${doctor.name},<br><br>
+                    The appointment with ${userData.name} (${userData.email}) scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
+                    ${
+                      appointmentData.payment
+                        ? "Our team will discuss the refund process with the user within 3-7 business days."
+                        : "No further action is required."
+                    }`
+        ),
+      };
+
+      const adminMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: process.env.NODEMAILER_EMAIL,
+        subject: "Appointment Cancellation Notification",
+        html: generateEmailTemplate(
+          "Appointment Cancellation Notification",
+          `An appointment has been cancelled:<br><br>
+                    User: ${userData.name} (${userData.email})<br>
+                    Doctor: ${doctor.name} (${doctor.email})<br>
+                    Date & Time: ${slotDate} at ${slotTime}<br><br>
+                    ${
+                      appointmentData.payment
+                        ? "Payment: Online - Refund discussion pending"
+                        : "Payment: Cash - No refund required"
+                    }`
+        ),
+      };
+
+      transporter.sendMail(userMailOptions, (error, info) => {
+        if (error) console.error("Error sending email to user:", error);
+        else console.log("Email sent to user:", info.response);
+      });
+
+      transporter.sendMail(doctorMailOptions, (error, info) => {
+        if (error) console.error("Error sending email to doctor:", error);
+        else console.log("Email sent to doctor:", info.response);
+      });
+
+      transporter.sendMail(adminMailOptions, (error, info) => {
+        if (error) console.error("Error sending email to admin:", error);
+        else console.log("Email sent to admin:", info.response);
+      });
+    };
+
+    await sendCancellationNotificationEmail();
+
+    res.json({ success: true, message: "Appointment Cancelled" });
   } catch (error) {
-    console.error("Error in cancelAppointment:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
+
+// Generate email template
+function generateEmailTemplate(title, body) {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Savayas Heal</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #fff5f7;">
+        <div style="max-width: 600px; margin: 30px auto; border: 1px solid #ffe0e6; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+            <div style="background-color: #ff5e8e; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; color: #ffffff; font-size: 28px;">SAVAYAS HEALS</h1>
+            </div>
+            <div style="padding: 30px; color: #333;">
+                <h2 style="color: #ff5e8e; margin-top: 0; font-size: 24px;">${title}</h2>
+                <p style="font-size: 16px; line-height: 1.5;">${body}</p>
+                <div style="background-color: #ffe0e6; padding: 15px; border-radius: 5px; margin: 20px 0; color: #ff5e8e; font-style: italic;">
+                    "${body}"
+                </div>
+                <p style="font-size: 16px; line-height: 1.5;">
+                    If you have any urgent queries, please feel free to call us at <strong>(91) 8468938745</strong>.
+                </p>
+                <p style="font-size: 16px; line-height: 1.5; margin: 30px 0 0;">
+                    Best Regards,<br />SAVAYAS HEALS Team
+                </p>
+            </div>
+            <div style="background-color: #ff5e8e; padding: 10px; text-align: center;">
+                <p style="color: #ffffff; margin: 0; font-size: 12px;">© ${new Date().getFullYear()} SAVAYAS HEALS. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `;
+}
 
 // List user appointments
 const listAppointment = async (req, res) => {
@@ -783,76 +613,156 @@ const listAppointment = async (req, res) => {
       };
     });
 
-    res.status(200).json({ success: true, appointments: appointmentsWithReviews });
+    res.json({ success: true, appointments: appointmentsWithReviews });
   } catch (error) {
-    console.error("Error in listAppointment:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
-// Initiate Razorpay payment (for pending payments, not used in immediate payment flow)
-const initiateRazorpayPayment = async (req, res) => {
+// Initiate Razorpay payment
+const paymentRazorpay = async (req, res) => {
   try {
     const { appointmentId } = req.body;
+    const appointmentData = await appointmentModel.findById(appointmentId);
 
-    if (!req.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized access" });
-    }
-
-    const appointmentData = await appointmentModel.findById(appointmentId).populate("docId");
-    if (!appointmentData || appointmentData.CancelledByUser) {
-      return res.status(400).json({
+    if (!appointmentData || appointmentData.cancelled) {
+      return res.json({
         success: false,
-        message: "Appointment cancelled or not found",
+        message: "Appointment Cancelled or not found",
       });
     }
 
-    if (appointmentData.userId.toString() !== req.userId) {
-      return res.status(403).json({ success: false, message: "Unauthorized appointment access" });
-    }
-
-    if (appointmentData.payment) {
-      return res.status(400).json({ success: false, message: "Appointment already paid" });
-    }
-
-    const originalAmount = appointmentData.originalAmount || appointmentData.docId.fees || 0;
-    const paidAmount = appointmentData.discountedAmount || originalAmount;
+    const amountToPay = appointmentData.discountedAmount || appointmentData.originalAmount;
 
     const options = {
-      amount: Math.round(paidAmount * 100), // Convert to paise
-      currency: process.env.CURRENCY || "INR",
-      receipt: appointmentId.toString(),
+      amount: amountToPay * 100,
+      currency: process.env.CURRENCY,
+      receipt: appointmentId,
     };
 
     const order = await razorpayInstance.orders.create(options);
 
     const newTransaction = new transactionModel({
       userId: appointmentData.userId,
-      doctorId: appointmentData.docId._id,
+      doctorId: appointmentData.docId,
       appointmentId: appointmentData._id,
-      originalAmount,
-      paidAmount,
+      amount: amountToPay,
       status: "pending",
       paymentMethod: "razorpay",
       transactionId: order.id,
       type: "payment",
-      couponCode: appointmentData.couponCode || null,
     });
-
     await newTransaction.save();
 
-    res.status(200).json({
-      success: true,
-      order: {
-        id: order.id,
-        amount: order.amount,
-        currency: order.currency,
-      },
-      key: process.env.RAZORPAY_KEY_ID,
-    });
+    res.json({ success: true, order });
   } catch (error) {
-    console.error("Error in initiateRazorpayPayment:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Verify Razorpay payment
+const verifyRazorpay = async (req, res) => {
+  try {
+    const { razorpay_order_id } = req.body;
+    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
+
+    if (orderInfo.status === "paid") {
+      await appointmentModel.findByIdAndUpdate(orderInfo.receipt, { payment: true });
+
+      await transactionModel.findOneAndUpdate(
+        { transactionId: razorpay_order_id },
+        { status: "completed" }
+      );
+
+      const appointment = await appointmentModel.findById(orderInfo.receipt);
+      const userData = await userModel.findById(appointment.userId).select("-password");
+      const doctor = await doctorModel.findById(appointment.docId);
+
+      const sendPaymentConfirmationEmail = () => {
+        const userMailOptions = {
+          from: process.env.NODEMAILER_EMAIL,
+          to: userData.email,
+          subject: "Payment Confirmation",
+          html: generateEmailTemplate(
+            "Payment Confirmation",
+            `Dear ${userData.name},<br><br>
+                        Your payment for the appointment with ${doctor.name} (${doctor.email}) scheduled for ${appointment.slotDate} at ${appointment.slotTime} has been successfully processed.<br><br>
+                        ${
+                          appointment.couponCode
+                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                            : `Amount Paid: ₹${appointment.originalAmount}`
+                        }
+                        Thank you for choosing Savayas Heal.`
+          ),
+        };
+
+        const doctorMailOptions = {
+          from: process.env.NODEMAILER_EMAIL,
+          to: doctor.email,
+          subject: "Payment Received",
+          html: generateEmailTemplate(
+            "Payment Received",
+            `Dear ${doctor.name},<br><br>
+                        You have received a payment from ${userData.name} (${userData.email}) for the appointment scheduled for ${appointment.slotDate} at ${appointment.slotTime}.<br><br>
+                        ${
+                          appointment.couponCode
+                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                            : `Amount Paid: ₹${appointment.originalAmount}`
+                        }
+                        Thank you for using Savayas Heal.`
+          ),
+        };
+
+        const adminMailOptions = {
+          from: process.env.NODEMAILER_EMAIL,
+          to: process.env.NODEMAILER_EMAIL,
+          subject: "Payment Received Notification",
+          html: generateEmailTemplate(
+            "Payment Received Notification",
+            `A payment has been received:<br><br>
+                        User: ${userData.name} (${userData.email})<br>
+                        Doctor: ${doctor.name} (${doctor.email})<br>
+                        Date & Time: ${appointment.slotDate} at ${appointment.slotTime}<br><br>
+                        ${
+                          appointment.couponCode
+                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                            : `Amount Paid: ₹${appointment.originalAmount}`
+                        }
+                        Payment: Online - Completed`
+          ),
+        };
+
+        transporter.sendMail(userMailOptions, (error, info) => {
+          if (error) console.error("Error sending email to user:", error);
+          else console.log("Email sent to user:", info.response);
+        });
+
+        transporter.sendMail(doctorMailOptions, (error, info) => {
+          if (error) console.error("Error sending email to doctor:", error);
+          else console.log("Email sent to doctor:", info.response);
+        });
+
+        transporter.sendMail(adminMailOptions, (error, info) => {
+          if (error) console.error("Error sending email to admin:", error);
+          else console.log("Email sent to admin:", info.response);
+        });
+      };
+
+      sendPaymentConfirmationEmail();
+
+      res.json({ success: true, message: "Payment Successful" });
+    } else {
+      await transactionModel.findOneAndUpdate(
+        { transactionId: razorpay_order_id },
+        { status: "failed" }
+      );
+      res.json({ success: false, message: "Payment Failed" });
+    }
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -862,11 +772,11 @@ const submitTest = async (req, res) => {
     const { name, email, mobile, testId, answers } = req.body;
 
     if (!name || !email || !mobile || !testId || !answers) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+      return res.json({ success: false, message: "Missing required fields" });
     }
 
     if (!validator.isEmail(email)) {
-      return res.status(400).json({ success: false, message: "Invalid email format" });
+      return res.json({ success: false, message: "Invalid email format" });
     }
 
     let formattedMobile = mobile.trim();
@@ -874,16 +784,16 @@ const submitTest = async (req, res) => {
       formattedMobile = `+91${formattedMobile}`;
     }
     if (!validator.isMobilePhone(formattedMobile, "any", { strictMode: true })) {
-      return res.status(400).json({ success: false, message: "Invalid mobile number" });
+      return res.json({ success: false, message: "Invalid mobile number" });
     }
 
     const test = await Test.findById(testId);
     if (!test) {
-      return res.status(404).json({ success: false, message: "Test not found" });
+      return res.json({ success: false, message: "Test not found" });
     }
 
     if (answers.length !== test.questions.length) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: "Answers count does not match questions",
       });
@@ -917,10 +827,10 @@ const submitTest = async (req, res) => {
     });
     await userTestResult.save();
 
-    res.status(201).json({ success: true, score, resultText });
+    res.json({ success: true, score, resultText });
   } catch (error) {
-    console.error("Error in submitTest:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -928,10 +838,10 @@ const submitTest = async (req, res) => {
 const getTests = async (req, res) => {
   try {
     const tests = await Test.find({});
-    res.status(200).json({ success: true, tests });
+    res.json({ success: true, tests });
   } catch (error) {
-    console.error("Error in getTests:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -942,13 +852,13 @@ const getTestById = async (req, res) => {
     const test = await Test.findById(testId);
 
     if (!test) {
-      return res.status(404).json({ success: false, message: "Test not found" });
+      return res.json({ success: false, message: "Test not found" });
     }
 
-    res.status(200).json({ success: true, test });
+    res.json({ success: true, test });
   } catch (error) {
-    console.error("Error in getTestById:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -959,11 +869,11 @@ const addReview = async (req, res) => {
 
     const appointment = await appointmentModel.findOne({ _id: appointmentId, userId });
     if (!appointment) {
-      return res.status(404).json({ success: false, message: "Invalid appointment" });
+      return res.json({ success: false, message: "Invalid appointment" });
     }
 
     if (!appointment.isCompleted) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: "Appointment not completed yet",
       });
@@ -971,14 +881,14 @@ const addReview = async (req, res) => {
 
     const existingReview = await reviewModel.findOne({ appointmentId });
     if (existingReview) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: "Review already submitted for this appointment",
       });
     }
 
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: "Rating must be an integer between 1 and 5",
       });
@@ -993,10 +903,10 @@ const addReview = async (req, res) => {
     });
     await newReview.save();
 
-    res.status(201).json({ success: true, message: "Review submitted successfully" });
+    res.json({ success: true, message: "Review submitted successfully" });
   } catch (error) {
-    console.error("Error in addReview:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -1009,10 +919,10 @@ const getDoctorReviews = async (req, res) => {
       .populate("userId", "name image")
       .sort({ timestamp: -1 });
 
-    res.status(200).json({ success: true, reviews });
+    res.json({ success: true, reviews });
   } catch (error) {
-    console.error("Error in getDoctorReviews:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -1025,18 +935,19 @@ const validateCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: "Coupon code is required" });
     }
 
-    const coupon = await Coupon.findOne({ code: { $regex: new RegExp(`^${code}$`, "i") }, status: "Active" });
+    const coupon = await Coupon.findOne({ code: { $regex: new RegExp(`^${code}$`, "i") } });
     if (!coupon) {
       return res.status(404).json({ success: false, message: "Invalid coupon code" });
     }
 
-    if (new Date() > coupon.expirationDate) {
+    const currentDate = new Date();
+    if (currentDate > coupon.expirationDate) {
       return res.status(400).json({ success: false, message: "Coupon has expired" });
     }
 
     res.status(200).json({ success: true, discountPercentage: coupon.discountPercentage });
   } catch (error) {
-    console.error("Error in validateCoupon:", error);
+    console.log(error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -1044,20 +955,30 @@ const validateCoupon = async (req, res) => {
 // Get user transactions
 const getUserTransactions = async (req, res) => {
   try {
-    const userId = req.body.userId;
+    const userId = req.body.userId; // Set by authUser middleware
     const transactions = await transactionModel
-      .find({ userId })
-      .populate("doctorId", "name")
-      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount")
-      .sort({ timestamp: -1 });
+      .find({ userId }) // Filter by userId
+      .populate("doctorId", "name") // Populate doctor details
+      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount") // Populate appointment details
+      .sort({ timestamp: -1 }); // Sort by timestamp, newest first
 
-    res.status(200).json({ success: true, transactions });
+    if (!transactions || transactions.length === 0) {
+      return res.json({
+        success: true,
+        transactions: [],
+        message: "No transactions found for this user",
+      });
+    }
+
+    res.json({ success: true, transactions });
   } catch (error) {
-    console.error("Error in getUserTransactions:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching transactions",
+    });
   }
 };
-
 export {
   loginUser,
   registerUser,
@@ -1070,7 +991,7 @@ export {
   bookAppointment,
   listAppointment,
   cancelAppointment,
-  initiateRazorpayPayment,
+  paymentRazorpay,
   verifyRazorpay,
   submitTest,
   addReview,
