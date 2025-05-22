@@ -5,8 +5,6 @@ import {
   appointmentCancel,
   completeAppointment,
   addDoctor,
-  sendMeetingLink,
-  acceptAppointment,
   allDoctors,
   adminDashboard,
   verifyLoginOtpAdmin,
@@ -36,23 +34,18 @@ adminRouter.post("/cancel-appointment", authAdmin, appointmentCancel);
 adminRouter.get("/all-doctors", authAdmin, allDoctors);
 adminRouter.post("/change-availability", authAdmin, changeAvailablity);
 adminRouter.get("/dashboard", authAdmin, adminDashboard);
-
-adminRouter.post("/send-meeting-link", authAdmin, sendMeetingLink);
-adminRouter.post("/accept-appointment", authAdmin, acceptAppointment);
 adminRouter.post("/complete-appointment", authAdmin, completeAppointment);
 adminRouter.post("/add-test", authAdmin, addTest);
 adminRouter.get("/tests", authAdmin, getTests);
 adminRouter.put('/tests/:id', authAdmin, updateTest);
 adminRouter.delete('/tests/:id', authAdmin, deleteTest);
-
-
 adminRouter.post('/coupons', authAdmin, createCoupon);
 adminRouter.get('/coupons', authAdmin, getAllCoupons);
 adminRouter.get('/coupons/:id', authAdmin, getCouponById);
 adminRouter.put('/coupons/:id', authAdmin, updateCoupon);
 adminRouter.delete('/coupons/:id', authAdmin, deleteCoupon);
-
-adminRouter.post("/post-fake-review", authAdmin, postFakeReview); 
+adminRouter.post("/post-fake-review", authAdmin, postFakeReview);
 adminRouter.get('/all-transactions', authAdmin, getAllTransactions);
 adminRouter.post("/initiate-payment", authAdmin, initiatePaymentToDoctor);
+
 export default adminRouter;

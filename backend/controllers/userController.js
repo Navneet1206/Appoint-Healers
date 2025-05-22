@@ -13,6 +13,7 @@ import UserTestResult from "../models/userTestResultModel.js";
 import reviewModel from "../models/reviewModel.js";
 import Coupon from "../models/couponModel.js";
 import transactionModel from "../models/transactionModel.js";
+import { getZoomAccessToken, createZoomMeeting } from "./zoomController.js";
 
 dotenv.config();
 
@@ -103,7 +104,7 @@ const registerUser = async (req, res) => {
             <h2 style="color: #4CAF50;">Welcome to Savayas Heals</h2>
           </div>
           <p>Dear ${name},</p>
-          <p>Thank you for joining <strong>Savayas Heals</strong>, where we prioritize your health and well-being. To complete your registration, please verify your email address using the code below:</p>
+          <p>Thank you for joining <strong>Savayas Heals</strong>. To complete your registration, please verify your email address using the code below:</p>
           <div style="text-align: center; margin: 20px 0;">
             <span style="font-size: 24px; font-weight: bold; color: #4CAF50; border: 1px dashed #4CAF50; padding: 10px 20px; border-radius: 8px;">${emailOtp}</span>
           </div>
@@ -112,7 +113,7 @@ const registerUser = async (req, res) => {
           <p style="margin-top: 20px;">Warm regards,</p>
           <p><strong>The Savayas Heals Team</strong></p>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-          <p style="font-size: 12px; color: #777; text-align: center;">This is an automated email. Please do not reply to this message.</p>
+          <p style="font-size: 12px; color: #777; text-align: center;">This is an automated email. Please do not reply.</p>
         </div>
       `,
     });
@@ -123,7 +124,7 @@ const registerUser = async (req, res) => {
       userId: user._id,
     });
   } catch (error) {
-    console.log(error);
+    console.error("Register User Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -152,7 +153,7 @@ const verifyUser = async (req, res) => {
 
     res.json({ success: true, message: "User verified successfully", token });
   } catch (error) {
-    console.log(error);
+    console.error("Verify User Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -182,7 +183,7 @@ const loginUser = async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
     res.json({ success: true, token });
   } catch (error) {
-    console.log(error);
+    console.error("Login User Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -213,7 +214,7 @@ const forgotPassword = async (req, res) => {
       userId: user._id,
     });
   } catch (error) {
-    console.log(error);
+    console.error("Forgot Password Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -240,7 +241,7 @@ const resetPassword = async (req, res) => {
     otpVerified.delete(userId);
     res.json({ success: true, message: "Password reset successfully" });
   } catch (error) {
-    console.log(error);
+    console.error("Reset Password Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -259,7 +260,7 @@ const verifyResetOtp = async (req, res) => {
     resetOtps.delete(userId);
     res.json({ success: true, message: "OTP verified successfully" });
   } catch (error) {
-    console.log(error);
+    console.error("Verify Reset OTP Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -276,7 +277,7 @@ const getProfile = async (req, res) => {
 
     res.json({ success: true, userData });
   } catch (error) {
-    console.log(error);
+    console.error("Get Profile Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -316,12 +317,12 @@ const updateProfile = async (req, res) => {
 
     res.json({ success: true, message: "Profile Updated" });
   } catch (error) {
-    console.log(error);
+    console.error("Update Profile Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// Book an appointment
+// Book an appointment (updated with Zoom and error handling)
 const bookAppointment = async (req, res) => {
   try {
     const { userId, docId, slotId, sessionType, couponCode } = req.body;
@@ -371,13 +372,99 @@ const bookAppointment = async (req, res) => {
     const newAppointment = new appointmentModel(appointmentData);
     await newAppointment.save();
 
+    // Generate Zoom meeting
+    const accessToken = await getZoomAccessToken();
+    const [day, month, year] = slot.slotDate.split("_");
+    const startTime = new Date(`${year}-${month}-${day}T${slot.slotTime}:00+05:30`);
+
+    const meetingDetails = {
+      topic: `Appointment with Dr. ${doctor.name}`,
+      type: 2, // Scheduled meeting
+      start_time: startTime.toISOString(),
+      duration: 45,
+      timezone: "Asia/Kolkata",
+      password: Math.random().toString(36).slice(-8),
+      settings: {
+        host_video: true,
+        participant_video: true,
+        join_before_host: false,
+        mute_upon_entry: true,
+        waiting_room: true,
+      },
+    };
+
+    try {
+      const meeting = await createZoomMeeting(accessToken, meetingDetails);
+      newAppointment.meetingLink = meeting.join_url;
+      newAppointment.meetingPassword = meeting.password;
+      await newAppointment.save();
+    } catch (zoomError) {
+      console.error("Zoom API Error:", zoomError.response?.data || zoomError.message);
+      throw new Error("Failed to create Zoom meeting");
+    }
+
+    // Send emails for cash payments
+    if (sessionType === "cash") {
+      const userMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: userData.email,
+        subject: "Appointment Booked - Meeting Link",
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #4CAF50;">Appointment Booked</h2>
+            </div>
+            <p>Dear ${userData.name},</p>
+            <p>Your appointment with Dr. ${doctor.name} has been booked.</p>
+            <p>Date: ${slot.slotDate}</p>
+            <p>Time: ${slot.slotTime}</p>
+            <p>Meeting Link: <a href="${newAppointment.meetingLink}">${newAppointment.meetingLink}</a></p>
+            <p>Password: ${newAppointment.meetingPassword}</p>
+            <p>Please note that payment will be collected at the time of the appointment.</p>
+            <p>Best regards,</p>
+            <p>The Savayas Heals Team</p>
+          </div>
+        `,
+      };
+
+      const doctorMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: doctor.email,
+        subject: "New Appointment Booked - Meeting Link",
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #4CAF50;">New Appointment Booked</h2>
+            </div>
+            <p>Dear Dr. ${doctor.name},</p>
+            <p>You have a new appointment with ${userData.name}.</p>
+            <p>Date: ${slot.slotDate}</p>
+            <p>Time: ${slot.slotTime}</p>
+            <p>Meeting Link: <a href="${newAppointment.meetingLink}">${newAppointment.meetingLink}</a></p>
+            <p>Password: ${newAppointment.meetingPassword}</p>
+            <p>Payment will be collected at the appointment (Cash).</p>
+            <p>Best regards,</p>
+            <p>The Savayas Heals Team</p>
+          </div>
+        `,
+      };
+
+      await Promise.all([
+        transporter.sendMail(userMailOptions),
+        transporter.sendMail(doctorMailOptions),
+      ]);
+
+      slot.status = "Booked";
+      await doctor.save();
+    }
+
     res.json({
       success: true,
       message: "Appointment Booked",
       appointmentId: newAppointment._id,
     });
   } catch (error) {
-    console.log(error);
+    console.error("Book Appointment Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -465,27 +552,18 @@ const cancelAppointment = async (req, res) => {
         ),
       };
 
-      transporter.sendMail(userMailOptions, (error, info) => {
-        if (error) console.error("Error sending email to user:", error);
-        else console.log("Email sent to user:", info.response);
-      });
-
-      transporter.sendMail(doctorMailOptions, (error, info) => {
-        if (error) console.error("Error sending email to doctor:", error);
-        else console.log("Email sent to doctor:", info.response);
-      });
-
-      transporter.sendMail(adminMailOptions, (error, info) => {
-        if (error) console.error("Error sending email to admin:", error);
-        else console.log("Email sent to admin:", info.response);
-      });
+      await Promise.all([
+        transporter.sendMail(userMailOptions),
+        transporter.sendMail(doctorMailOptions),
+        transporter.sendMail(adminMailOptions),
+      ]);
     };
 
     await sendCancellationNotificationEmail();
 
     res.json({ success: true, message: "Appointment Cancelled" });
   } catch (error) {
-    console.log(error);
+    console.error("Cancel Appointment Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -512,7 +590,7 @@ function generateEmailTemplate(title, body) {
                     "${body}"
                 </div>
                 <p style="font-size: 16px; line-height: 1.5;">
-                    If you have any urgent queries, please feel free to call us at <strong>(91) 8468938745</strong>.
+                    If you have any urgent queries, please call us at <strong>(91) 8468938745</strong>.
                 </p>
                 <p style="font-size: 16px; line-height: 1.5; margin: 30px 0 0;">
                     Best Regards,<br />SAVAYAS HEALS Team
@@ -549,7 +627,7 @@ const listAppointment = async (req, res) => {
 
     res.json({ success: true, appointments: appointmentsWithReviews });
   } catch (error) {
-    console.log(error);
+    console.error("List Appointment Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -598,7 +676,7 @@ const paymentRazorpay = async (req, res) => {
 
     res.json({ success: true, order });
   } catch (error) {
-    console.log(error);
+    console.error("Payment Razorpay Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -640,74 +718,54 @@ const verifyRazorpay = async (req, res) => {
       const userData = await userModel.findById(appointment.userId).select("-password");
       const doctorData = await doctorModel.findById(appointment.docId);
 
-      const sendConfirmationEmail = () => {
-        const userMailOptions = {
-          from: process.env.NODEMAILER_EMAIL,
-          to: userData.email,
-          subject: "Appointment Confirmed",
-          html: generateEmailTemplate(
-            "Appointment Confirmed",
-            `Dear ${userData.name},<br><br>
-              Your appointment with ${doctorData.name} scheduled for ${appointment.slotDate} at ${appointment.slotTime} has been successfully booked and paid.<br><br>
-              ${
-                appointment.couponCode
-                  ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
-                  : `Amount Paid: ₹${appointment.originalAmount}`
-              }<br>Thank you for choosing Savayas Heal.`
-          ),
-        };
-
-        const doctorMailOptions = {
-          from: process.env.NODEMAILER_EMAIL,
-          to: doctorData.email,
-          subject: "New Appointment Confirmed",
-          html: generateEmailTemplate(
-            "New Appointment Confirmed",
-            `Dear ${doctorData.name},<br><br>
-              You have a new appointment confirmed with ${userData.name} on ${appointment.slotDate} at ${appointment.slotTime}.<br><br>
-              ${
-                appointment.couponCode
-                  ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
-                  : `Amount Paid: ₹${appointment.originalAmount}`
-              }<br>Thank you for using Savayas Heal.`
-          ),
-        };
-
-        const adminMailOptions = {
-          from: process.env.NODEMAILER_EMAIL,
-          to: process.env.NODEMAILER_EMAIL,
-          subject: "New Appointment Confirmed",
-          html: generateEmailTemplate(
-            "New Appointment Confirmed",
-            `A new appointment has been confirmed:<br><br>
-              User: ${userData.name}<br>
-              Doctor: ${doctorData.name}<br>
-              Date & Time: ${appointment.slotDate} at ${appointment.slotTime}<br><br>
-              ${
-                appointment.couponCode
-                  ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
-                  : `Amount Paid: ₹${appointment.originalAmount}`
-              }<br>Payment: Online - Completed`
-          ),
-        };
-
-        transporter.sendMail(userMailOptions, (error, info) => {
-          if (error) console.error("Error sending email to user:", error);
-          else console.log("Email sent to user:", info.response);
-        });
-
-        transporter.sendMail(doctorMailOptions, (error, info) => {
-          if (error) console.error("Error sending email to doctor:", error);
-          else console.log("Email sent to doctor:", info.response);
-        });
-
-        transporter.sendMail(adminMailOptions, (error, info) => {
-          if (error) console.error("Error sending email to admin:", error);
-          else console.log("Email sent to admin:", info.response);
-        });
+      const userMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: userData.email,
+        subject: "Appointment Confirmed and Meeting Link",
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #4CAF50;">Appointment Confirmed</h2>
+            </div>
+            <p>Dear ${userData.name},</p>
+            <p>Your appointment with Dr. ${doctorData.name} has been confirmed.</p>
+            <p>Date: ${appointment.slotDate}</p>
+            <p>Time: ${appointment.slotTime}</p>
+            <p>Meeting Link: <a href="${appointment.meetingLink}">${appointment.meetingLink}</a></p>
+            <p>Password: ${appointment.meetingPassword}</p>
+            <p>Your payment of ₹${appointment.discountedAmount || appointment.originalAmount} has been received.</p>
+            <p>Best regards,</p>
+            <p>The Savayas Heals Team</p>
+          </div>
+        `,
       };
 
-      sendConfirmationEmail();
+      const doctorMailOptions = {
+        from: process.env.NODEMAILER_EMAIL,
+        to: doctorData.email,
+        subject: "Appointment Confirmed with Meeting Link",
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #4CAF50;">Appointment Confirmed</h2>
+            </div>
+            <p>Dear Dr. ${doctorData.name},</p>
+            <p>The appointment with ${userData.name} has been confirmed.</p>
+            <p>Date: ${appointment.slotDate}</p>
+            <p>Time: ${appointment.slotTime}</p>
+            <p>Meeting Link: <a href="${appointment.meetingLink}">${appointment.meetingLink}</a></p>
+            <p>Password: ${appointment.meetingPassword}</p>
+            <p>The user has paid ₹${appointment.discountedAmount || appointment.originalAmount}.</p>
+            <p>Best regards,</p>
+            <p>The Savayas Heals Team</p>
+          </div>
+        `,
+      };
+
+      await Promise.all([
+        transporter.sendMail(userMailOptions),
+        transporter.sendMail(doctorMailOptions),
+      ]);
 
       res.json({ success: true, message: "Payment Successful and Appointment Confirmed" });
     } else {
@@ -718,7 +776,7 @@ const verifyRazorpay = async (req, res) => {
       res.json({ success: false, message: "Payment Failed" });
     }
   } catch (error) {
-    console.log(error);
+    console.error("Verify Razorpay Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -786,35 +844,7 @@ const submitTest = async (req, res) => {
 
     res.json({ success: true, score, resultText });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-// Get all tests
-const getTests = async (req, res) => {
-  try {
-    const tests = await Test.find({});
-    res.json({ success: true, tests });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-// Get test by ID
-const getTestById = async (req, res) => {
-  try {
-    const { testId } = req.params;
-    const test = await Test.findById(testId);
-
-    if (!test) {
-      return res.json({ success: false, message: "Test not found" });
-    }
-
-    res.json({ success: true, test });
-  } catch (error) {
-    console.log(error);
+    console.error("Submit Test Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -862,7 +892,7 @@ const addReview = async (req, res) => {
 
     res.json({ success: true, message: "Review submitted successfully" });
   } catch (error) {
-    console.log(error);
+    console.error("Add Review Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -878,7 +908,35 @@ const getDoctorReviews = async (req, res) => {
 
     res.json({ success: true, reviews });
   } catch (error) {
-    console.log(error);
+    console.error("Get Doctor Reviews Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Get all tests
+const getTests = async (req, res) => {
+  try {
+    const tests = await Test.find({});
+    res.json({ success: true, tests });
+  } catch (error) {
+    console.error("Get Tests Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Get test by ID
+const getTestById = async (req, res) => {
+  try {
+    const { testId } = req.params;
+    const test = await Test.findById(testId);
+
+    if (!test) {
+      return res.json({ success: false, message: "Test not found" });
+    }
+
+    res.json({ success: true, test });
+  } catch (error) {
+    console.error("Get Test By ID Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -904,7 +962,7 @@ const validateCoupon = async (req, res) => {
 
     res.status(200).json({ success: true, discountPercentage: coupon.discountPercentage });
   } catch (error) {
-    console.log(error);
+    console.error("Validate Coupon Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -929,7 +987,7 @@ const getUserTransactions = async (req, res) => {
 
     res.json({ success: true, transactions });
   } catch (error) {
-    console.log(error);
+    console.error("Get User Transactions Error:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching transactions",

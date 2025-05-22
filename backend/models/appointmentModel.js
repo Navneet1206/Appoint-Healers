@@ -17,6 +17,8 @@ const appointmentSchema = new mongoose.Schema({
   payment: { type: Boolean, default: false },
   isCompleted: { type: Boolean, default: false },
   paymentToDoctor: { type: Boolean, default: false },
+  meetingLink: { type: String },
+  meetingPassword: { type: String },
 });
 
 const appointmentModel = mongoose.models.appointment || mongoose.model("appointment", appointmentSchema);

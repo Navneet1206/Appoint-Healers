@@ -16,8 +16,6 @@ import {
   doctorDashboard,
   doctorProfile,
   updateDoctorProfile,
-  sendMeetingLink,
-  acceptAppointment,
   getOwnReviews,
   getDoctorTransactions,
   updatePaymentDetails,
@@ -41,8 +39,6 @@ doctorRouter.post("/update-profile", authDoctor, upload.single("bannerImage"), u
 doctorRouter.post("/create-slot", authDoctor, createSlot);
 doctorRouter.post("/update-slot", authDoctor, updateSlot);
 doctorRouter.post("/slots", authDoctor, getSlots);
-doctorRouter.post("/send-meeting-link", authDoctor, sendMeetingLink);
-doctorRouter.post("/accept-appointment", authDoctor, acceptAppointment);
 doctorRouter.post("/request-professional", upload.single('image'), submitProfessionalRequest);
 doctorRouter.get("/reviews", authDoctor, getOwnReviews);
 doctorRouter.get('/transactions', authDoctor, getDoctorTransactions);
