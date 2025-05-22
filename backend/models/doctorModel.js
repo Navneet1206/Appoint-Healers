@@ -17,7 +17,7 @@ const doctorSchema = new mongoose.Schema({
         slotTime: { type: String, required: true },
         status: { 
             type: String, 
-            enum: ["Active", "Booked", "Cancelled", "Coming Soon"],
+            enum: ["Active", "Booked", "Cancelled", "Coming Soon","Pending"],
             default: "Active"
         },
         description: { type: String, default: "" }

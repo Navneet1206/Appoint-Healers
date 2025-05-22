@@ -336,7 +336,7 @@ const bookAppointment = async (req, res) => {
       return res.json({ success: false, message: "Slot not available" });
     }
 
-    slot.status = "Booked";
+    slot.status = "Pending";
     await doctor.save();
 
     let originalAmount = doctor.fees;
@@ -371,78 +371,6 @@ const bookAppointment = async (req, res) => {
     const newAppointment = new appointmentModel(appointmentData);
     await newAppointment.save();
 
-    const sendAppointmentConfirmationEmail = () => {
-      const userMailOptions = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: userData.email,
-        subject: "Appointment Confirmation",
-        html: generateEmailTemplate(
-          "Appointment Confirmation",
-          `Dear ${userData.name},<br><br>    
-                    Your appointment with ${doctor.name} (${doctor.email}) has been successfully booked for ${slot.slotDate} at ${slot.slotTime}.<br><br>
-                    Please complete the payment of ₹${discountedAmount || originalAmount} using Razorpay to confirm your booking.
-                    ${
-                      couponCode
-                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
-                        : ""
-                    }`
-        ),
-      };
-
-      const doctorMailOptions = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: doctor.email,
-        subject: "New Appointment Scheduled",
-        html: generateEmailTemplate(
-          "New Appointment Scheduled",
-          `Dear ${doctor.name},<br><br>
-                    You have a new appointment scheduled with ${userData.name} (${userData.email}) on ${slot.slotDate} at ${slot.slotTime}.<br><br>
-                    Payment of ₹${discountedAmount || originalAmount} is pending via Razorpay.
-                    ${
-                      couponCode
-                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
-                        : ""
-                    }`
-        ),
-      };
-
-      const adminMailOptions = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: process.env.NODEMAILER_EMAIL,
-        subject: "New Appointment Notification",
-        html: generateEmailTemplate(
-          "New Appointment Notification",
-          `A new appointment has been scheduled:<br><br>
-                    User: ${userData.name} (${userData.email})<br>
-                    Doctor: ${doctor.name} (${doctor.email})<br>
-                    Date & Time: ${slot.slotDate} at ${slot.slotTime}<br><br>
-                    Payment: ₹${discountedAmount || originalAmount} - Pending via Razorpay
-                    ${
-                      couponCode
-                        ? `<br><br>Coupon "${couponCode}" applied: ${discountPercentage}% off (Original: ₹${originalAmount}, Now: ₹${discountedAmount})`
-                        : ""
-                    }`
-        ),
-      };
-
-      transporter.sendMail(userMailOptions, (error, info) => {
-        if (error) console.error("Error sending email to user:", error);
-        else console.log("Email sent to user:", info.response);
-      });
-
-      transporter.sendMail(doctorMailOptions, (error, info) => {
-        if (error) console.error("Error sending email to doctor:", error);
-        else console.log("Email sent to doctor:", info.response);
-      });
-
-      transporter.sendMail(adminMailOptions, (error, info) => {
-        if (error) console.error("Error sending email to admin:", error);
-        else console.log("Email sent to admin:", info.response);
-      });
-    };
-
-    sendAppointmentConfirmationEmail();
-
     res.json({
       success: true,
       message: "Appointment Booked",
@@ -468,6 +396,12 @@ const cancelAppointment = async (req, res) => {
 
     const { docId, slotDate, slotTime } = appointmentData;
     const doctorData = await doctorModel.findById(docId);
+
+    const slot = doctorData.slots.id(appointmentData.slotId);
+    if (slot) {
+      slot.status = "Active";
+      await doctorData.save();
+    }
 
     if (!doctorData.slots_booked) doctorData.slots_booked = {};
     if (!doctorData.slots_booked[slotDate]) doctorData.slots_booked[slotDate] = [];
@@ -633,6 +567,13 @@ const paymentRazorpay = async (req, res) => {
       });
     }
 
+    if (appointmentData.payment) {
+      return res.json({
+        success: false,
+        message: "Payment already completed for this appointment",
+      });
+    }
+
     const amountToPay = appointmentData.discountedAmount || appointmentData.originalAmount;
 
     const options = {
@@ -665,72 +606,88 @@ const paymentRazorpay = async (req, res) => {
 // Verify Razorpay payment
 const verifyRazorpay = async (req, res) => {
   try {
-    const { razorpay_order_id } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.json({ success: false, message: "Missing payment verification details" });
+    }
+
     const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
 
+    if (!orderInfo) {
+      return res.json({ success: false, message: "Invalid order ID" });
+    }
+
     if (orderInfo.status === "paid") {
-      await appointmentModel.findByIdAndUpdate(orderInfo.receipt, { payment: true });
+      const appointment = await appointmentModel.findByIdAndUpdate(
+        orderInfo.receipt,
+        { payment: true },
+        { new: true }
+      );
 
       await transactionModel.findOneAndUpdate(
         { transactionId: razorpay_order_id },
         { status: "completed" }
       );
 
-      const appointment = await appointmentModel.findById(orderInfo.receipt);
-      const userData = await userModel.findById(appointment.userId).select("-password");
       const doctor = await doctorModel.findById(appointment.docId);
+      const slot = doctor.slots.id(appointment.slotId);
+      if (slot) {
+        slot.status = "Booked";
+        await doctor.save();
+      }
 
-      const sendPaymentConfirmationEmail = () => {
+      const userData = await userModel.findById(appointment.userId).select("-password");
+      const doctorData = await doctorModel.findById(appointment.docId);
+
+      const sendConfirmationEmail = () => {
         const userMailOptions = {
           from: process.env.NODEMAILER_EMAIL,
           to: userData.email,
-          subject: "Payment Confirmation",
+          subject: "Appointment Confirmed",
           html: generateEmailTemplate(
-            "Payment Confirmation",
+            "Appointment Confirmed",
             `Dear ${userData.name},<br><br>
-                        Your payment for the appointment with ${doctor.name} (${doctor.email}) scheduled for ${appointment.slotDate} at ${appointment.slotTime} has been successfully processed.<br><br>
+                        Your appointment with ${doctorData.name} (${doctorData.email}) scheduled for ${appointment.slotDate} at ${appointment.slotTime} has been successfully booked and paid.<br><br>
                         ${
                           appointment.couponCode
                             ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
                             : `Amount Paid: ₹${appointment.originalAmount}`
-                        }
-                        Thank you for choosing Savayas Heal.`
+                        }<br>Thank you for choosing Savayas Heal.`
           ),
         };
 
         const doctorMailOptions = {
           from: process.env.NODEMAILER_EMAIL,
-          to: doctor.email,
-          subject: "Payment Received",
+          to: doctorData.email,
+          subject: "New Appointment Confirmed",
           html: generateEmailTemplate(
-            "Payment Received",
-            `Dear ${doctor.name},<br><br>
-                        You have received a payment from ${userData.name} (${userData.email}) for the appointment scheduled for ${appointment.slotDate} at ${appointment.slotTime}.<br><br>
+            "New Appointment Confirmed",
+            `Dear ${doctorData.name},<br><br>
+                        You have a new appointment confirmed with ${userData.name} (${userData.email}) on ${appointment.slotDate} at ${appointment.slotTime}.<br><br>
                         ${
                           appointment.couponCode
                             ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
                             : `Amount Paid: ₹${appointment.originalAmount}`
-                        }
-                        Thank you for using Savayas Heal.`
+                        }<br>Thank you for using Savayas Heal.`
           ),
         };
 
         const adminMailOptions = {
           from: process.env.NODEMAILER_EMAIL,
           to: process.env.NODEMAILER_EMAIL,
-          subject: "Payment Received Notification",
+          subject: "New Appointment Confirmed",
           html: generateEmailTemplate(
-            "Payment Received Notification",
-            `A payment has been received:<br><br>
+            "New Appointment Confirmed",
+            `A new appointment has been confirmed:<br><br>
                         User: ${userData.name} (${userData.email})<br>
-                        Doctor: ${doctor.name} (${doctor.email})<br>
+                        Doctor: ${doctorData.name} (${doctorData.email})<br>
                         Date & Time: ${appointment.slotDate} at ${appointment.slotTime}<br><br>
                         ${
                           appointment.couponCode
                             ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
                             : `Amount Paid: ₹${appointment.originalAmount}`
-                        }
-                        Payment: Online - Completed`
+                        }<br>Payment: Online - Completed`
           ),
         };
 
@@ -750,9 +707,9 @@ const verifyRazorpay = async (req, res) => {
         });
       };
 
-      sendPaymentConfirmationEmail();
+      sendConfirmationEmail();
 
-      res.json({ success: true, message: "Payment Successful" });
+      res.json({ success: true, message: "Payment Successful and Appointment Confirmed" });
     } else {
       await transactionModel.findOneAndUpdate(
         { transactionId: razorpay_order_id },
@@ -955,12 +912,12 @@ const validateCoupon = async (req, res) => {
 // Get user transactions
 const getUserTransactions = async (req, res) => {
   try {
-    const userId = req.body.userId; // Set by authUser middleware
+    const userId = req.body.userId;
     const transactions = await transactionModel
-      .find({ userId }) // Filter by userId
-      .populate("doctorId", "name") // Populate doctor details
-      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount") // Populate appointment details
-      .sort({ timestamp: -1 }); // Sort by timestamp, newest first
+      .find({ userId })
+      .populate("doctorId", "name")
+      .populate("appointmentId", "slotDate slotTime couponCode originalAmount discountedAmount")
+      .sort({ timestamp: -1 });
 
     if (!transactions || transactions.length === 0) {
       return res.json({
@@ -979,6 +936,7 @@ const getUserTransactions = async (req, res) => {
     });
   }
 };
+
 export {
   loginUser,
   registerUser,
