@@ -63,8 +63,12 @@ const Appointment = () => {
 
   const fetchDocInfo = () => {
     const doc = doctors.find((doc) => doc._id === docId);
-    setDocInfo(doc);
-    setFinalPrice(doc?.fees || 0);
+    if (doc) {
+      setDocInfo(doc);
+      setFinalPrice(doc.fees || 0);
+    } else {
+      toast.error('Doctor not found');
+    }
   };
 
   const fetchReviews = async () => {
@@ -76,9 +80,11 @@ const Appointment = () => {
         setReviews(reviews);
         setAverageRating(avgRating);
         setReviewCount(reviews.length);
+      } else {
+        toast.error('Failed to load reviews');
       }
     } catch (error) {
-      toast.error('Failed to load reviews');
+      toast.error('Error fetching reviews');
     }
   };
 
@@ -173,7 +179,6 @@ const Appointment = () => {
         { headers: { token } }
       );
       if (data.success) {
-        toast.success(data.message);
         initiatePayment(data.appointmentId);
       } else {
         toast.error(data.message);
@@ -208,8 +213,10 @@ const Appointment = () => {
                 { headers: { token } }
               );
               if (verifyRes.data.success) {
-                toast.success("Payment successful");
+                toast.success("Appointment booked successfully! Payment completed.");
                 getDoctosData();
+                fetchDocInfo(); // Refresh doctor data after successful payment
+                fetchReviews(); // Refresh reviews after successful payment
                 navigate("/my-appointments");
               } else {
                 toast.error("Payment verification failed");
@@ -254,13 +261,15 @@ const Appointment = () => {
   }
 
   useEffect(() => {
-    if (doctors.length > 0) fetchDocInfo();
-  }, [doctors, docId]);
+    if (doctors.length > 0) {
+      fetchDocInfo();
+      fetchReviews();
+    }
+  }, [doctors, docId, token]);
 
   useEffect(() => {
     if (docInfo) {
       processSlots();
-      fetchReviews();
     }
   }, [docInfo]);
 

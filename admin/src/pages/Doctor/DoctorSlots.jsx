@@ -24,6 +24,22 @@ const DoctorSlots = () => {
   const [newTime, setNewTime] = useState('10:00');
   const [newDescription, setNewDescription] = useState('');
 
+  // State for bulk slot creation
+  const [bulkStartDate, setBulkStartDate] = useState(new Date());
+  const [bulkEndDate, setBulkEndDate] = useState(new Date());
+  const [bulkStartTime, setBulkStartTime] = useState('09:00');
+  const [bulkEndTime, setBulkEndTime] = useState('17:00');
+  const [bulkDays, setBulkDays] = useState({
+    Monday: false,
+    Tuesday: false,
+    Wednesday: false,
+    Thursday: false,
+    Friday: false,
+    Saturday: false,
+    Sunday: false
+  });
+  const [bulkDescription, setBulkDescription] = useState('');
+
   // Fetched slots and filter
   const [slots, setSlots] = useState([]);
   const [filterStatus, setFilterStatus] = useState('All');
@@ -104,6 +120,110 @@ const DoctorSlots = () => {
       setIsLoading(false);
       console.log(error);
       toast.error(error.response?.data?.message || 'Error creating slot');
+    }
+  };
+
+  // Create bulk slots
+  const createBulkSlotsHandler = async (e) => {
+    e.preventDefault();
+
+    if (!bulkStartDate || !bulkEndDate || !bulkStartTime || !bulkEndTime) {
+      toast.error('Please select start date, end date, start time, and end time');
+      return;
+    }
+
+    // Validate dates
+    if (bulkStartDate < new Date().setHours(0, 0, 0, 0)) {
+      toast.error('Start date cannot be before today');
+      return;
+    }
+
+    if (bulkEndDate < bulkStartDate) {
+      toast.error('End date cannot be before start date');
+      return;
+    }
+
+    // Validate at least one day is selected
+    const selectedDays = Object.values(bulkDays).some(day => day);
+    if (!selectedDays) {
+      toast.error('Please select at least one day');
+      return;
+    }
+
+    // Parse times
+    const startHour = parseInt(bulkStartTime.split(':')[0]);
+    const startMinute = parseInt(bulkStartTime.split(':')[1]);
+    const endHour = parseInt(bulkEndTime.split(':')[0]);
+    const endMinute = parseInt(bulkEndTime.split(':')[1]);
+
+    // Convert times to minutes for easier calculation
+    const startTimeMinutes = startHour * 60 + startMinute;
+    const endTimeMinutes = endHour * 60 + endMinute;
+
+    if (endTimeMinutes <= startTimeMinutes) {
+      toast.error('End time must be after start time');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const slotsToCreate = [];
+
+      // Loop through each date
+      let currentDate = new Date(bulkStartDate);
+      while (currentDate <= bulkEndDate) {
+        const dayName = currentDate.toLocaleString('en-US', { weekday: 'long' });
+        if (bulkDays[dayName]) {
+          let currentTime = startTimeMinutes;
+          while (currentTime + 45 <= endTimeMinutes) {
+            const hours = Math.floor(currentTime / 60);
+            const minutes = currentTime % 60;
+            const slotTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            
+            const dd = String(currentDate.getDate()).padStart(2, '0');
+            const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const yyyy = currentDate.getFullYear();
+            const slotDate = `${dd}_${mm}_${yyyy}`;
+
+            slotsToCreate.push({
+              slotDate,
+              slotTime,
+              description: bulkDescription,
+              docId: '',
+            });
+
+            currentTime += 55; // 45 min slot + 10 min gap
+          }
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      // Send all slots to backend
+      for (const slot of slotsToCreate) {
+        await axios.post(`${backendUrl}/api/doctor/create-slot`, slot, { headers: { dToken } });
+      }
+
+      setIsLoading(false);
+      toast.success(`${slotsToCreate.length} slots created successfully`);
+      setBulkStartDate(new Date());
+      setBulkEndDate(new Date());
+      setBulkStartTime('09:00');
+      setBulkEndTime('17:00');
+      setBulkDescription('');
+      setBulkDays({
+        Monday: false,
+        Tuesday: false,
+        Wednesday: false,
+        Thursday: false,
+        Friday: false,
+        Saturday: false,
+        Sunday: false
+      });
+      fetchSlots();
+    } catch (error) {
+      setIsLoading(false);
+      console.log(error);
+      toast.error(error.response?.data?.message || 'Error creating bulk slots');
     }
   };
 
@@ -206,7 +326,7 @@ const DoctorSlots = () => {
         >
           <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <Calendar className="w-5 h-5 text-rose-500 mr-2" />
-            Create New Slot
+            Create Single Slot
           </h3>
           <form onSubmit={createSlotHandler} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -247,6 +367,97 @@ const DoctorSlots = () => {
               >
                 <Calendar className="w-4 h-4 mr-2" />
                 Create Slot
+              </button>
+            </div>
+          </form>
+        </motion.div>
+
+        {/* Create Bulk Slots */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl shadow-lg p-6 mb-8"
+        >
+          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <Calendar className="w-5 h-5 text-rose-500 mr-2" />
+            Create Multiple Slots (45 min with 10 min gaps)
+          </h3>
+          <form onSubmit={createBulkSlotsHandler} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+              <DatePicker
+                selected={bulkStartDate}
+                onChange={(date) => date && setBulkStartDate(date)}
+                dateFormat="dd/MM/yyyy"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                minDate={new Date()}
+                wrapperClassName="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+              <DatePicker
+                selected={bulkEndDate}
+                onChange={(date) => date && setBulkEndDate(date)}
+                dateFormat="dd/MM/yyyy"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                minDate={bulkStartDate}
+                wrapperClassName="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+              <textarea
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                rows="2"
+                value={bulkDescription}
+                onChange={(e) => setBulkDescription(e.target.value)}
+                placeholder="Additional info for all slots"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+              <TimePicker
+                onChange={setBulkStartTime}
+                value={bulkStartTime}
+                disableClock={true}
+                clearIcon={null}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+              <TimePicker
+                onChange={setBulkEndTime}
+                value={bulkEndTime}
+                disableClock={true}
+                clearIcon={null}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Days</label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.keys(bulkDays).map((day) => (
+                  <label key={day} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={bulkDays[day]}
+                      onChange={() => setBulkDays({ ...bulkDays, [day]: !bulkDays[day] })}
+                      className="h-4 w-4 text-rose-500 focus:ring-rose-500 border-gray-300 rounded"
+                    />
+                    <span className="text-sm text-gray-600">{day}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="md:col-span-3">
+              <button
+                type="submit"
+                className="w-full bg-rose-500 text-white py-2 rounded-lg hover:bg-rose-600 transition flex items-center justify-center"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Create Multiple Slots
               </button>
             </div>
           </form>

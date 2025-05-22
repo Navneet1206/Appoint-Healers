@@ -22,7 +22,11 @@ const AllTransactions = () => {
         headers: { aToken },
       });
       if (data.success) {
-        setTransactions(data.transactions || []);
+        // Ensure transactions is an array and filter out invalid entries
+        const validTransactions = Array.isArray(data.transactions)
+          ? data.transactions.filter(txn => txn && typeof txn === 'object')
+          : [];
+        setTransactions(validTransactions);
       } else {
         toast.error(data.message || "Failed to load transactions");
       }
@@ -43,11 +47,11 @@ const AllTransactions = () => {
   // Filter transactions based on search and status
   const filteredTransactions = transactions.filter((txn) => {
     const matchesSearch =
-      txn.transactionId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      txn.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      txn.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      txn.doctorId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      txn.doctorId?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      (txn.transactionId?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (txn.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (txn.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (txn.doctorId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (txn.doctorId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     const matchesStatus = statusFilter === "all" || txn.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -60,6 +64,11 @@ const AllTransactions = () => {
   // Close modal
   const closeModal = () => {
     setSelectedTransaction(null);
+  };
+
+  // Format amount safely
+  const formatAmount = (amount) => {
+    return typeof amount === 'number' && !isNaN(amount) ? `₹${amount.toFixed(2)}` : 'N/A';
   };
 
   return (
@@ -126,17 +135,17 @@ const AllTransactions = () => {
                         } hover:bg-blue-50 transition-colors cursor-pointer`}
                       >
                         <td className="p-2 sm:p-3 truncate max-w-[100px] sm:max-w-[120px]">
-                          {txn.transactionId}
+                          {txn.transactionId || "N/A"}
                         </td>
                         <td className="p-2 sm:p-3 truncate max-w-[100px]">{txn.userId?.name || "N/A"}</td>
-                        <td className="p-2 sm:p-3 truncate max-w-[120px] sm:max-w-[150px]">
+                        <td className="p-2 sm:p-3 truncate max-w-[120px] sm:max-w-[150px)">
                           {txn.userId?.email || "N/A"}
                         </td>
                         <td className="p-2 sm:p-3 truncate max-w-[100px]">{txn.doctorId?.name || "N/A"}</td>
                         <td className="p-2 sm:p-3 truncate max-w-[120px] sm:max-w-[150px]">
                           {txn.doctorId?.email || "N/A"}
                         </td>
-                        <td className="p-2 sm:p-3">₹{txn.amount.toFixed(2)}</td>
+                        <td className="p-2 sm:p-3">{formatAmount(txn.amount)}</td>
                         <td className="p-2 sm:p-3">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -147,11 +156,11 @@ const AllTransactions = () => {
                                 : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {txn.status}
+                            {txn.status || "N/A"}
                           </span>
                         </td>
                         <td className="p-2 sm:p-3">
-                          {new Date(txn.timestamp).toLocaleDateString()}
+                          {txn.timestamp ? new Date(txn.timestamp).toLocaleDateString() : "N/A"}
                         </td>
                       </tr>
                     ))}
@@ -170,7 +179,7 @@ const AllTransactions = () => {
                 >
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-semibold text-sm text-gray-700 truncate max-w-[60%]">
-                      ID: {txn.transactionId}
+                      ID: {txn.transactionId || "N/A"}
                     </span>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -181,7 +190,7 @@ const AllTransactions = () => {
                           : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {txn.status}
+                      {txn.status || "N/A"}
                     </span>
                   </div>
                   <p className="text-xs text-gray-600 truncate">
@@ -197,11 +206,11 @@ const AllTransactions = () => {
                     <span className="font-medium">Doctor Email:</span> {txn.doctorId?.email || "N/A"}
                   </p>
                   <p className="text-xs text-gray-600">
-                    <span className="font-medium">Amount:</span> ₹{txn.amount.toFixed(2)}
+                    <span className="font-medium">Amount:</span> {formatAmount(txn.amount)}
                   </p>
                   <p className="text-xs text-gray-600">
                     <span className="font-medium">Date:</span>{" "}
-                    {new Date(txn.timestamp).toLocaleDateString()}
+                    {txn.timestamp ? new Date(txn.timestamp).toLocaleDateString() : "N/A"}
                   </p>
                 </div>
               ))}
@@ -243,7 +252,7 @@ const AllTransactions = () => {
               <div className="space-y-2 text-sm sm:text-base">
                 <p>
                   <span className="font-medium">Transaction ID:</span>{" "}
-                  {selectedTransaction.transactionId}
+                  {selectedTransaction.transactionId || "N/A"}
                 </p>
                 <p>
                   <span className="font-medium">User:</span>{" "}
@@ -260,9 +269,10 @@ const AllTransactions = () => {
                 <p>
                   <span className="font-medium">Doctor Email:</span>{" "}
                   {selectedTransaction.doctorId?.email || "N/A"}
-。全                </p>
+                </p>
                 <p>
-                  <span className="font-medium">Amount:</span> ₹{selectedTransaction.amount.toFixed(2)}
+                  <span className="font-medium">Amount:</span>{" "}
+                  {formatAmount(selectedTransaction.amount)}
                 </p>
                 <p>
                   <span className="font-medium">Status:</span>{" "}
@@ -275,12 +285,14 @@ const AllTransactions = () => {
                         : "bg-red-100 text-red-800"
                     }`}
                   >
-                    {selectedTransaction.status}
+                    {selectedTransaction.status || "N/A"}
                   </span>
                 </p>
                 <p>
                   <span className="font-medium">Date:</span>{" "}
-                  {new Date(selectedTransaction.timestamp).toLocaleString()}
+                  {selectedTransaction.timestamp
+                    ? new Date(selectedTransaction.timestamp).toLocaleString()
+                    : "N/A"}
                 </p>
               </div>
               <button
