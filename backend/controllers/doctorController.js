@@ -267,11 +267,11 @@ const appointmentCancel = async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized or invalid appointment" });
     }
 
-    if (appointment.cancelled || appointment.status === "Cancelled") {
+    if (appointment.CancelledByDoctor || appointment.status === "CancelledByDoctor" || appointment.status === "CancelledByUser") {
       return res.status(400).json({ success: false, message: "Appointment already cancelled" });
     }
 
-    appointment.status = "Cancelled";
+    appointment.status = "CancelledByDoctor";
     appointment.cancelled = true;
     appointment.cancelledBy = "doctor";
     await appointment.save();
@@ -346,7 +346,7 @@ const appointmentComplete = async (req, res) => {
       return res.json({ success: false, message: "Unauthorized or invalid appointment" });
     }
 
-    if (appointment.isCompleted || appointment.cancelled) {
+    if (appointment.isCompleted || appointment.CancelledByDoctor) {
       return res.json({ success: false, message: "Appointment already completed or cancelled" });
     }
 
@@ -475,7 +475,7 @@ const doctorDashboard = async (req, res) => {
     const patientSet = new Set();
 
     const earnings = appointments.reduce((sum, item) => {
-      if (item.isCompleted && !item.cancelled) {
+      if (item.isCompleted && !item.CancelledByDoctor) {
         patientSet.add(item.userId.toString());
         return sum + (item.discountedAmount || item.originalAmount || 0);
       }
@@ -556,7 +556,7 @@ const updateSlot = async (req, res) => {
       return res.json({ success: false, message: "Slot not found" });
     }
 
-    const validStatuses = ["Active", "Reserved", "Booked", "Cancelled", "paymentpending", "CancelledByUser", "CancelledByDoctor"];
+    const validStatuses = ["Active", "Reserved", "Booked", "paymentpending", "CancelledByUser", "CancelledByDoctor"];
     if (status && !validStatuses.includes(status)) {
       return res.json({ success: false, message: "Invalid status value" });
     }

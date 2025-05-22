@@ -6,7 +6,7 @@ const slotSchema = new mongoose.Schema({
   duration: { type: Number, default: 45 },
   status: {
     type: String,
-    enum: ["Active", "Reserved", "Booked", "Cancelled", "paymentpending", "CancelledByUser", "CancelledByDoctor"],
+    enum: ["Active", "Reserved", "Booked", "paymentpending", "CancelledByUser", "CancelledByDoctor"],
     default: "Active"
   },
   bookedBy: {

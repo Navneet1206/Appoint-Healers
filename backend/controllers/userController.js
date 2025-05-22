@@ -628,11 +628,11 @@ const cancelAppointment = async (req, res) => {
           throw new Error("Unauthorized action or invalid appointment");
         }
 
-        if (appointmentData.cancelled || appointmentData.status === "Cancelled") {
+        if (appointmentData.CancelledByUser || appointmentData.status === "CancelledByUser"|| appointmentData.status === "CancelledByDoctor") {
           throw new Error("Appointment is already cancelled");
         }
 
-        appointmentData.status = "Cancelled";
+        appointmentData.status = "CancelledByUser";
         appointmentData.cancelled = true;
         appointmentData.cancelledBy = "user";
         await appointmentData.save({ session });
@@ -717,7 +717,7 @@ const cancelAppointment = async (req, res) => {
           await doctor.save({ session });
         }
 
-        transaction.status = "cancelled";
+        transaction.status = "CancelledByUser";
         await transaction.save({ session });
       } else {
         throw new Error("No appointment or transaction provided");
@@ -731,7 +731,7 @@ const cancelAppointment = async (req, res) => {
       // Revert slot status if cancellation fails
       if (appointmentId) {
         const appointment = await appointmentModel.findById(appointmentId);
-        if (appointment && !appointment.cancelled) {
+        if (appointment && !appointment.CancelledByUser) {
           const doc = await doctorModel.findById(appointment.docId);
           const slotToRevert = doc.slots.id(appointment.slotId);
           if (slotToRevert && slotToRevert.status !== "Booked") {
@@ -800,7 +800,7 @@ const initiateRazorpayPayment = async (req, res) => {
     }
 
     const appointmentData = await appointmentModel.findById(appointmentId).populate("docId");
-    if (!appointmentData || appointmentData.cancelled) {
+    if (!appointmentData || appointmentData.CancelledByUser) {
       return res.status(400).json({
         success: false,
         message: "Appointment cancelled or not found",
