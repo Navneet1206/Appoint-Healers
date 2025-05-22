@@ -177,6 +177,7 @@ const Appointment = () => {
 
     setIsLoading(true);
     try {
+      // Reserve the slot temporarily and initiate payment
       const { data } = await axios.post(
         `${backendUrl}/api/user/book-appointment`,
         {
@@ -190,7 +191,7 @@ const Appointment = () => {
       );
       if (data.success) {
         toast.success("Slot reserved. Please complete payment.");
-        initiatePayment(data.order, data.transactionId);
+        await initiatePayment(data.transactionId);
       } else {
         toast.error(data.message);
       }
@@ -214,81 +215,85 @@ const Appointment = () => {
   };
 
   // Initiate payment
-  const initiatePayment = async (order, transactionId) => {
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded) {
-      toast.error("Failed to load Razorpay SDK.");
-      return;
-    }
-
-    const options = {
-      key: order.key || process.env.VITE_RAZORPAY_KEY_ID,
-      amount: order.amount,
-      currency: order.currency,
-      name: "Savayas Heals",
-      description: "Appointment Payment",
-      order_id: order.id,
-      handler: async (response) => {
-        try {
-          const verifyRes = await axios.post(
-            `${backendUrl}/api/user/verifyRazorpay`,
-            {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              transactionId,
-            },
-            { headers: { token } }
-          );
-          if (verifyRes.data.success) {
-            toast.success("Payment successful! Appointment confirmed.");
-            getDoctosData();
-            navigate("/my-appointments");
-          } else {
-            toast.error(verifyRes.data.message || "Payment verification failed");
-            await cancelPendingTransaction(transactionId);
-          }
-        } catch (error) {
-          toast.error(error.response?.data?.message || "Error verifying payment");
-          await cancelPendingTransaction(transactionId);
-          console.error("Payment verification error:", error);
-        }
-      },
-      prefill: {
-        name: userData.name,
-        email: userData.email,
-        contact: userData.phone,
-      },
-      theme: { color: "#F37254" },
-      modal: {
-        ondismiss: async () => {
-          toast.info("Payment cancelled by user");
-          await cancelPendingTransaction(transactionId);
-        },
-      },
-    };
-
-    const rzp = new window.Razorpay(options);
-    rzp.on('payment.failed', async (response) => {
-      toast.error(response.error.description || "Payment failed.");
-      await cancelPendingTransaction(transactionId);
-    });
-    rzp.open();
-  };
-
-  // Cancel pending transaction
-  const cancelPendingTransaction = async (transactionId) => {
+  const initiatePayment = async (transactionId) => {
     try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error("Failed to load Razorpay SDK.");
+        return;
+      }
+
       const { data } = await axios.post(
-        `${backendUrl}/api/user/cancel-appointment`,
-        { transactionId },
+        `${backendUrl}/api/user/book-appointment`,
+        { docId, slotId: selectedSlotId, userId: userData._id, sessionType: selectedSessionType, couponCode: isCouponApplied ? couponCode : null }, // Re-fetch order details
         { headers: { token } }
       );
       if (data.success) {
-        getDoctosData();
+        const options = {
+          key: data.key, // Use the key returned from backend
+          amount: data.order.amount,
+          currency: data.order.currency,
+          name: "Savayas Heals",
+          description: "Appointment Payment",
+          order_id: data.order.id,
+          handler: async (response) => {
+            try {
+              const verifyRes = await axios.post(
+                `${backendUrl}/api/user/verifyRazorpay`,
+                {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  transactionId,
+                },
+                { headers: { token } }
+              );
+              if (verifyRes.data.success) {
+                toast.success("Payment successful! Appointment confirmed.");
+                getDoctosData();
+                navigate("/my-appointments");
+              } else {
+                toast.error(verifyRes.data.message || "Payment verification failed");
+              }
+            } catch (error) {
+              toast.error(error.response?.data?.message || "Error verifying payment");
+              console.error("Payment verification error:", error);
+            }
+          },
+          prefill: {
+            name: userData.name,
+            email: userData.email,
+            contact: userData.phone,
+          },
+          theme: { color: "#F37254" },
+          modal: {
+            ondismiss: async () => {
+              toast.info("Payment cancelled by user");
+              // Release the slot if payment is cancelled
+              try {
+                await axios.post(
+                  `${backendUrl}/api/user/cancel-appointment`,
+                  { transactionId },
+                  { headers: { token } }
+                );
+                getDoctosData();
+              } catch (error) {
+                console.error("Error releasing slot:", error);
+              }
+            },
+          },
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', (response) => {
+          toast.error(response.error.description || "Payment failed.");
+        });
+        rzp.open();
+      } else {
+        toast.error(data.message);
       }
     } catch (error) {
-      console.error("Error cancelling pending transaction:", error);
+      toast.error(error.response?.data?.message || "Error initiating payment");
+      console.error("Payment initiation error:", error);
     }
   };
 
