@@ -102,7 +102,7 @@ const registerUser = async (req, res) => {
             <img src="https://via.placeholder.com/150" alt="Savayas Heals Logo" style="max-width: 100px; border-radius: 50%;">
             <h2 style="color: #4CAF50;">Welcome to Savayas Heals</h2>
           </div>
-          <p>Dear Valued User,</p>
+          <p>Dear ${name},</p>
           <p>Thank you for joining <strong>Savayas Heals</strong>, where we prioritize your health and well-being. To complete your registration, please verify your email address using the code below:</p>
           <div style="text-align: center; margin: 20px 0;">
             <span style="font-size: 24px; font-weight: bold; color: #4CAF50; border: 1px dashed #4CAF50; padding: 10px 20px; border-radius: 8px;">${emailOtp}</span>
@@ -204,7 +204,7 @@ const forgotPassword = async (req, res) => {
       from: process.env.NODEMAILER_EMAIL,
       to: email,
       subject: "Password Reset OTP",
-      html: `<p>Your password reset OTP is: <strong>${resetOtp}</strong>. It expires in 10 minutes.</p>`,
+      html: `<p>Dear ${user.name},</p><p>Your password reset OTP is: <strong>${resetOtp}</strong>. It expires in 10 minutes.</p>`,
     });
 
     res.json({
@@ -422,12 +422,12 @@ const cancelAppointment = async (req, res) => {
         html: generateEmailTemplate(
           "Appointment Cancellation",
           `Dear ${userData.name},<br><br>
-                    Your appointment with ${doctor.name} (${doctor.email}) scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
-                    ${
-                      appointmentData.payment
-                        ? "Our team will discuss your refund within 3-7 business days."
-                        : "No further action is required."
-                    }`
+            Your appointment with ${doctor.name} scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
+            ${
+              appointmentData.payment
+                ? "Our team will discuss your refund within 3-7 business days."
+                : "No further action is required."
+            }`
         ),
       };
 
@@ -438,12 +438,12 @@ const cancelAppointment = async (req, res) => {
         html: generateEmailTemplate(
           "Appointment Cancellation",
           `Dear ${doctor.name},<br><br>
-                    The appointment with ${userData.name} (${userData.email}) scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
-                    ${
-                      appointmentData.payment
-                        ? "Our team will discuss the refund process with the user within 3-7 business days."
-                        : "No further action is required."
-                    }`
+            The appointment with ${userData.name} scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
+            ${
+              appointmentData.payment
+                ? "Our team will discuss the refund process with the user within 3-7 business days."
+                : "No further action is required."
+            }`
         ),
       };
 
@@ -454,14 +454,14 @@ const cancelAppointment = async (req, res) => {
         html: generateEmailTemplate(
           "Appointment Cancellation Notification",
           `An appointment has been cancelled:<br><br>
-                    User: ${userData.name} (${userData.email})<br>
-                    Doctor: ${doctor.name} (${doctor.email})<br>
-                    Date & Time: ${slotDate} at ${slotTime}<br><br>
-                    ${
-                      appointmentData.payment
-                        ? "Payment: Online - Refund discussion pending"
-                        : "Payment: Cash - No refund required"
-                    }`
+            User: ${userData.name}<br>
+            Doctor: ${doctor.name}<br>
+            Date & Time: ${slotDate} at ${slotTime}<br><br>
+            ${
+              appointmentData.payment
+                ? "Payment: Online - Refund discussion pending"
+                : "Payment: Cash - No refund required"
+            }`
         ),
       };
 
@@ -648,12 +648,12 @@ const verifyRazorpay = async (req, res) => {
           html: generateEmailTemplate(
             "Appointment Confirmed",
             `Dear ${userData.name},<br><br>
-                        Your appointment with ${doctorData.name} (${doctorData.email}) scheduled for ${appointment.slotDate} at ${appointment.slotTime} has been successfully booked and paid.<br><br>
-                        ${
-                          appointment.couponCode
-                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
-                            : `Amount Paid: ₹${appointment.originalAmount}`
-                        }<br>Thank you for choosing Savayas Heal.`
+              Your appointment with ${doctorData.name} scheduled for ${appointment.slotDate} at ${appointment.slotTime} has been successfully booked and paid.<br><br>
+              ${
+                appointment.couponCode
+                  ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                  : `Amount Paid: ₹${appointment.originalAmount}`
+              }<br>Thank you for choosing Savayas Heal.`
           ),
         };
 
@@ -664,12 +664,12 @@ const verifyRazorpay = async (req, res) => {
           html: generateEmailTemplate(
             "New Appointment Confirmed",
             `Dear ${doctorData.name},<br><br>
-                        You have a new appointment confirmed with ${userData.name} (${userData.email}) on ${appointment.slotDate} at ${appointment.slotTime}.<br><br>
-                        ${
-                          appointment.couponCode
-                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
-                            : `Amount Paid: ₹${appointment.originalAmount}`
-                        }<br>Thank you for using Savayas Heal.`
+              You have a new appointment confirmed with ${userData.name} on ${appointment.slotDate} at ${appointment.slotTime}.<br><br>
+              ${
+                appointment.couponCode
+                  ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                  : `Amount Paid: ₹${appointment.originalAmount}`
+              }<br>Thank you for using Savayas Heal.`
           ),
         };
 
@@ -680,14 +680,14 @@ const verifyRazorpay = async (req, res) => {
           html: generateEmailTemplate(
             "New Appointment Confirmed",
             `A new appointment has been confirmed:<br><br>
-                        User: ${userData.name} (${userData.email})<br>
-                        Doctor: ${doctorData.name} (${doctorData.email})<br>
-                        Date & Time: ${appointment.slotDate} at ${appointment.slotTime}<br><br>
-                        ${
-                          appointment.couponCode
-                            ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
-                            : `Amount Paid: ₹${appointment.originalAmount}`
-                        }<br>Payment: Online - Completed`
+              User: ${userData.name}<br>
+              Doctor: ${doctorData.name}<br>
+              Date & Time: ${appointment.slotDate} at ${appointment.slotTime}<br><br>
+              ${
+                appointment.couponCode
+                  ? `Coupon "${appointment.couponCode}" applied: Original ₹${appointment.originalAmount}, Paid ₹${appointment.discountedAmount}`
+                  : `Amount Paid: ₹${appointment.originalAmount}`
+              }<br>Payment: Online - Completed`
           ),
         };
 
