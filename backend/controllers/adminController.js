@@ -133,8 +133,79 @@ const appointmentsAdmin = async (req, res) => {
 const appointmentCancel = async (req, res) => {
   try {
     const { appointmentId } = req.body;
-    await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
-    res.json({ success: true, message: "Appointment Cancelled" });
+    const appointment = await appointmentModel.findById(appointmentId);
+    if (!appointment) {
+      return res.json({ success: false, message: "Appointment not found" });
+    }
+
+    if (appointment.cancelled || appointment.status === "Cancelled") {
+      return res.json({ success: false, message: "Appointment already cancelled" });
+    }
+
+    appointment.status = "Cancelled";
+    appointment.cancelled = true;
+    appointment.cancelledBy = "admin"; // Set cancelledBy to "admin"
+    await appointment.save();
+
+    const doctor = await doctorModel.findById(appointment.docId);
+    if (doctor) {
+      const slot = doctor.slots.id(appointment.slotId);
+      if (slot) {
+        slot.status = "Active";
+        slot.bookedBy = null;
+        await doctor.save();
+      }
+    }
+
+    const user = await userModel.findById(appointment.userId);
+    const doctorEmail = doctor.email;
+
+    const userMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: user.email,
+      subject: "Appointment Cancelled by Admin",
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Appointment Cancelled</h2>
+          </div>
+          <p>Dear ${user.name},</p>
+          <p>Your appointment with ${doctor.name} on ${appointment.slotDate} at ${appointment.slotTime} has been cancelled by the admin.</p>
+          ${
+            appointment.payment
+              ? "<p>Refund will be processed within 3-7 business days.</p>"
+              : ""
+          }
+          <p>Thank you for choosing our services.</p>
+          <p>Best regards,</p>
+          <p>The SAVAYAS HEALS Team</p>
+        </div>
+      `,
+    };
+
+    const doctorMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: doctorEmail,
+      subject: "Appointment Cancelled by Admin",
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Appointment Cancelled</h2>
+          </div>
+          <p>Dear ${doctor.name},</p>
+          <p>The appointment with ${user.name} on ${appointment.slotDate} at ${appointment.slotTime} has been cancelled by the admin.</p>
+          <p>Best regards,</p>
+          <p>The SAVAYAS HEALS Team</p>
+        </div>
+      `,
+    };
+
+    await Promise.all([
+      transporter.sendMail(userMailOptions),
+      transporter.sendMail(doctorMailOptions),
+    ]);
+
+    res.json({ success: true, message: "Appointment Cancelled by Admin" });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -631,7 +702,6 @@ const getAllTransactions = async (req, res) => {
     });
   }
 };
-
 
 export {
   loginAdmin,

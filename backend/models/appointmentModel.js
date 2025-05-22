@@ -23,7 +23,12 @@ const appointmentSchema = new mongoose.Schema({
   isCompleted: { type: Boolean, default: false },
   paymentToDoctor: { type: Boolean, default: false },
   cancelled: { type: Boolean, default: false },
-  cancelReason: { type: String, default: null }
+  cancelReason: { type: String, default: null },
+  cancelledBy: { 
+    type: String, 
+    enum: ["user", "doctor", "admin"], 
+    default: null 
+  }
 });
 
 const appointmentModel = mongoose.models.appointment || mongoose.model("appointment", appointmentSchema);

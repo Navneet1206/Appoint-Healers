@@ -494,6 +494,7 @@ const cancelAppointment = async (req, res) => {
 
     appointmentData.status = "Cancelled";
     appointmentData.cancelled = true;
+    appointmentData.cancelledBy = "user"; // Set cancelledBy to "user"
     await appointmentData.save();
 
     const doctor = await doctorModel.findById(appointmentData.docId);
@@ -514,7 +515,7 @@ const cancelAppointment = async (req, res) => {
       html: generateEmailTemplate(
         "Appointment Cancellation",
         `Dear ${userData.name},<br><br>
-         Your appointment with ${doctorData.name} scheduled for ${appointmentData.slotDate} at ${appointmentData.slotTime} has been cancelled.<br><br>
+         Your appointment with ${doctorData.name} scheduled for ${appointmentData.slotDate} at ${appointmentData.slotTime} has been cancelled by you.<br><br>
          ${
            appointmentData.payment
              ? "Our team will discuss your refund within 3-7 business days."

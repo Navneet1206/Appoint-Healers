@@ -273,6 +273,7 @@ const appointmentCancel = async (req, res) => {
 
     appointment.status = "Cancelled";
     appointment.cancelled = true;
+    appointment.cancelledBy = "doctor"; // Set cancelledBy to "doctor"
     await appointment.save();
 
     const doctor = await doctorModel.findById(docId);
@@ -300,7 +301,7 @@ const appointmentCancel = async (req, res) => {
         subject: "Appointment Cancelled by Doctor",
         html: emailTemplate(
           "Appointment Cancelled",
-          `Dear ${user.name},<br><br>Your appointment with ${doctor.name} on ${appointment.slotDate} at ${appointment.slotTime} has been cancelled.<br><br>${
+          `Dear ${user.name},<br><br>Your appointment with ${doctor.name} on ${appointment.slotDate} at ${appointment.slotTime} has been cancelled by the doctor.<br><br>${
             appointment.payment ? "Refund will be processed within 3-7 business days." : ""
           }`
         ),
