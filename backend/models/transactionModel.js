@@ -14,8 +14,8 @@ const transactionSchema = new mongoose.Schema({
   appointmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "appointment",
-    required: true,
-  }, // Made optional by removing required: true
+    required: true, // Remains required, use dummy value initially
+  },
   originalAmount: {
     type: Number,
     required: true,
@@ -36,7 +36,7 @@ const transactionSchema = new mongoose.Schema({
   },
   transactionId: {
     type: String,
-    required: true,
+    required: true, // Remains required, use dummy value initially
     unique: true,
   },
   timestamp: {
@@ -70,16 +70,16 @@ const transactionSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  slotId: { // Added to temporarily store slot info
+  slotId: {
     type: mongoose.Schema.Types.ObjectId,
   },
-  slotDate: { // Added to temporarily store slot info
+  slotDate: {
     type: String,
   },
-  slotTime: { // Added to temporarily store slot info
+  slotTime: {
     type: String,
   },
-  sessionType: { // Added to temporarily store session type
+  sessionType: {
     type: String,
   },
 });

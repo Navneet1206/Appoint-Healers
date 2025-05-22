@@ -360,7 +360,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// Book an appointment (updated to avoid pending payments)
+// Book an appointment with immediate payment
 const bookAppointment = async (req, res) => {
   try {
     const { userId, docId, slotId, sessionType, couponCode } = req.body;
@@ -405,17 +405,23 @@ const bookAppointment = async (req, res) => {
         throw new Error("User not found");
       }
 
-      // Create a transaction for payment tracking without appointmentId initially
+      // Generate dummy values for required fields
+      const dummyTransactionId = `TEMP_${crypto.randomBytes(8).toString("hex")}`; // Temporary unique transaction ID
+      const dummyAppointmentId = new mongoose.Types.ObjectId(); // Temporary ObjectId
+
+      // Create transaction with dummy values
       const newTransaction = new transactionModel({
         userId,
         doctorId: docId,
+        appointmentId: dummyAppointmentId, // Dummy appointmentId
         originalAmount,
         paidAmount,
         status: "pending",
         paymentMethod: "razorpay",
         type: "payment",
+        transactionId: dummyTransactionId, // Dummy transactionId
         couponCode: couponCode || null,
-        slotId, // Temporarily store slotId in transaction
+        slotId,
         slotDate: slot.slotDate,
         slotTime: slot.slotTime,
         sessionType,
@@ -430,6 +436,8 @@ const bookAppointment = async (req, res) => {
       };
 
       const order = await razorpayInstance.orders.create(options);
+
+      // Update transaction with Razorpay order ID (still temporary until payment is verified)
       newTransaction.transactionId = order.id;
       await newTransaction.save({ session });
 
@@ -443,7 +451,7 @@ const bookAppointment = async (req, res) => {
           currency: order.currency,
         },
         key: process.env.RAZORPAY_KEY_ID,
-        transactionId: newTransaction._id, // Return transactionId instead of appointmentId
+        transactionId: newTransaction._id,
       });
     } catch (error) {
       await session.abortTransaction();
@@ -467,7 +475,7 @@ const bookAppointment = async (req, res) => {
   }
 };
 
-// Verify Razorpay payment (updated to create appointment upon success)
+// Verify Razorpay payment and finalize appointment
 const verifyRazorpay = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, transactionId } = req.body;
@@ -478,19 +486,13 @@ const verifyRazorpay = async (req, res) => {
       .digest("hex");
 
     if (generatedSignature !== razorpay_signature) {
-      await transactionModel.findOneAndUpdate(
-        { transactionId: razorpay_order_id },
-        { status: "failed" }
-      );
+      await transactionModel.findByIdAndUpdate(transactionId, { status: "failed" });
       return res.status(400).json({ success: false, message: "Invalid payment signature" });
     }
 
     const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
     if (orderInfo.status !== "paid") {
-      await transactionModel.findOneAndUpdate(
-        { transactionId: razorpay_order_id },
-        { status: "failed" }
-      );
+      await transactionModel.findByIdAndUpdate(transactionId, { status: "failed" });
       return res.status(400).json({ success: false, message: "Payment not completed" });
     }
 
@@ -506,17 +508,13 @@ const verifyRazorpay = async (req, res) => {
       const doctor = await doctorModel.findById(transaction.doctorId).session(session);
       const slot = doctor.slots.id(transaction.slotId);
       if (!slot || slot.status !== "Reserved") {
-        await transactionModel.findByIdAndUpdate(
-          transaction._id,
-          { status: "failed" },
-          { session }
-        );
+        await transactionModel.findByIdAndUpdate(transaction._id, { status: "failed" }, { session });
         throw new Error("Slot is no longer reserved");
       }
 
       const userData = await userModel.findById(transaction.userId).select("-password").session(session);
 
-      // Create appointment only after payment is verified
+      // Create appointment after payment verification
       const appointmentData = {
         userId: transaction.userId,
         docId: transaction.doctorId,
@@ -541,8 +539,10 @@ const verifyRazorpay = async (req, res) => {
       slot.bookedBy = transaction.userId;
       await doctor.save({ session });
 
+      // Update transaction with actual values
       transaction.status = "completed";
       transaction.appointmentId = newAppointment._id;
+      transaction.transactionId = razorpay_payment_id; // Update with actual payment ID
       transaction.meta = { gatewayResponse: { payment_id: razorpay_payment_id } };
       await transaction.save({ session });
 
@@ -609,7 +609,7 @@ const verifyRazorpay = async (req, res) => {
   }
 };
 
-// Cancel an appointment (updated to handle reserved slots)
+// Cancel an appointment or pending transaction
 const cancelAppointment = async (req, res) => {
   try {
     const { userId, appointmentId, transactionId } = req.body;
@@ -704,7 +704,7 @@ const cancelAppointment = async (req, res) => {
           transporter.sendMail(adminMailOptions),
         ]);
       } else if (transactionId) {
-        // Handle cancellation of a reserved slot (no appointment created yet)
+        // Handle cancellation of a pending transaction (no appointment yet)
         const transaction = await transactionModel.findById(transactionId).session(session);
         if (!transaction || transaction.userId.toString() !== userId || transaction.status !== "pending") {
           throw new Error("Invalid or unauthorized transaction");
@@ -790,7 +790,7 @@ const listAppointment = async (req, res) => {
   }
 };
 
-// Initiate Razorpay payment (renamed from paymentRazorpay for clarity)
+// Initiate Razorpay payment (for pending payments, not used in immediate payment flow)
 const initiateRazorpayPayment = async (req, res) => {
   try {
     const { appointmentId } = req.body;
@@ -1036,7 +1036,7 @@ const validateCoupon = async (req, res) => {
 
     res.status(200).json({ success: true, discountPercentage: coupon.discountPercentage });
   } catch (error) {
-    console.error("Error in validateCoupon '' :", error);
+    console.error("Error in validateCoupon:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
