@@ -1,4 +1,3 @@
-// src/App.js
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
@@ -20,6 +19,7 @@ const MyProfile = lazy(() => import('./pages/MyProfile'));
 const Verify = lazy(() => import('./pages/Verify'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const JoinProfessional = lazy(() => import('./pages/JoinProfessional'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 const App = () => {
   return (
@@ -45,6 +45,7 @@ const App = () => {
               <Route path="/verify" element={<Verify />} />
               <Route path="/reset-password/:userId" element={<ResetPassword />} />
               <Route path="/join-professional" element={<JoinProfessional />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </ErrorBoundary>
         </Suspense>
