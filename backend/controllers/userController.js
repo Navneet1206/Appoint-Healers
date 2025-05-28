@@ -13,7 +13,6 @@ import UserTestResult from "../models/userTestResultModel.js";
 import reviewModel from "../models/reviewModel.js";
 import Coupon from "../models/couponModel.js";
 import transactionModel from "../models/transactionModel.js";
-import { getZoomAccessToken, createZoomMeeting } from "./zoomController.js";
 
 dotenv.config();
 
@@ -322,7 +321,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// Book an appointment (updated with Zoom and error handling)
+// Book an appointment (updated: removed Zoom automation)
 const bookAppointment = async (req, res) => {
   try {
     const { userId, docId, slotId, sessionType, couponCode } = req.body;
@@ -372,43 +371,12 @@ const bookAppointment = async (req, res) => {
     const newAppointment = new appointmentModel(appointmentData);
     await newAppointment.save();
 
-    // Generate Zoom meeting
-    const accessToken = await getZoomAccessToken();
-    const [day, month, year] = slot.slotDate.split("_");
-    const startTime = new Date(`${year}-${month}-${day}T${slot.slotTime}:00+05:30`);
-
-    const meetingDetails = {
-      topic: `Appointment with Dr. ${doctor.name}`,
-      type: 2, // Scheduled meeting
-      start_time: startTime.toISOString(),
-      duration: 45,
-      timezone: "Asia/Kolkata",
-      password: Math.random().toString(36).slice(-8),
-      settings: {
-        host_video: true,
-        participant_video: true,
-        join_before_host: false,
-        mute_upon_entry: true,
-        waiting_room: true,
-      },
-    };
-
-    try {
-      const meeting = await createZoomMeeting(accessToken, meetingDetails);
-      newAppointment.meetingLink = meeting.join_url;
-      newAppointment.meetingPassword = meeting.password;
-      await newAppointment.save();
-    } catch (zoomError) {
-      console.error("Zoom API Error:", zoomError.response?.data || zoomError.message);
-      throw new Error("Failed to create Zoom meeting");
-    }
-
-    // Send emails for cash payments
+    // Send emails for cash payments (no meeting link included)
     if (sessionType === "cash") {
       const userMailOptions = {
         from: process.env.NODEMAILER_EMAIL,
         to: userData.email,
-        subject: "Appointment Booked - Meeting Link",
+        subject: "Appointment Booked",
         html: `
           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
             <div style="text-align: center; margin-bottom: 20px;">
@@ -418,8 +386,7 @@ const bookAppointment = async (req, res) => {
             <p>Your appointment with Dr. ${doctor.name} has been booked.</p>
             <p>Date: ${slot.slotDate}</p>
             <p>Time: ${slot.slotTime}</p>
-            <p>Meeting Link: <a href="${newAppointment.meetingLink}">${newAppointment.meetingLink}</a></p>
-            <p>Password: ${newAppointment.meetingPassword}</p>
+            <p>The meeting details will be sent to you separately by the admin.</p>
             <p>Please note that payment will be collected at the time of the appointment.</p>
             <p>Best regards,</p>
             <p>The Savayas Heals Team</p>
@@ -430,7 +397,7 @@ const bookAppointment = async (req, res) => {
       const doctorMailOptions = {
         from: process.env.NODEMAILER_EMAIL,
         to: doctor.email,
-        subject: "New Appointment Booked - Meeting Link",
+        subject: "New Appointment Booked",
         html: `
           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
             <div style="text-align: center; margin-bottom: 20px;">
@@ -440,8 +407,7 @@ const bookAppointment = async (req, res) => {
             <p>You have a new appointment with ${userData.name}.</p>
             <p>Date: ${slot.slotDate}</p>
             <p>Time: ${slot.slotTime}</p>
-            <p>Meeting Link: <a href="${newAppointment.meetingLink}">${newAppointment.meetingLink}</a></p>
-            <p>Password: ${newAppointment.meetingPassword}</p>
+            <p>Please coordinate with the admin to provide the meeting details.</p>
             <p>Payment will be collected at the appointment (Cash).</p>
             <p>Best regards,</p>
             <p>The Savayas Heals Team</p>
@@ -681,7 +647,7 @@ const paymentRazorpay = async (req, res) => {
   }
 };
 
-// Verify Razorpay payment
+// Verify Razorpay payment (updated: no meeting link sent here)
 const verifyRazorpay = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
@@ -721,7 +687,7 @@ const verifyRazorpay = async (req, res) => {
       const userMailOptions = {
         from: process.env.NODEMAILER_EMAIL,
         to: userData.email,
-        subject: "Appointment Confirmed and Meeting Link",
+        subject: "Appointment Confirmed",
         html: `
           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
             <div style="text-align: center; margin-bottom: 20px;">
@@ -731,8 +697,7 @@ const verifyRazorpay = async (req, res) => {
             <p>Your appointment with Dr. ${doctorData.name} has been confirmed.</p>
             <p>Date: ${appointment.slotDate}</p>
             <p>Time: ${appointment.slotTime}</p>
-            <p>Meeting Link: <a href="${appointment.meetingLink}">${appointment.meetingLink}</a></p>
-            <p>Password: ${appointment.meetingPassword}</p>
+            <p>The meeting details will be sent to you separately by the admin.</p>
             <p>Your payment of ₹${appointment.discountedAmount || appointment.originalAmount} has been received.</p>
             <p>Best regards,</p>
             <p>The Savayas Heals Team</p>
@@ -743,7 +708,7 @@ const verifyRazorpay = async (req, res) => {
       const doctorMailOptions = {
         from: process.env.NODEMAILER_EMAIL,
         to: doctorData.email,
-        subject: "Appointment Confirmed with Meeting Link",
+        subject: "Appointment Confirmed",
         html: `
           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
             <div style="text-align: center; margin-bottom: 20px;">
@@ -753,8 +718,7 @@ const verifyRazorpay = async (req, res) => {
             <p>The appointment with ${userData.name} has been confirmed.</p>
             <p>Date: ${appointment.slotDate}</p>
             <p>Time: ${appointment.slotTime}</p>
-            <p>Meeting Link: <a href="${appointment.meetingLink}">${appointment.meetingLink}</a></p>
-            <p>Password: ${appointment.meetingPassword}</p>
+            <p>Please coordinate with the admin to provide the meeting details.</p>
             <p>The user has paid ₹${appointment.discountedAmount || appointment.originalAmount}.</p>
             <p>Best regards,</p>
             <p>The Savayas Heals Team</p>

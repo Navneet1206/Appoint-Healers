@@ -488,6 +488,93 @@ const getAllTransactions = async (req, res) => {
   }
 };
 
+// Send meeting link (new function)
+const sendMeetingLink = async (req, res) => {
+  try {
+    const { appointmentId, meetingLink, meetingPassword } = req.body;
+
+    if (!appointmentId || !meetingLink) {
+      return res.json({ success: false, message: "Appointment ID and meeting link are required" });
+    }
+
+    const appointment = await appointmentModel.findById(appointmentId);
+    if (!appointment) {
+      return res.json({ success: false, message: "Appointment not found" });
+    }
+
+    if (appointment.cancelled) {
+      return res.json({ success: false, message: "Appointment is cancelled" });
+    }
+
+    if (appointment.isCompleted) {
+      return res.json({ success: false, message: "Appointment is already completed" });
+    }
+
+    appointment.meetingLink = meetingLink;
+    if (meetingPassword) {
+      appointment.meetingPassword = meetingPassword;
+    }
+    await appointment.save();
+
+    const userData = await userModel.findById(appointment.userId).select("-password");
+    const doctorData = await doctorModel.findById(appointment.docId);
+
+    const userMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: userData.email,
+      subject: "Appointment Meeting Details",
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Meeting Details for Your Appointment</h2>
+          </div>
+          <p>Dear ${userData.name},</p>
+          <p>Here are the meeting details for your appointment with Dr. ${doctorData.name}:</p>
+          <p>Date: ${appointment.slotDate}</p>
+          <p>Time: ${appointment.slotTime}</p>
+          <p>Meeting Link: <a href="${appointment.meetingLink}">${appointment.meetingLink}</a></p>
+          ${appointment.meetingPassword ? `<p>Password: ${appointment.meetingPassword}</p>` : ""}
+          <p>Please join the meeting at the scheduled time.</p>
+          <p>Best regards,</p>
+          <p>The Savayas Heals Team</p>
+        </div>
+      `,
+    };
+
+    const doctorMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: doctorData.email,
+      subject: "Appointment Meeting Details",
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #4CAF50;">Meeting Details for Appointment</h2>
+          </div>
+          <p>Dear Dr. ${doctorData.name},</p>
+          <p>Here are the meeting details for your appointment with ${userData.name}:</p>
+          <p>Date: ${appointment.slotDate}</p>
+          <p>Time: ${appointment.slotTime}</p>
+          <p>Meeting Link: <a href="${appointment.meetingLink}">${appointment.meetingLink}</a></p>
+          ${appointment.meetingPassword ? `<p>Password: ${appointment.meetingPassword}</p>` : ""}
+          <p>Please be ready to join the meeting at the scheduled time.</p>
+          <p>Best regards,</p>
+          <p>The Savayas Heals Team</p>
+        </div>
+      `,
+    };
+
+    await Promise.all([
+      transporter.sendMail(userMailOptions),
+      transporter.sendMail(doctorMailOptions),
+    ]);
+
+    res.json({ success: true, message: "Meeting link sent successfully" });
+  } catch (error) {
+    console.error("Send Meeting Link Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 export {
   loginAdmin,
   verifyLoginOtpAdmin,
@@ -508,4 +595,5 @@ export {
   deleteCoupon,
   postFakeReview,
   getAllTransactions,
+  sendMeetingLink,
 };

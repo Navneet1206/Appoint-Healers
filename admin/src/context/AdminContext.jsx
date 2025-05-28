@@ -43,21 +43,23 @@ const AdminContextProvider = (props) => {
     }
   };
 
-  const sendMeetingLink = async (appointmentId, meetingLink) => {
+  const sendMeetingLink = async (appointmentId, meetingLink, meetingPassword) => {
     try {
-      const { data } = await axios.post(backendUrl + '/api/admin/send-meeting-link', { appointmentId, meetingLink }, {
-        headers: { aToken }
-      });
+      const { data } = await axios.post(
+        backendUrl + '/api/admin/send-meeting-link',
+        { appointmentId, meetingLink, meetingPassword },
+        { headers: { aToken } }
+      );
       if (data.success) {
         toast.success(data.message);
-        return true;
+        return { success: true };
       } else {
         toast.error(data.message);
-        return false;
+        return { success: false, message: data.message };
       }
     } catch (error) {
       toast.error(error.message);
-      return false;
+      return { success: false, message: error.message };
     }
   };
 

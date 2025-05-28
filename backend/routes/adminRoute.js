@@ -19,6 +19,7 @@ import {
   deleteCoupon,
   postFakeReview,
   getAllTransactions,
+  sendMeetingLink,
 } from "../controllers/adminController.js";
 import { changeAvailablity } from "../controllers/doctorController.js";
 import { initiatePaymentToDoctor } from "../controllers/paymentController.js";
@@ -47,5 +48,6 @@ adminRouter.delete('/coupons/:id', authAdmin, deleteCoupon);
 adminRouter.post("/post-fake-review", authAdmin, postFakeReview);
 adminRouter.get('/all-transactions', authAdmin, getAllTransactions);
 adminRouter.post("/initiate-payment", authAdmin, initiatePaymentToDoctor);
+adminRouter.post("/send-meeting-link", authAdmin, sendMeetingLink);
 
 export default adminRouter;
