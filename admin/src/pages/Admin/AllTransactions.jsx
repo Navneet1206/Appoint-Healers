@@ -22,9 +22,8 @@ const AllTransactions = () => {
         headers: { aToken },
       });
       if (data.success) {
-        // Ensure transactions is an array and filter out invalid entries
         const validTransactions = Array.isArray(data.transactions)
-          ? data.transactions.filter(txn => txn && typeof txn === 'object')
+          ? data.transactions.filter((txn) => txn && typeof txn === "object")
           : [];
         setTransactions(validTransactions);
       } else {
@@ -46,13 +45,19 @@ const AllTransactions = () => {
 
   // Filter transactions based on search and status
   const filteredTransactions = transactions.filter((txn) => {
-    const matchesSearch =
-      (txn.transactionId?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (txn.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (txn.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (txn.doctorId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (txn.doctorId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
-    const matchesStatus = statusFilter === "all" || txn.status === statusFilter;
+    console.log("Transaction:", txn); // Debug: Log each transaction to inspect structure
+    const searchLower = searchTerm.trim().toLowerCase();
+    const matchesSearch = searchLower === "" || (
+      (txn.transactionId && String(txn.transactionId).toLowerCase().includes(searchLower)) ||
+      (txn.userId && txn.userId.name && String(txn.userId.name).toLowerCase().includes(searchLower)) ||
+      (txn.userId && txn.userId.email && String(txn.userId.email).toLowerCase().includes(searchLower)) ||
+      (txn.doctorId && txn.doctorId.name && String(txn.doctorId.name).toLowerCase().includes(searchLower)) ||
+      (txn.doctorId && txn.doctorId.email && String(txn.doctorId.email).toLowerCase().includes(searchLower))
+    );
+    const matchesStatus = statusFilter === "all" || (
+      txn.status && String(txn.status).toLowerCase() === statusFilter.toLowerCase()
+    );
+    console.log("Search Term:", searchLower, "Status Filter:", statusFilter, "Matches:", { matchesSearch, matchesStatus }); // Debug: Log filter results
     return matchesSearch && matchesStatus;
   });
 
@@ -68,61 +73,72 @@ const AllTransactions = () => {
 
   // Format amount safely
   const formatAmount = (amount) => {
-    return typeof amount === 'number' && !isNaN(amount) ? `₹${amount.toFixed(2)}` : 'N/A';
+    return typeof amount === "number" && !isNaN(amount) ? `₹${amount.toFixed(2)}` : "N/A";
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-2 sm:p-4 lg:p-6 font-sans">
-      <div className="max-w-full mx-auto">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">
           All Transactions
         </h1>
 
         {/* Search and Filter Controls */}
-        <div className="mb-4 flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            placeholder="Search by ID, user, or doctor..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-60 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-44 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Completed">Completed</option>
-            <option value="Failed">Failed</option>
-          </select>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Filter Transactions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Search by ID, User, or Doctor
+              </label>
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D20424] focus:border-[#D20424] outline-none text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D20424] focus:border-[#D20424] outline-none text-sm"
+              >
+                <option value="all">All Statuses</option>
+                <option value="Pending">Pending</option>
+                <option value="Completed">Completed</option>
+                <option value="Failed">Failed</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {isLoading ? (
           <div className="flex justify-center items-center h-48">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#D20424]"></div>
           </div>
         ) : error ? (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg text-sm">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         ) : filteredTransactions.length > 0 ? (
           <>
             {/* Desktop Table View */}
-            <div className="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden">
-              <div className="overflow-x-auto max-h-[65vh]">
-                <table className="w-full text-left text-xs sm:text-sm">
+            <div className="hidden md:block bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="max-h-[60vh] overflow-y-auto">
+                <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
-                      <th className="p-2 sm:p-3 font-semibold text-gray-700">Transaction ID</th>
-                      <th className="p-2 sm:p-3 font-semibold text-gray-700">User</th>
-                      <th className="p-2 sm:p-3 font-semibold text-gray-700">User Email</th>
-                      <th className="p-2 sm:p-3 font-semibold text-gray-700">Doctor</th>
-                      <th className="p-2 sm:p-3 font-semibold text-gray-700">Doctor Email</th>
-                      <th className="p-2 sm:p-3 font-semibold text-gray-700">Amount</th>
-                      <th className="p-2 sm:p-3 font-semibold text-gray-700">Status</th>
-                      <th className="p-2 sm:p-3 font-semibold text-gray-700">Date</th>
+                      <th className="p-4 font-semibold text-gray-700">Transaction ID</th>
+                      <th className="p-4 font-semibold text-gray-700">User</th>
+                      <th className="p-4 font-semibold text-gray-700">User Email</th>
+                      <th className="p-4 font-semibold text-gray-700">Doctor</th>
+                      <th className="p-4 font-semibold text-gray-700">Doctor Email</th>
+                      <th className="p-4 font-semibold text-gray-700">Amount</th>
+                      <th className="p-4 font-semibold text-gray-700">Status</th>
+                      <th className="p-4 font-semibold text-gray-700">Date</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -132,21 +148,25 @@ const AllTransactions = () => {
                         onClick={() => handleTransactionClick(txn)}
                         className={`border-t ${
                           index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                        } hover:bg-blue-50 transition-colors cursor-pointer`}
+                        } hover:bg-gray-100 transition-colors cursor-pointer`}
                       >
-                        <td className="p-2 sm:p-3 truncate max-w-[100px] sm:max-w-[120px]">
+                        <td className="p-4 truncate max-w-[120px]">
                           {txn.transactionId || "N/A"}
                         </td>
-                        <td className="p-2 sm:p-3 truncate max-w-[100px]">{txn.userId?.name || "N/A"}</td>
-                        <td className="p-2 sm:p-3 truncate max-w-[120px] sm:max-w-[150px)">
+                        <td className="p-4 truncate max-w-[100px]">
+                          {txn.userId?.name || "N/A"}
+                        </td>
+                        <td className="p-4 truncate max-w-[150px]">
                           {txn.userId?.email || "N/A"}
                         </td>
-                        <td className="p-2 sm:p-3 truncate max-w-[100px]">{txn.doctorId?.name || "N/A"}</td>
-                        <td className="p-2 sm:p-3 truncate max-w-[120px] sm:max-w-[150px]">
+                        <td className="p-4 truncate max-w-[100px]">
+                          {txn.doctorId?.name || "N/A"}
+                        </td>
+                        <td className="p-4 truncate max-w-[150px]">
                           {txn.doctorId?.email || "N/A"}
                         </td>
-                        <td className="p-2 sm:p-3">{formatAmount(txn.amount)}</td>
-                        <td className="p-2 sm:p-3">
+                        <td className="p-4">{formatAmount(txn.amount)}</td>
+                        <td className="p-4">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium ${
                               txn.status === "Completed"
@@ -159,8 +179,10 @@ const AllTransactions = () => {
                             {txn.status || "N/A"}
                           </span>
                         </td>
-                        <td className="p-2 sm:p-3">
-                          {txn.timestamp ? new Date(txn.timestamp).toLocaleDateString() : "N/A"}
+                        <td className="p-4">
+                          {txn.timestamp
+                            ? new Date(txn.timestamp).toLocaleDateString()
+                            : "N/A"}
                         </td>
                       </tr>
                     ))}
@@ -170,15 +192,15 @@ const AllTransactions = () => {
             </div>
 
             {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-4">
               {filteredTransactions.map((txn) => (
                 <div
                   key={txn._id}
                   onClick={() => handleTransactionClick(txn)}
-                  className="bg-white p-3 rounded-lg shadow-md border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
+                  className="bg-white p-4 rounded-lg shadow-md border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow duration-200"
                 >
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-semibold text-sm text-gray-700 truncate max-w-[60%]">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-semibold text-sm text-gray-800 truncate max-w-[60%]">
                       ID: {txn.transactionId || "N/A"}
                     </span>
                     <span
@@ -193,49 +215,45 @@ const AllTransactions = () => {
                       {txn.status || "N/A"}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-600 truncate">
+                  <p className="text-sm text-gray-600 truncate">
                     <span className="font-medium">User:</span> {txn.userId?.name || "N/A"}
                   </p>
-                  <p className="text-xs text-gray-600 truncate">
-                    <span className="font-medium">User Email:</span> {txn.userId?.email || "N/A"}
-                  </p>
-                  <p className="text-xs text-gray-600 truncate">
+                  <p className="text-sm text-gray-600 truncate">
                     <span className="font-medium">Doctor:</span> {txn.doctorId?.name || "N/A"}
                   </p>
-                  <p className="text-xs text-gray-600 truncate">
-                    <span className="font-medium">Doctor Email:</span> {txn.doctorId?.email || "N/A"}
-                  </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-sm text-gray-600">
                     <span className="font-medium">Amount:</span> {formatAmount(txn.amount)}
                   </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-sm text-gray-600">
                     <span className="font-medium">Date:</span>{" "}
-                    {txn.timestamp ? new Date(txn.timestamp).toLocaleDateString() : "N/A"}
+                    {txn.timestamp
+                      ? new Date(txn.timestamp).toLocaleDateString()
+                      : "N/A"}
                   </p>
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <div className="bg-white p-4 rounded-lg shadow-lg text-center">
+          <div className="bg-white p-6 rounded-lg shadow-md text-center">
             <p className="text-gray-500 text-sm">No transactions found.</p>
           </div>
         )}
 
         {/* Transaction Details Modal */}
         {selectedTransaction && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
-            <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 sm:p-8 w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto relative">
+              <h2 className="text-xl font-semibold text-gray-800 mb-6">
                 Transaction Details
               </h2>
               <button
                 onClick={closeModal}
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 focus:outline-none"
                 aria-label="Close modal"
               >
                 <svg
-                  className="h-5 w-5"
+                  className="h-6 w-6"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -249,33 +267,33 @@ const AllTransactions = () => {
                   />
                 </svg>
               </button>
-              <div className="space-y-2 text-sm sm:text-base">
+              <div className="space-y-4 text-sm">
                 <p>
-                  <span className="font-medium">Transaction ID:</span>{" "}
-                  {selectedTransaction.transactionId || "N/A"}
+                  <span className="font-medium text-gray-700">Transaction ID:</span>{" "}
+                  <span className="text-gray-800">{selectedTransaction.transactionId || "N/A"}</span>
                 </p>
                 <p>
-                  <span className="font-medium">User:</span>{" "}
-                  {selectedTransaction.userId?.name || "N/A"}
+                  <span className="font-medium text-gray-700">User:</span>{" "}
+                  <span className="text-gray-800">{selectedTransaction.userId?.name || "N/A"}</span>
                 </p>
                 <p>
-                  <span className="font-medium">User Email:</span>{" "}
-                  {selectedTransaction.userId?.email || "N/A"}
+                  <span className="font-medium text-gray-700">User Email:</span>{" "}
+                  <span className="text-gray-800">{selectedTransaction.userId?.email || "N/A"}</span>
                 </p>
                 <p>
-                  <span className="font-medium">Doctor:</span>{" "}
-                  {selectedTransaction.doctorId?.name || "N/A"}
+                  <span className="font-medium text-gray-700">Doctor:</span>{" "}
+                  <span className="text-gray-800">{selectedTransaction.doctorId?.name || "N/A"}</span>
                 </p>
                 <p>
-                  <span className="font-medium">Doctor Email:</span>{" "}
-                  {selectedTransaction.doctorId?.email || "N/A"}
+                  <span className="font-medium text-gray-700">Doctor Email:</span>{" "}
+                  <span className="text-gray-800">{selectedTransaction.doctorId?.email || "N/A"}</span>
                 </p>
                 <p>
-                  <span className="font-medium">Amount:</span>{" "}
-                  {formatAmount(selectedTransaction.amount)}
+                  <span className="font-medium text-gray-700">Amount:</span>{" "}
+                  <span className="text-gray-800">{formatAmount(selectedTransaction.amount)}</span>
                 </p>
                 <p>
-                  <span className="font-medium">Status:</span>{" "}
+                  <span className="font-medium text-gray-700">Status:</span>{" "}
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-medium ${
                       selectedTransaction.status === "Completed"
@@ -289,18 +307,22 @@ const AllTransactions = () => {
                   </span>
                 </p>
                 <p>
-                  <span className="font-medium">Date:</span>{" "}
-                  {selectedTransaction.timestamp
-                    ? new Date(selectedTransaction.timestamp).toLocaleString()
-                    : "N/A"}
+                  <span className="font-medium text-gray-700">Date:</span>{" "}
+                  <span className="text-gray-800">
+                    {selectedTransaction.timestamp
+                      ? new Date(selectedTransaction.timestamp).toLocaleString()
+                      : "N/A"}
+                  </span>
                 </p>
               </div>
-              <button
-                onClick={closeModal}
-                className="mt-4 w-full sm:w-auto px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              >
-                Close
-              </button>
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={closeModal}
+                  className="px-5 py-2 bg-[#D20424] text-white rounded-full hover:bg-[#b8031f] transition-colors duration-200 text-sm"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}
