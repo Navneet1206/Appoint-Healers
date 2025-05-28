@@ -6,7 +6,7 @@ import RelatedDoctors from '../components/RelatedDoctors';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// Helper Functions (Unchanged)
+// Helper functions (unchanged from original)
 const convertToAmPm = (timeStr) => {
   const [hourStr, minuteStr] = timeStr.split(':');
   let hour = parseInt(hourStr, 10);
@@ -46,12 +46,11 @@ const Appointment = () => {
   const bookSectionRef = useRef(null);
   const navigate = useNavigate();
 
-  // State Variables
   const [docInfo, setDocInfo] = useState(null);
   const [groupedSlots, setGroupedSlots] = useState([]);
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
   const [selectedSlotId, setSelectedSlotId] = useState("");
-  const [selectedSessionType] = useState("video"); // Fixed to "video" since others are disabled
+  const [selectedSessionType, setSelectedSessionType] = useState("video");
   const [activeTab, setActiveTab] = useState("about");
   const [isLoading, setIsLoading] = useState(false);
   const [reviews, setReviews] = useState([]);
@@ -62,7 +61,6 @@ const Appointment = () => {
   const [finalPrice, setFinalPrice] = useState(null);
   const [isCouponApplied, setIsCouponApplied] = useState(false);
 
-  // Functions
   const fetchDocInfo = () => {
     const doc = doctors.find((doc) => doc._id === docId);
     if (doc) {
@@ -92,29 +90,20 @@ const Appointment = () => {
 
   const processSlots = () => {
     if (!docInfo || !docInfo.slots) return;
-
-    // Filter only active slots for "video" session type (since others are disabled)
-    const activeSlots = docInfo.slots
-      .filter(slot => slot.status === "Active" && (slot.sessionType === "video" || !slot.sessionType))
-      .map(slot => ({
-        ...slot,
-        sessionType: "video" // Force to "video" as only this is allowed
-      }));
-
-    // Group slots by date, only including dates with at least one active slot
+    const activeSlots = docInfo.slots.filter(slot => slot.status === "Active").map(slot => ({
+      ...slot,
+      sessionType: slot.sessionType || "video"
+    }));
     const groups = {};
     activeSlots.forEach(slot => {
       if (!groups[slot.slotDate]) groups[slot.slotDate] = [];
       groups[slot.slotDate].push(slot);
     });
-
-    // Sort dates
     const sorted = Object.entries(groups).sort((a, b) => {
       const [d1, m1, y1] = a[0].split("_").map(Number);
       const [d2, m2, y2] = b[0].split("_").map(Number);
       return new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2);
     });
-
     setGroupedSlots(sorted);
     setSelectedGroupIndex(0);
     setSelectedSlotId("");
@@ -127,6 +116,12 @@ const Appointment = () => {
       return;
     }
     setSelectedSlotId(slot._id);
+    setSelectedSessionType(slot.sessionType || "video");
+  };
+
+  const handleSessionTypeChange = (type) => {
+    setSelectedSessionType(type);
+    setSelectedSlotId("");
   };
 
   const applyCoupon = async () => {
@@ -178,7 +173,7 @@ const Appointment = () => {
           docId,
           slotId: selectedSlotId,
           userId: userData._id,
-          sessionType: "video", // Fixed to "video"
+          sessionType: selectedSessionType,
           couponCode: isCouponApplied ? couponCode : null,
         },
         { headers: { token } }
@@ -220,8 +215,8 @@ const Appointment = () => {
               if (verifyRes.data.success) {
                 toast.success("Appointment booked successfully! Payment completed.");
                 getDoctosData();
-                fetchDocInfo();
-                fetchReviews();
+                fetchDocInfo(); // Refresh doctor data after successful payment
+                fetchReviews(); // Refresh reviews after successful payment
                 navigate("/my-appointments");
               } else {
                 toast.error("Payment verification failed");
@@ -278,241 +273,89 @@ const Appointment = () => {
     }
   }, [docInfo]);
 
-  // Render UI
   return docInfo ? (
-    <div className="min-h-screen pt-20 bg-gray-100">
+    <div className="min-h-screen pt-20">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          {/* Header Section */}
-          <div className="flex items-center p-6 border-b border-gray-200 bg-beige-50">
-            <div className="w-1/4">
-              <div className="w-32 h-32 bg-gray-200 rounded-full overflow-hidden">
+          <div className="flex flex-col md:flex-row gap-8 p-8">
+            <div className="md:w-1/4">
+              <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden">
                 <img src={docInfo.image || assets.default_doctor} alt={docInfo.name} className="w-full h-full object-cover" />
               </div>
             </div>
-            <div className="w-3/4 pl-6">
-              <h1 className="text-2xl font-bold text-gray-800">{docInfo.name}</h1>
-              <p className="text-lg text-gray-600">{docInfo.experience}+ Years Of Experience</p>
-            </div>
-            <div className="w-1/12 text-right">
-              <svg className="w-6 h-6 text-gray-500 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex flex-col md:flex-row p-6 gap-6">
-            {/* Doctor Info */}
-            <div className="md:w-1/2">
-              <p className="text-gray-700 mb-4">{docInfo.about || "No bio available."}</p>
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Qualifications:</h3>
-                <ul className="list-disc list-inside text-gray-600">
-                  {docInfo.degree && <li>{docInfo.degree}</li>}
-                  {docInfo.speciality && <li>{docInfo.speciality}</li>}
-                  {docInfo.experience && <li>{docInfo.experience} years of experience</li>}
-                </ul>
+            <div className="md:w-3/4">
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">{docInfo.name}</h1>
+              <p className="text-lg text-gray-600 mb-4">{docInfo.speciality}</p>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {docInfo.specialityList?.map((specialty) => (
+                  <span key={specialty} className="px-3 py-1 bg-pink-50 text-pink-500 rounded-full text-sm">{specialty}</span>
+                )) || ['Anxiety', 'Depression', 'Stress Management', 'Trauma', 'PTSD'].map((tag) => (
+                  <span key={tag} className="px-3 py-1 bg-pink-50 text-pink-500 rounded-full text-sm">{tag}</span>
+                ))}
               </div>
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Languages:</h3>
-                <p className="text-gray-600">
-                  {docInfo.languages?.length > 0 ? docInfo.languages.join(", ") : "No languages specified"}
-                </p>
-              </div>
-            </div>
-
-            {/* Booking Section */}
-            <div className="md:w-1/2 bg-beige-50 p-6 rounded-lg shadow-inner" ref={bookSectionRef}>
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Book A Session</h2>
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Session Type</h3>
-                <div className="flex gap-4">
-                  <button
-                    className="flex-1 p-3 rounded-lg bg-pink-500 text-white font-medium"
-                  >
-                    Video
-                  </button>
-                  <button
-                    disabled
-                    className="flex-1 p-3 rounded-lg bg-gray-100 text-gray-400 font-medium cursor-not-allowed"
-                  >
-                    Audio (Coming Soon)
-                  </button>
-                  <button
-                    disabled
-                    className="flex-1 p-3 rounded-lg bg-gray-100 text-gray-400 font-medium cursor-not-allowed"
-                  >
-                    Chat (Coming Soon)
-                  </button>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-gray-600">50 min session</span>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">Audio and Chat sessions will be implemented later.</p>
-              </div>
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Select a Date</h3>
-                <div className="flex flex-wrap gap-3">
-                  {groupedSlots.length > 0 ? (
-                    groupedSlots.map(([dateStr], index) => (
-                      <button
-                        key={dateStr}
-                        onClick={() => setSelectedGroupIndex(index)}
-                        className={`p-3 rounded-xl text-center min-w-[120px] transition-all ${selectedGroupIndex === index ? 'bg-pink-500 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
-                      >
-                        <div className="text-sm opacity-75">{getDayOfWeek(dateStr)}</div>
-                        <div className="text-base font-medium">{formatDate(dateStr)}</div>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">No available dates.</p>
-                  )}
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-gray-600">{docInfo.address?.line1}, {docInfo.address?.line2}</span>
                 </div>
               </div>
-              {groupedSlots[selectedGroupIndex] && (
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Available Slots:</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {groupedSlots[selectedGroupIndex][1]
-                      .sort((a, b) => a.slotTime.localeCompare(b.slotTime))
-                      .map((slot) => (
-                        <button
-                          key={slot._id}
-                          onClick={() => handleSlotSelect(slot)}
-                          className={`p-3 rounded-lg bg-gray-200 text-gray-700 font-medium hover:bg-gray-300 ${selectedSlotId === slot._id ? "bg-pink-500 text-white" : ""}`}
-                        >
-                          {convertToAmPm(slot.slotTime)}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              )}
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Price Details:</h3>
-                <div className="p-3 rounded-lg bg-gray-200 text-gray-700">
-                  <div className="flex justify-between mb-2">
-                    <span>Session Price</span>
-                    <span>{currencySymbol}{docInfo.fees}</span>
-                  </div>
-                  {discount > 0 && (
-                    <div className="flex justify-between mb-2 text-green-600">
-                      <span>Coupon Discount</span>
-                      <span>-{currencySymbol}{discount}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between mb-2">
-                    <span>Platform Fee</span>
-                    <span>{currencySymbol}{(docInfo.fees * 0.05).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between mb-2">
-                    <span>Tax Fee</span>
-                    <span>{currencySymbol}{(docInfo.fees * 0.009).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold">
-                    <span>Total Amount</span>
-                    <span>{currencySymbol}{(finalPrice + (docInfo.fees * 0.05) + (docInfo.fees * 0.009)).toFixed(2)}</span>
-                  </div>
-                </div>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-1">{renderStars(averageRating)} <span className="font-semibold ml-1">{averageRating}</span> <span className="text-gray-500">({reviewCount} reviews)</span></div>
+                <span className="text-gray-500">•</span>
+                <span className="text-gray-600">{docInfo.experience} years experience</span>
               </div>
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Apply Coupon</h3>
-                <div className="flex gap-4">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="Enter coupon code"
-                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                    disabled={isCouponApplied}
-                  />
-                  <button
-                    onClick={applyCoupon}
-                    className={`px-4 py-2 rounded-lg ${isCouponApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-pink-500 text-white hover:bg-pink-600'}`}
-                    disabled={isCouponApplied}
-                  >
-                    {isCouponApplied ? 'Applied' : 'Apply'}
-                  </button>
-                </div>
-                {isCouponApplied && (
-                  <div className="mt-2 p-2 bg-green-100 rounded-lg text-green-700">
-                    <p>You Save: {currencySymbol}{discount}</p>
-                    <p>Coupon: {couponCode}</p>
-                  </div>
-                )}
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Available Coupon</h3>
-                  <div className="p-3 bg-red-100 rounded-lg flex items-center justify-between">
-                    <div>
-                      <button
-                        className="bg-red-500 text-white px-4 py-2 rounded-lg"
-                        onClick={() => setCouponCode("MERAMAN")}
-                      >
-                        SavayasHeal
-                      </button>
-                      <p className="mt-2 text-gray-700">Take the First Step: 50% Off Your First Therapy Session</p>
-                    </div>
-                  </div>
-                </div>
+              <div className="text-xl font-bold text-pink-500 mb-6">
+                {currencySymbol}{finalPrice}/session {discount > 0 && <span className="text-sm text-gray-500 line-through">{currencySymbol}{docInfo.fees}</span>}
               </div>
-              <button
-                onClick={bookAppointment}
-                className="w-full bg-green-500 text-white text-lg font-semibold py-3 rounded-lg hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                disabled={!selectedSlotId || isLoading}
-              >
-                {isLoading ? 'Processing...' : (
-                  <>
-                    Continue <span className="ml-2">→</span>
-                  </>
-                )}
-              </button>
+              <button className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 transition-all" onClick={handlegotobookbutton}>Book Now</button>
             </div>
           </div>
-
-          {/* Tabs Section */}
           <div className="border-t border-gray-100">
             <div className="p-8">
               <div className="flex gap-8 border-b border-gray-200 mb-6">
-                <button
-                  onClick={() => setActiveTab("about")}
-                  className={`pb-4 font-medium ${activeTab === "about" ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  About
-                </button>
-                <button
-                  onClick={() => setActiveTab("reviews")}
-                  className={`pb-4 font-medium ${activeTab === "reviews" ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  Reviews
-                </button>
-                <button
-                  onClick={() => setActiveTab("faq")}
-                  className={`pb-4 font-medium ${activeTab === "faq" ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  FAQ
-                </button>
+                <button onClick={() => setActiveTab("about")} className={`pb-4 font-medium ${activeTab === "about" ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-500 hover:text-gray-700"}`}>About</button>
+                <button onClick={() => setActiveTab("reviews")} className={`pb-4 font-medium ${activeTab === "reviews" ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-500 hover:text-gray-700"}`}>Reviews</button>
+                <button onClick={() => setActiveTab("faq")} className={`pb-4 font-medium ${activeTab === "faq" ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-500 hover:text-gray-700"}`}>FAQ</button>
               </div>
               {activeTab === "about" && (
                 <div>
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">Biography</h3>
-                    <p className="text-gray-600">{docInfo.about || "No bio available."}</p>
+                    <p className="text-gray-600">{docInfo.about}</p>
                   </div>
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">Education & Training</h3>
                     <ul className="space-y-2 text-gray-600">
-                      {docInfo.degree && <li>• {docInfo.degree}</li>}
-                      {docInfo.speciality && <li>• {docInfo.speciality}</li>}
-                      {docInfo.experience && <li>• {docInfo.experience} years of experience</li>}
+                      <li>• {docInfo.degree}</li>
+                      <li>• {docInfo.speciality}</li>
+                      <li>• {docInfo.experience} of experience</li>
                     </ul>
                   </div>
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">Location</h3>
-                    <p className="text-gray-600">{docInfo.address?.line1 || "No address available"}</p>
+                    <p className="text-gray-600">{docInfo.address?.line1}</p>
                     <p className="text-gray-600">{docInfo.address?.line2}</p>
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">Languages</h3>
-                    <p className="text-gray-600">
-                      {docInfo.languages?.length > 0 ? docInfo.languages.join(", ") : "No languages specified"}
-                    </p>
+                    <ul className="space-y-2 text-gray-600">
+                      {docInfo.languages?.length > 0 ? docInfo.languages.map((lang) => <li key={lang}>• {lang}</li>) : (
+                        <>
+                          <li>• English</li>
+                          <li>• Hindi</li>
+                          <li>• Marathi</li>
+                        </>
+                      )}
+                    </ul>
                   </div>
                 </div>
               )}
@@ -521,17 +364,13 @@ const Appointment = () => {
                   {reviews.length > 0 ? (
                     <div className="space-y-6">
                       <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          {renderStars(averageRating)}
-                          <span className="ml-2 font-semibold">{averageRating}</span>
-                          <span className="text-gray-500">({reviewCount} reviews)</span>
-                        </div>
+                        <div className="flex items-center gap-1">{renderStars(averageRating)} <span className="ml-2 font-semibold">{averageRating}</span> <span className="text-gray-500">({reviewCount} reviews)</span></div>
                       </div>
-                      {reviews.slice(0, 1).map((review, index) => (
-                        <div key={index} className="p-4 bg-gray-100 rounded-lg">
+                      {reviews.map((review, index) => (
+                        <div key={index} className="border-t border-gray-200 pt-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">{review.rating}</span>
-                            <span className="text-sm text-gray-500">by {review.userId.name}</span>
+                            {renderStars(review.rating)}
+                            <span className="text-sm text-gray-500">by {review.userId.name} on {formatReviewDate(review.createdAt)}</span>
                           </div>
                           <p className="text-gray-600">{review.comment}</p>
                         </div>
@@ -542,6 +381,86 @@ const Appointment = () => {
               )}
               {activeTab === "faq" && <div className="text-gray-600"><p>FAQ coming soon...</p></div>}
             </div>
+          </div>
+          <div ref={bookSectionRef} className="border-t border-gray-100 p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Book a Session</h2>
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4">Select a Date</h3>
+              <div className="flex flex-wrap gap-3">
+                {groupedSlots.map(([dateStr], index) => (
+                  <button key={dateStr} onClick={() => setSelectedGroupIndex(index)} className={`p-3 rounded-xl text-center min-w-[120px] transition-all ${selectedGroupIndex === index ? 'bg-pink-500 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}>
+                    <div className="text-sm opacity-75">{getDayOfWeek(dateStr)}</div>
+                    <div className="text-base font-medium">{formatDate(dateStr)}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4">Session Type</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <button onClick={() => handleSessionTypeChange("video")} className={`p-4 rounded-xl flex items-center justify-center gap-3 transition-all ${selectedSessionType === "video" ? 'bg-pink-500 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}>
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  <span className="font-medium">Video</span>
+                </button>
+                <button onClick={() => handleSessionTypeChange("phone")} className={`p-4 rounded-xl flex items-center justify-center gap-3 transition-all ${selectedSessionType === "phone" ? 'bg-pink-500 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}>
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                  <span className="font-medium">Phone</span>
+                </button>
+                <button onClick={() => handleSessionTypeChange("in-person")} className={`p-4 rounded-xl flex items-center justify-center gap-3 transition-all ${selectedSessionType === "in-person" ? 'bg-pink-500 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}>
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  <span className="font-medium">In-Person</span>
+                </button>
+              </div>
+            </div>
+            {groupedSlots[selectedGroupIndex] && (
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">Available Time Slots</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {groupedSlots[selectedGroupIndex][1]
+                    .filter(slot => !selectedSessionType || slot.sessionType === selectedSessionType)
+                    .sort((a, b) => a.slotTime.localeCompare(b.slotTime))
+                    .map((slot) => (
+                      <button key={slot._id} onClick={() => handleSlotSelect(slot)} className={`p-4 rounded-xl text-center transition-all ${selectedSlotId === slot._id ? 'bg-pink-500 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}>
+                        <div className="text-xl font-bold">{convertToAmPm(slot.slotTime)}</div>
+                        <div className="text-sm mt-1 opacity-75">{slot.sessionType}</div>
+                      </button>
+                    ))}
+                </div>
+                {groupedSlots[selectedGroupIndex][1].filter(slot => !selectedSessionType || slot.sessionType === selectedSessionType).length === 0 && (
+                  <p className="text-gray-500 text-center mt-4">No slots available for {selectedSessionType} sessions on this date.</p>
+                )}
+              </div>
+            )}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4">Apply Coupon</h3>
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="Enter coupon code"
+                  className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  disabled={isCouponApplied}
+                />
+                <button
+                  onClick={applyCoupon}
+                  className={`px-4 py-2 rounded-lg ${isCouponApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-pink-500 text-white hover:bg-pink-600'}`}
+                  disabled={isCouponApplied}
+                >
+                  {isCouponApplied ? 'Applied' : 'Apply'}
+                </button>
+              </div>
+              {isCouponApplied && (
+                <p className="mt-2 text-green-600">Discount: {currencySymbol}{discount} applied</p>
+              )}
+            </div>
+            <button
+              onClick={bookAppointment}
+              className="w-full bg-pink-500 text-white text-lg font-semibold py-4 rounded-xl hover:bg-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!selectedSlotId || isLoading}
+            >
+              {isLoading ? 'Processing...' : `Pay ${currencySymbol}${finalPrice} Now`}
+            </button>
           </div>
         </div>
         <div className="mt-8">
