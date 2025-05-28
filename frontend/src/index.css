@@ -52,3 +52,37 @@ body{
   .delay-300 {
     animation-delay: 0.3s;
   }
+
+
+
+@layer utilities {
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slideInLeft {
+    animation: slideInLeft 1s ease forwards;
+  }
+
+  .animate-slideInRight {
+    animation: slideInRight 1s ease forwards;
+  }
+}
