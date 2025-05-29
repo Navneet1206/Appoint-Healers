@@ -1,8 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { AppContext } from "../context/AppContext";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { assets } from "../assets/assets";
+import { useNavigate } from "react-router-dom";
 
 const MyProfile = () => {
   const { token, backendUrl, userData, setUserData, loadUserProfileData } =
@@ -10,6 +10,15 @@ const MyProfile = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [imageFile, setImageFile] = useState(null);
+
+  const navigate = useNavigate();
+
+  // Redirect to login if not logged in
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+    }
+  }, [token, navigate]);
 
   // Handle file selection; accept only images.
   const onSelectFile = (e) => {
@@ -218,39 +227,38 @@ const MyProfile = () => {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="mt-8 flex justify-center gap-4">
-          {isEdit ? (
-            <>
+          {/* Action Buttons */}
+          <div className="mt-8 flex justify-center gap-4">
+            {isEdit ? (
+              <>
+                <button
+                  onClick={updateUserProfileData}
+                  className="bg-rose-500 text-white px-6 py-2 rounded-full font-medium hover:bg-rose-600 transition-colors shadow-md flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save Changes
+                </button>
+                <button
+                  onClick={cancelEdit}
+                  className="bg-white text-rose-600 border border-rose-300 px-6 py-2 rounded-full font-medium hover:bg-rose-50 transition-colors shadow-md"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
               <button
-                onClick={updateUserProfileData}
-                className="bg-rose-500 text-white px-6 py-2 rounded-full font-medium hover:bg-rose-600 transition-colors shadow-md flex items-center gap-2"
-              >
+                class="bg-rose"
+                onClick={() => setIsEdit(true)}
+                className="bg-rose-500 text-white px-6 py-2 rounded-full font-medium hover:bg-rose-600 transition-colors shadow-md flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-                Save Changes
+                Edit Profile
               </button>
-              <button
-                onClick={cancelEdit}
-                className="bg-white text-rose-600 border border-rose-300 px-6 py-2 rounded-full font-medium hover:bg-rose-50 transition-colors shadow-md"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setIsEdit(true)}
-              className="bg-rose-500 text-white px-6 py-2 rounded-full font-medium hover:bg-rose-600 transition-colors shadow-md flex items-center gap-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              Edit Profile
-            </button>
-          )}
+            ))}
+          </div>
         </div>
       </div>
     </div>
