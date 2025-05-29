@@ -6,13 +6,18 @@ export default {
   ],
   theme: {
     extend: {
-      gridTemplateColumns:{
-        'auto':'repeat(auto-fill, minmax(200px, 1fr))'
+      gridTemplateColumns: {
+        'auto': 'repeat(auto-fill, minmax(200px, 1fr))'
       },
-      colors:{
-        'primary':'#5F6FFF'
+      colors: {
+        'primary': '#5F6FFF'
+      },
+      fontFamily: {
+        noto: ['Noto Sans', 'sans-serif'],
       }
     },
   },
   plugins: [],
 }
+
+

@@ -1,59 +1,74 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+/* === IMPORT NOTO SANS FONT LOCALLY === */
+@font-face {
+  font-family: 'Noto Sans';
+  src: url('./assets/fonts/NotoSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
 
+@font-face {
+  font-family: 'Noto Sans';
+  src: url('./assets/fonts/NotoSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* === TAILWIND DIRECTIVES === */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* === GLOBAL STYLES === */
 * {
-    font-family: Outfit;
+  font-family: 'Noto Sans', sans-serif;
 }
 
+body {
+  background-color: #f8f9f5;
+}
+
+/* === ACTIVE CLASS === */
 .active hr {
-    @apply block
+  @apply block;
 }
 
-@media (max-width:740px) {
-    .active  p{
-       @apply text-white bg-rose-50
-    }
+/* === MEDIA QUERY === */
+@media (max-width: 740px) {
+  .active p {
+    @apply text-white bg-rose-50;
+  }
 }
 
+/* === SCROLLBAR === */
 ::-webkit-scrollbar {
-    @apply hidden
+  @apply hidden;
 }
 
-body{
-    background-color: #f8f9f5;
-}
-
+/* === CUSTOM ANIMATIONS === */
 @keyframes pulse {
-    0%, 100% {
-      opacity: 0.5;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.2);
-    }
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
   }
-  
-  .animate-pulse {
-    animation: pulse 1.5s ease-in-out infinite;
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
   }
-  
-  .delay-100 {
-    animation-delay: 0.1s;
-  }
-  
-  .delay-200 {
-    animation-delay: 0.2s;
-  }
-  
-  .delay-300 {
-    animation-delay: 0.3s;
-  }
+}
 
+.animate-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
 
+.delay-100 {
+  animation-delay: 0.1s;
+}
+.delay-200 {
+  animation-delay: 0.2s;
+}
+.delay-300 {
+  animation-delay: 0.3s;
+}
 
 @layer utilities {
   @keyframes slideInLeft {
@@ -85,4 +100,11 @@ body{
   .animate-slideInRight {
     animation: slideInRight 1s ease forwards;
   }
+}
+
+
+
+::selection {
+  background-color: #d20424; /* your brand color */
+  color: white; /* text color during selection */
 }
