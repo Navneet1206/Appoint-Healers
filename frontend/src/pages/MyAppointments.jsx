@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import axios from "axios";
-import { assets } from "../assets/assets";
 import ReviewModal from "../components/ReviewModal"; // New ReviewModal component
 
 const MyAppointments = () => {

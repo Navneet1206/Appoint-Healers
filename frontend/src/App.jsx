@@ -21,7 +21,6 @@ const Verify = lazy(() => import('./pages/Verify'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const JoinProfessional = lazy(() => import('./pages/JoinProfessional'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const CompleteProfile = lazy(() => import('./pages/CompleteProfile'));
 const App = () => {
   return (
     <>
@@ -38,7 +37,6 @@ const App = () => {
               <Route path="/professional/:speciality" element={<Doctors />} />
               <Route path="/mental-health-test" element={<Test />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/complete-profile" element={<CompleteProfile />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/appointment/:docId" element={<Appointment />} />
