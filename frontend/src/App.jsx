@@ -25,7 +25,6 @@ const App = () => {
   return (
     <>
       <div className="mb-20">
-        <ToastContainer />
         <Navbar />
         <ScrollToTop />
 

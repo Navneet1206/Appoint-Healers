@@ -83,6 +83,53 @@ const CustomLoader = () => (
   </div>
 );
 
+// InputField Component (Moved outside Login)
+const InputField = ({ icon: Icon, type, value, onChange, placeholder, required, label }) => (
+  <div className="relative group">
+    <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Icon className="h-5 w-5 text-gray-400 group-focus-within:text-[#D20424] transition-colors" />
+      </div>
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#D20424] focus:border-[#D20424] transition-all duration-200 bg-gray-50 focus:bg-white"
+      />
+    </div>
+  </div>
+);
+
+// PasswordField Component (Moved outside Login)
+const PasswordField = ({ value, onChange, placeholder, label, showPassword, toggleShow }) => (
+  <div className="relative group">
+    <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-[#D20424] transition-colors" />
+      </div>
+      <input
+        type={showPassword ? 'text' : 'password'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required
+        className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#D20424] focus:border-[#D20424] transition-all duration-200 bg-gray-50 focus:bg-white"
+      />
+      <button
+        type="button"
+        onClick={toggleShow}
+        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-[#D20424] transition-colors"
+      >
+        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+      </button>
+    </div>
+  </div>
+);
+
 const Login = () => {
   const [mode, setMode] = useState('Login');
   const [name, setName] = useState('');
@@ -91,8 +138,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [code, setCode] = useState('');
-  const [dob, setDob] = useState('');     
-  const [gender, setGender] = useState(''); 
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('');
   const [userId, setUserId] = useState(null);
 
   const [verifying, setVerifying] = useState(false);
@@ -121,11 +168,19 @@ const Login = () => {
   };
 
   const reset = () => {
-    setName(''); setEmail(''); setPhone('');
-    setPassword(''); setConfirmPwd(''); setCode('');
-    setDob(''); setGender('');
-    setUserId(null); setVerifying(false);
-    setTerms(false); setShowPwd(false); setShowConfirm(false);
+    setName('');
+    setEmail('');
+    setPhone('');
+    setPassword('');
+    setConfirmPwd('');
+    setCode('');
+    setDob('');
+    setGender('');
+    setUserId(null);
+    setVerifying(false);
+    setTerms(false);
+    setShowPwd(false);
+    setShowConfirm(false);
   };
 
   const switchMode = (newMode) => {
@@ -229,51 +284,6 @@ const Login = () => {
     }
   };
 
-  const InputField = ({ icon: Icon, type, value, onChange, placeholder, required, label }) => (
-    <div className="relative group">
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Icon className="h-5 w-5 text-gray-400 group-focus-within:text-[#D20424] transition-colors" />
-        </div>
-        <input
-          type={type}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          required={required}
-          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#D20424] focus:border-[#D20424] transition-all duration-200 bg-gray-50 focus:bg-white"
-        />
-      </div>
-    </div>
-  );
-
-  const PasswordField = ({ value, onChange, placeholder, label, showPassword, toggleShow }) => (
-    <div className="relative group">
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-[#D20424] transition-colors" />
-        </div>
-        <input
-          type={showPassword ? 'text' : 'password'}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          required
-          className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#D20424] focus:border-[#D20424] transition-all duration-200 bg-gray-50 focus:bg-white"
-        />
-        <button
-          type="button"
-          onClick={toggleShow}
-          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-[#D20424] transition-colors"
-        >
-          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center p-4">
       <CustomPopup
@@ -283,10 +293,10 @@ const Login = () => {
         title={popup.title}
         message={popup.message}
       />
-      
+
       <div className="w-full max-w-6xl flex bg-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Left Side - Image/Branding */}
-        <motion.div 
+        <motion.div
           className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#D20424] to-[#B91C5C] p-12 flex-col justify-center items-center text-white relative overflow-hidden"
           initial={{ x: -100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -297,7 +307,7 @@ const Login = () => {
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+              transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
               className="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-8 mx-auto backdrop-blur-sm"
             >
               <Shield className="w-16 h-16 text-white" />
@@ -331,7 +341,7 @@ const Login = () => {
         </motion.div>
 
         {/* Right Side - Form */}
-        <motion.div 
+        <motion.div
           className="w-full lg:w-1/2 p-8 lg:p-12"
           initial={{ x: 100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}

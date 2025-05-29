@@ -4,20 +4,126 @@ import {
   ChevronDownIcon,
   MenuIcon,
   XIcon,
-  UserIcon
+  UserIcon,
+  CheckCircle,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { AppContext } from '../context/AppContext';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Custom Popup Component (Copied from Login)
+const CustomPopup = ({ isOpen, onClose, type, title, message }) => {
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="w-12 h-12 text-green-500" />;
+      case 'error':
+        return <XCircle className="w-12 h-12 text-red-500" />;
+      case 'info':
+        return <AlertCircle className="w-12 h-12 text-blue-500" />;
+      default:
+        return <AlertCircle className="w-12 h-12 text-gray-500" />;
+    }
+  };
+
+  const getBgColor = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-50 border-green-200';
+      case 'error':
+        return 'bg-red-50 border-red-200';
+      case 'info':
+        return 'bg-blue-50 border-blue-200';
+      default:
+        return 'bg-gray-50 border-gray-200';
+    }
+  };
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, onClose]);
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            onClick={onClose}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className={`bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border-2 ${getBgColor()}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center">
+                <div className="flex justify-center mb-4">{getIcon()}</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{title}</h3>
+                <p className="text-gray-600 mb-6">{message}</p>
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
 
 const Navbar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openNested, setOpenNested] = useState({});
+  const [popup, setPopup] = useState({
+    isOpen: false,
+    type: '',
+    title: '',
+    message: ''
+  });
   const { token, logout } = useContext(AppContext);
 
   const toggleNested = (key) =>
     setOpenNested((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  const showPopup = (type, title, message) => {
+    setPopup({ isOpen: true, type, title, message });
+  };
+
+  const closePopup = () => {
+    setPopup({ isOpen: false, type: '', title: '', message: '' });
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsMobileOpen(false);
+    showPopup('success', 'Logged Out', 'You have been successfully logged out.');
+  };
+
   return (
     <>
+      <CustomPopup
+        isOpen={popup.isOpen}
+        onClose={closePopup}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+      />
+
       {/* top bar */}
       <nav className="fixed top-0 left-0 w-full z-30 bg-white shadow-md font-sans">
         <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
@@ -27,7 +133,7 @@ const Navbar = () => {
               `text-2xl font-bold text-rose-600 ${isActive ? '' : ''}`
             }
           >
-            Savayas
+            SavayasHeal
           </NavLink>
 
           {/* desktop menu (visible on lg and up) */}
@@ -42,7 +148,11 @@ const Navbar = () => {
                   }`
                 }
               >
-                About Us <ChevronDownIcon size={12} className="ml-1 transition-transform duration-200 group-hover:rotate-180" />
+                About Us{' '}
+                <ChevronDownIcon
+                  size={12}
+                  className="ml-1 transition-transform duration-200 group-hover:rotate-180"
+                />
               </NavLink>
               <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 scale-95 translate-y-[-10px] pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 ease-in-out">
                 <NavLink
@@ -88,7 +198,11 @@ const Navbar = () => {
                   }`
                 }
               >
-                Services <ChevronDownIcon size={12} className="ml-1 transition-transform duration-200 group-hover:rotate-180" />
+                Services{' '}
+                <ChevronDownIcon
+                  size={12}
+                  className="ml-1 transition-transform duration-200 group-hover:rotate-180"
+                />
               </NavLink>
               <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 scale-95 translate-y-[-10px] pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 ease-in-out">
                 <NavLink
@@ -140,7 +254,11 @@ const Navbar = () => {
                   }`
                 }
               >
-                Events <ChevronDownIcon size={12} className="ml-1 transition-transform duration-200 group-hover:rotate-180" />
+                Events{' '}
+                <ChevronDownIcon
+                  size={12}
+                  className="ml-1 transition-transform duration-200 group-hover:rotate-180"
+                />
               </NavLink>
               <div className="absolute top-full left-0 w-48 bg-white shadow-md opacity-0 scale-95 translate-y-[-10px] pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 ease-in-out">
                 <NavLink
@@ -199,7 +317,7 @@ const Navbar = () => {
                       My Appointments
                     </NavLink>
                     <button
-                      onClick={logout}
+                      onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm hover:bg-rose-50 text-rose-600 font-sans"
                     >
                       Log Out
@@ -228,14 +346,22 @@ const Navbar = () => {
       </nav>
 
       {/* mobile drawer */}
-      <div className={`fixed inset-0 z-40 flex lg:hidden transition-opacity duration-300 ${isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+      <div
+        className={`fixed inset-0 z-40 flex lg:hidden transition-opacity duration-300 ${
+          isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
         {/* backdrop */}
         <div
           className="fixed inset-0 bg-black/50"
           onClick={() => setIsMobileOpen(false)}
         />
         {/* panel */}
-        <div className={`relative ml-auto w-64 h-full bg-white shadow-xl overflow-y-auto transition-transform duration-300 ease-in-out transform ${isMobileOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div
+          className={`relative ml-auto w-64 h-full bg-white shadow-xl overflow-y-auto transition-transform duration-300 ease-in-out transform ${
+            isMobileOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
           <div className="p-4 flex justify-end">
             <button onClick={() => setIsMobileOpen(false)}>
               <XIcon className="w-6 h-6 text-rose-600 transition-transform duration-200 hover:scale-110" />
@@ -247,9 +373,17 @@ const Navbar = () => {
               onClick={() => toggleNested('about')}
               className="w-full flex justify-between items-center font-medium text-black hover:text-rose-600 font-sans"
             >
-              About Us <ChevronDownIcon size={20} className={`transition-transform duration-200 ${openNested.about ? 'rotate-180' : ''}`} />
+              About Us{' '}
+              <ChevronDownIcon
+                size={20}
+                className={`transition-transform duration-200 ${openNested.about ? 'rotate-180' : ''}`}
+              />
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openNested.about ? 'max-h-96' : 'max-h-0'}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                openNested.about ? 'max-h-96' : 'max-h-0'
+              }`}
+            >
               <div className="pl-4 space-y-2">
                 <NavLink
                   to="/about#about-savayas"
@@ -294,9 +428,17 @@ const Navbar = () => {
               onClick={() => toggleNested('services')}
               className="w-full flex justify-between items-center font-medium text-black hover:text-rose-600 font-sans"
             >
-              Services <ChevronDownIcon size={20} className={`transition-transform duration-200 ${openNested.services ? 'rotate-180' : ''}`} />
+              Services{' '}
+              <ChevronDownIcon
+                size={20}
+                className={`transition-transform duration-200 ${openNested.services ? 'rotate-180' : ''}`}
+              />
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openNested.services ? 'max-h-96' : 'max-h-0'}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                openNested.services ? 'max-h-96' : 'max-h-0'
+              }`}
+            >
               <div className="pl-4 space-y-2">
                 <NavLink
                   to="/professional/Psychiatrist"
@@ -348,9 +490,17 @@ const Navbar = () => {
               onClick={() => toggleNested('events')}
               className="w-full flex justify-between items-center font-medium text-black hover:text-rose-600 font-sans"
             >
-              Events <ChevronDownIcon size={20} className={`transition-transform duration-200 ${openNested.events ? 'rotate-180' : ''}`} />
+              Events{' '}
+              <ChevronDownIcon
+                size={20}
+                className={`transition-transform duration-200 ${openNested.events ? 'rotate-180' : ''}`}
+              />
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openNested.events ? 'max-h-96' : 'max-h-0'}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                openNested.events ? 'max-h-96' : 'max-h-0'
+              }`}
+            >
               <div className="pl-4 space-y-2">
                 <NavLink
                   to="/events#ongoing-upcoming"
@@ -392,9 +542,17 @@ const Navbar = () => {
                   onClick={() => toggleNested('profile')}
                   className="w-full flex justify-between items-center font-medium text-black hover:text-rose-600 font-sans"
                 >
-                  Profile <ChevronDownIcon size={20} className={`transition-transform duration-200 ${openNested.profile ? 'rotate-180' : ''}`} />
+                  Profile{' '}
+                  <ChevronDownIcon
+                    size={20}
+                    className={`transition-transform duration-200 ${openNested.profile ? 'rotate-180' : ''}`}
+                  />
                 </button>
-                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openNested.profile ? 'max-h-96' : 'max-h-0'}`}>
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    openNested.profile ? 'max-h-96' : 'max-h-0'
+                  }`}
+                >
                   <div className="pl-4 space-y-2">
                     <NavLink
                       to="/my-profile"
@@ -411,10 +569,7 @@ const Navbar = () => {
                       My Appointments
                     </NavLink>
                     <button
-                      onClick={() => {
-                        logout();
-                        setIsMobileOpen(false);
-                      }}
+                      onClick={handleLogout}
                       className="block text-sm hover:text-rose-600 text-rose-600 font-sans"
                     >
                       Log Out

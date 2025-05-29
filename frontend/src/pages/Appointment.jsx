@@ -1,10 +1,105 @@
 import { useContext, useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
-import { assets } from '../assets/assets';
 import RelatedDoctors from '../components/RelatedDoctors';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+
+// Full Screen Loader Component
+const FullScreenLoader = ({ isOpen }) => {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center"
+        >
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-t-sky-500 border-gray-300 rounded-full animate-spin"></div>
+            <p className="mt-4 text-white text-lg font-medium">Processing Payment...</p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+// Custom Popup Component
+const CustomPopup = ({ isOpen, onClose, type, title, message }) => {
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="w-12 h-12 text-green-500" />;
+      case 'error':
+        return <XCircle className="w-12 h-12 text-red-500" />;
+      case 'info':
+        return <AlertCircle className="w-12 h-12 text-blue-500" />;
+      default:
+        return <AlertCircle className="w-12 h-12 text-gray-500" />;
+    }
+  };
+
+  const getBgColor = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-50 border-green-200';
+      case 'error':
+        return 'bg-red-50 border-red-200';
+      case 'info':
+        return 'bg-blue-50 border-blue-200';
+      default:
+        return 'bg-gray-50 border-gray-200';
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, onClose]);
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            onClick={onClose}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className={`bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border-2 ${getBgColor()}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center">
+                <div className="flex justify-center mb-4">{getIcon()}</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{title}</h3>
+                <p className="text-gray-600 mb-6">{message}</p>
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
 
 // Helper Functions
 const convertToAmPm = (timeStr) => {
@@ -17,14 +112,14 @@ const convertToAmPm = (timeStr) => {
 };
 
 const getDayOfWeek = (dateStr) => {
-  const [d, m, y] = dateStr.split("_").map(Number);
+  const [d, m, y] = dateStr.split('_').map(Number);
   const dateObj = new Date(y, m - 1, d);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return daysOfWeek[dateObj.getDay()];
 };
 
 const formatDate = (dateStr) => {
-  const [d, m, y] = dateStr.split("_").map(Number);
+  const [d, m, y] = dateStr.split('_').map(Number);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${d} ${months[m - 1]}`;
 };
@@ -38,13 +133,27 @@ const Appointment = () => {
   const [docInfo, setDocInfo] = useState(null);
   const [groupedSlots, setGroupedSlots] = useState([]);
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
-  const [selectedSlotId, setSelectedSlotId] = useState("");
-  const [selectedSessionType, setSelectedSessionType] = useState("video");
+  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [selectedSessionType, setSelectedSessionType] = useState('video');
   const [isLoading, setIsLoading] = useState(false);
-  const [couponCode, setCouponCode] = useState("");
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [finalPrice, setFinalPrice] = useState(null);
   const [isCouponApplied, setIsCouponApplied] = useState(false);
+  const [popup, setPopup] = useState({ isOpen: false, type: '', title: '', message: '' });
+
+  const showPopup = (type, title, message, keepPaymentLoader = false) => {
+    setPopup({ isOpen: true, type, title, message });
+    if (!keepPaymentLoader) {
+      setIsPaymentLoading(false);
+    }
+  };
+
+  const closePopup = () => {
+    setPopup({ isOpen: false, type: '', title: '', message: '' });
+    setIsPaymentLoading(false);
+  };
 
   // Backend Functions
   const fetchDocInfo = () => {
@@ -53,49 +162,51 @@ const Appointment = () => {
       setDocInfo(doc);
       setFinalPrice(doc.fees || 0);
     } else {
-      toast.error('Doctor not found');
+      showPopup('error', 'Doctor Not Found', 'The requested doctor could not be found.');
     }
   };
 
   const processSlots = () => {
     if (!docInfo || !docInfo.slots) return;
-    const activeSlots = docInfo.slots.filter(slot => slot.status === "Active").map(slot => ({
-      ...slot,
-      sessionType: slot.sessionType || "video"
-    }));
+    const activeSlots = docInfo.slots
+      .filter((slot) => slot.status === 'Active')
+      .map((slot) => ({
+        ...slot,
+        sessionType: slot.sessionType || 'video',
+      }));
     const groups = {};
-    activeSlots.forEach(slot => {
+    activeSlots.forEach((slot) => {
       if (!groups[slot.slotDate]) groups[slot.slotDate] = [];
       groups[slot.slotDate].push(slot);
     });
     const sorted = Object.entries(groups).sort((a, b) => {
-      const [d1, m1, y1] = a[0].split("_").map(Number);
-      const [d2, m2, y2] = b[0].split("_").map(Number);
+      const [d1, m1, y1] = a[0].split('_').map(Number);
+      const [d2, m2, y2] = b[0].split('_').map(Number);
       return new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2);
     });
     setGroupedSlots(sorted);
     setSelectedGroupIndex(0);
-    setSelectedSlotId("");
+    setSelectedSlotId('');
   };
 
   const handleSlotSelect = (slot) => {
     if (!token) {
-      toast.warning('Please login to book an appointment');
+      showPopup('info', 'Login Required', 'Please login to book an appointment.');
       navigate('/login');
       return;
     }
     setSelectedSlotId(slot._id);
-    setSelectedSessionType(slot.sessionType || "video");
+    setSelectedSessionType(slot.sessionType || 'video');
   };
 
   const handleSessionTypeChange = (type) => {
     setSelectedSessionType(type);
-    setSelectedSlotId("");
+    setSelectedSlotId('');
   };
 
   const applyCoupon = async () => {
     if (!couponCode) {
-      toast.error("Please enter a coupon code");
+      showPopup('error', 'Invalid Coupon', 'Please enter a coupon code.');
       return;
     }
     try {
@@ -110,27 +221,27 @@ const Appointment = () => {
         setDiscount(discountAmount);
         setFinalPrice(docInfo.fees - discountAmount);
         setIsCouponApplied(true);
-        toast.success("Coupon applied successfully");
+        showPopup('success', 'Coupon Applied', 'Coupon applied successfully.');
       } else {
-        toast.error(data.message);
+        showPopup('error', 'Invalid Coupon', 'The coupon code is invalid or expired.');
       }
     } catch (error) {
-      toast.error("Error applying coupon");
+      showPopup('error', 'Invalid Coupon', 'The coupon code is invalid or expired.');
     }
   };
 
   const bookAppointment = async () => {
     if (!token) {
-      toast.warning('Please login to book an appointment');
+      showPopup('info', 'Login Required', 'Please login to book an appointment.');
       navigate('/login');
       return;
     }
     if (!userData) {
-      toast.error('Unable to fetch user data. Please try logging in again.');
+      showPopup('error', 'User Data Error', 'Unable to fetch user data. Please try logging in again.');
       return;
     }
     if (!selectedSlotId) {
-      toast.warning('Please select a time slot');
+      showPopup('info', 'Slot Required', 'Please select a time slot.');
       return;
     }
 
@@ -150,16 +261,17 @@ const Appointment = () => {
       if (data.success) {
         initiatePayment(data.appointmentId);
       } else {
-        toast.error(data.message);
+        showPopup('error', 'Booking Failed', data.message || 'Error booking appointment.');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error booking appointment');
+      showPopup('error', 'Booking Error', error.response?.data?.message || 'Error booking appointment.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const initiatePayment = async (appointmentId) => {
+    setIsPaymentLoading(true);
     try {
       const { data } = await axios.post(
         `${backendUrl}/api/user/payment-razorpay`,
@@ -171,8 +283,8 @@ const Appointment = () => {
           key: import.meta.env.VITE_RAZORPAY_KEY_ID,
           amount: data.order.amount,
           currency: data.order.currency,
-          name: "Appointment Payment",
-          description: "Appointment Payment",
+          name: 'Appointment Payment',
+          description: 'Appointment Payment',
           order_id: data.order.id,
           handler: async (response) => {
             try {
@@ -182,15 +294,20 @@ const Appointment = () => {
                 { headers: { token } }
               );
               if (verifyRes.data.success) {
-                toast.success("Appointment booked successfully! Payment completed.");
+                showPopup('success', 'Booking Confirmed', 'Appointment booked successfully! Payment completed.', true);
                 getDoctosData();
                 fetchDocInfo();
-                navigate("/my-appointments");
+                setTimeout(() => {
+                  if (!popup.isOpen) {
+                    setIsPaymentLoading(false);
+                    navigate('/my-appointments');
+                  }
+                }, 1500);
               } else {
-                toast.error("Payment verification failed");
+                showPopup('error', 'Payment Failed', 'Payment verification failed.', true);
               }
             } catch (error) {
-              toast.error("Error verifying payment");
+              showPopup('error', 'Payment Error', 'Error verifying payment.', true);
             }
           },
           prefill: {
@@ -198,24 +315,23 @@ const Appointment = () => {
             email: userData?.email || '',
             contact: userData?.phone || '',
           },
-          theme: { color: "#0EA5E9" },
+          theme: { color: '#0EA5E9' },
           modal: {
             ondismiss: () => {
-              toast.info("Payment cancelled by user");
+              showPopup('info', 'Payment Cancelled', 'Payment cancelled by user.', true);
             },
           },
         };
         const rzp = new window.Razorpay(options);
         rzp.open();
       } else {
-        toast.error(data.message);
+        showPopup('error', 'Payment Error', data.message || 'Error initiating payment.', true);
       }
     } catch (error) {
-      toast.error("Error initiating payment");
+      showPopup('error', 'Payment Error', 'Error initiating payment.', true);
     }
   };
 
- 
   useEffect(() => {
     if (doctors.length > 0) {
       fetchDocInfo();
@@ -230,6 +346,14 @@ const Appointment = () => {
 
   return docInfo ? (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-sky-50">
+      <FullScreenLoader isOpen={isPaymentLoading} />
+      <CustomPopup
+        isOpen={popup.isOpen}
+        onClose={closePopup}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+      />
       {/* Header Section */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-6">
@@ -280,7 +404,7 @@ const Appointment = () => {
                         {docInfo.speciality || 'Healthcare Professional'}
                       </span>
                     </div>
-                    
+
                     <h1 className="text-4xl font-bold text-gray-800 mb-3">{docInfo.name}</h1>
                     <p className="text-xl text-gray-600 mb-6">{docInfo.degree || 'Medical Professional'}</p>
 
@@ -316,8 +440,6 @@ const Appointment = () => {
                         <div className="text-sm text-gray-600">Min Session</div>
                       </div>
                     </div>
-
-                   
                   </div>
                 </div>
               </div>
@@ -387,7 +509,10 @@ const Appointment = () => {
                     <div className="flex flex-wrap gap-3">
                       {docInfo.languages?.length > 0 ? (
                         docInfo.languages.map((lang) => (
-                          <span key={lang} className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-lg font-medium">
+                          <span
+                            key={lang}
+                            className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-lg font-medium"
+                          >
                             {lang}
                           </span>
                         ))
@@ -419,10 +544,12 @@ const Appointment = () => {
                   <div className="mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
                     <div className="text-center">
                       <div className="text-3xl font-bold">
-                        {currencySymbol}{finalPrice}
+                        {currencySymbol}
+                        {finalPrice}
                         {discount > 0 && (
                           <span className="text-lg text-sky-200 line-through ml-2">
-                            {currencySymbol}{docInfo.fees}
+                            {currencySymbol}
+                            {docInfo.fees}
                           </span>
                         )}
                       </div>
@@ -437,18 +564,25 @@ const Appointment = () => {
                     <h3 className="text-lg font-semibold text-gray-800 mb-4">Choose Session Type</h3>
                     <div className="space-y-3">
                       <button
-                        onClick={() => handleSessionTypeChange("video")}
+                        onClick={() => handleSessionTypeChange('video')}
                         className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all border-2 ${
-                          selectedSessionType === "video"
+                          selectedSessionType === 'video'
                             ? 'bg-sky-50 border-sky-300 text-sky-700'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                         }`}
                       >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          selectedSessionType === "video" ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
-                        }`}>
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            selectedSessionType === 'video' ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
+                          }`}
+                        >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
                           </svg>
                         </div>
                         <div className="text-left">
@@ -458,18 +592,25 @@ const Appointment = () => {
                       </button>
 
                       <button
-                        onClick={() => handleSessionTypeChange("phone")}
+                        onClick={() => handleSessionTypeChange('phone')}
                         className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all border-2 ${
-                          selectedSessionType === "phone"
+                          selectedSessionType === 'phone'
                             ? 'bg-sky-50 border-sky-300 text-sky-700'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                         }`}
                       >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          selectedSessionType === "phone" ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
-                        }`}>
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            selectedSessionType === 'phone' ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
+                          }`}
+                        >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                            />
                           </svg>
                         </div>
                         <div className="text-left">
@@ -479,19 +620,31 @@ const Appointment = () => {
                       </button>
 
                       <button
-                        onClick={() => handleSessionTypeChange("in-person")}
+                        onClick={() => handleSessionTypeChange('in-person')}
                         className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all border-2 ${
-                          selectedSessionType === "in-person"
+                          selectedSessionType === 'in-person'
                             ? 'bg-sky-50 border-sky-300 text-sky-700'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                         }`}
                       >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          selectedSessionType === "in-person" ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
-                        }`}>
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            selectedSessionType === 'in-person' ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
+                          }`}
+                        >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
                           </svg>
                         </div>
                         <div className="text-left">
@@ -531,7 +684,7 @@ const Appointment = () => {
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">Available Times</h3>
                       <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
                         {groupedSlots[selectedGroupIndex][1]
-                          .filter(slot => !selectedSessionType || slot.sessionType === selectedSessionType)
+                          .filter((slot) => !selectedSessionType || slot.sessionType === selectedSessionType)
                           .sort((a, b) => a.slotTime.localeCompare(b.slotTime))
                           .map((slot) => (
                             <button
@@ -547,10 +700,22 @@ const Appointment = () => {
                             </button>
                           ))}
                       </div>
-                      {groupedSlots[selectedGroupIndex][1].filter(slot => !selectedSessionType || slot.sessionType === selectedSessionType).length === 0 && (
+                      {groupedSlots[selectedGroupIndex][1].filter(
+                        (slot) => !selectedSessionType || slot.sessionType === selectedSessionType
+                      ).length === 0 && (
                         <div className="text-center py-6 text-gray-500">
-                          <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <svg
+                            className="w-12 h-12 mx-auto mb-2 opacity-50"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                           <p>No slots available for {selectedSessionType} sessions on this date.</p>
                         </div>
@@ -573,9 +738,7 @@ const Appointment = () => {
                       <button
                         onClick={applyCoupon}
                         className={`px-4 py-2 rounded-xl ${
-                          isCouponApplied
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-sky-500 text-white hover:bg-sky-600'
+                          isCouponApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-sky-500 text-white hover:bg-sky-600'
                         }`}
                         disabled={isCouponApplied}
                       >
@@ -583,7 +746,10 @@ const Appointment = () => {
                       </button>
                     </div>
                     {isCouponApplied && (
-                      <p className="mt-2 text-emerald-600">Discount: {currencySymbol}{discount} applied</p>
+                      <p className="mt-2 text-emerald-600">
+                        Discount: {currencySymbol}
+                        {discount} applied
+                      </p>
                     )}
                   </div>
 
@@ -591,7 +757,7 @@ const Appointment = () => {
                   <button
                     onClick={bookAppointment}
                     className="w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white text-lg font-semibold py-4 rounded-xl hover:from-sky-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!selectedSlotId || isLoading}
+                    disabled={!selectedSlotId || isLoading || isPaymentLoading}
                   >
                     {isLoading ? 'Processing...' : `Pay ${currencySymbol}${finalPrice} Now`}
                   </button>
