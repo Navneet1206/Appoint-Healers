@@ -21,6 +21,7 @@ import CouponManagement from './pages/Admin/CouponManagement';
 import AdminReviewManagement from './pages/Admin/AdminReviewManagement'
 import DoctorReviews from './pages/Doctor/DoctorReviews'; 
 import AllTransactions from './pages/Admin/AllTransactions';
+import ScrollToTop from './components/ScrollToTop';
 const App = () => {
   const { dToken } = useContext(DoctorContext);
   const { aToken } = useContext(AdminContext);
@@ -31,6 +32,7 @@ const App = () => {
       {dToken || aToken ? (
         <>
           <Navbar />
+           <ScrollToTop /> 
           <div className='flex items-start'>
             <Sidebar />
             <Routes>

@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
+import ScrollToTop from './components/ScrollToTop';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -27,8 +28,8 @@ const App = () => {
       <div className="mb-20">
         <ToastContainer />
         <Navbar />
+        <ScrollToTop />
 
-        {/* Suspense fallback while pages load */}
         <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
           <ErrorBoundary>
             <Routes>
