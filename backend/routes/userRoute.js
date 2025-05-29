@@ -20,7 +20,9 @@ import {
   getTestById,
   validateCoupon,
   getUserTransactions,
-  respondToSlotUpdate, 
+  respondToSlotUpdate,
+  googleAuth,        // New import
+  completeProfile,   // New import
 } from "../controllers/userController.js";
 import upload from "../middleware/multer.js";
 import authUser from "../middleware/authUser.js";
@@ -30,6 +32,8 @@ const userRouter = express.Router();
 userRouter.post("/register", registerUser);
 userRouter.post("/verify", verifyUser);
 userRouter.post("/login", loginUser);
+userRouter.post("/google-auth", googleAuth); // New route
+userRouter.post("/complete-profile", authUser, completeProfile); // New route
 userRouter.post("/forgot-password", forgotPassword);
 userRouter.post("/reset-password", resetPassword);
 userRouter.post("/verify-reset-otp", verifyResetOtp);
@@ -47,6 +51,6 @@ userRouter.get("/tests", getTests);
 userRouter.get("/tests/:testId", getTestById);
 userRouter.post("/validate-coupon", authUser, validateCoupon);
 userRouter.get("/transactions", authUser, getUserTransactions);
-userRouter.post("/respond-to-slot-update", authUser, respondToSlotUpdate); // New route
+userRouter.post("/respond-to-slot-update", authUser, respondToSlotUpdate);
 
 export default userRouter;

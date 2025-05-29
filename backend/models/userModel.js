@@ -12,9 +12,10 @@ const userSchema = new mongoose.Schema({
   address: { type: Object, default: { line1: "", line2: "" } },
   gender: { type: String, required: true },
   dob: { type: String, required: true },
-  password: { type: String, required: true },
+  password: { type: String }, // Changed to optional
   isMobileVerified: { type: Boolean, default: true },
   isEmailVerified: { type: Boolean, default: false },
+  googleId: { type: String } // Added for Google OAuth
 });
 
 const userModel = mongoose.models.user || mongoose.model("user", userSchema);
