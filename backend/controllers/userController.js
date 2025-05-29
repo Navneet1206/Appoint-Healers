@@ -13,6 +13,7 @@ import UserTestResult from "../models/userTestResultModel.js";
 import reviewModel from "../models/reviewModel.js";
 import Coupon from "../models/couponModel.js";
 import transactionModel from "../models/transactionModel.js";
+import { refundUser } from "../utils/refund.js";
 
 dotenv.config();
 
@@ -33,7 +34,7 @@ const verificationCodes = new Map();
 const resetOtps = new Map();
 const otpVerified = new Map();
 
-// Register a new user
+// Register a new user (unchanged)
 const registerUser = async (req, res) => {
   try {
     const { name, email, password, phone, dob, gender } = req.body;
@@ -128,7 +129,7 @@ const registerUser = async (req, res) => {
   }
 };
 
-// Verify user registration
+// Verify user registration (unchanged)
 const verifyUser = async (req, res) => {
   try {
     const { userId, emailCode } = req.body;
@@ -157,7 +158,7 @@ const verifyUser = async (req, res) => {
   }
 };
 
-// User login
+// User login (unchanged)
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -187,7 +188,7 @@ const loginUser = async (req, res) => {
   }
 };
 
-// Forgot password
+// Forgot password (unchanged)
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -218,7 +219,7 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// Reset password
+// Reset password (unchanged)
 const resetPassword = async (req, res) => {
   try {
     const { userId, newPassword } = req.body;
@@ -245,7 +246,7 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// Verify reset OTP
+// Verify reset OTP (unchanged)
 const verifyResetOtp = async (req, res) => {
   try {
     const { userId, otp } = req.body;
@@ -264,7 +265,7 @@ const verifyResetOtp = async (req, res) => {
   }
 };
 
-// Get user profile
+// Get user profile (unchanged)
 const getProfile = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -281,7 +282,7 @@ const getProfile = async (req, res) => {
   }
 };
 
-// Update user profile
+// Update user profile (unchanged)
 const updateProfile = async (req, res) => {
   try {
     const { userId, name, phone, address, dob, gender } = req.body;
@@ -321,7 +322,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// Book an appointment (updated: removed Zoom automation)
+// Book an appointment (unchanged)
 const bookAppointment = async (req, res) => {
   try {
     const { userId, docId, slotId, sessionType, couponCode } = req.body;
@@ -371,7 +372,6 @@ const bookAppointment = async (req, res) => {
     const newAppointment = new appointmentModel(appointmentData);
     await newAppointment.save();
 
-    // Send emails for cash payments (no meeting link included)
     if (sessionType === "cash") {
       const userMailOptions = {
         from: process.env.NODEMAILER_EMAIL,
@@ -435,143 +435,141 @@ const bookAppointment = async (req, res) => {
   }
 };
 
-// Cancel an appointment
+// Cancel an appointment (updated)
 const cancelAppointment = async (req, res) => {
   try {
     const { userId, appointmentId } = req.body;
-    const appointmentData = await appointmentModel.findById(appointmentId);
+    const appointment = await appointmentModel.findById(appointmentId);
 
-    if (!appointmentData || appointmentData.userId.toString() !== userId) {
+    if (!appointment || appointment.userId.toString() !== userId) {
       return res.json({ success: false, message: "Unauthorized action" });
     }
 
-    await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
-
-    const { docId, slotDate, slotTime } = appointmentData;
-    const doctorData = await doctorModel.findById(docId);
-
-    const slot = doctorData.slots.id(appointmentData.slotId);
-    if (slot) {
-      slot.status = "Active";
-      await doctorData.save();
+    if (appointment.cancelled) {
+      return res.json({ success: false, message: "Appointment already cancelled" });
     }
 
-    if (!doctorData.slots_booked) doctorData.slots_booked = {};
-    if (!doctorData.slots_booked[slotDate]) doctorData.slots_booked[slotDate] = [];
+    appointment.cancelled = true;
+    appointment.cancelledBy = "user";
+    await appointment.save();
 
-    doctorData.slots_booked[slotDate] = doctorData.slots_booked[slotDate].filter(
-      (e) => e !== slotTime
-    );
-    await doctorModel.findByIdAndUpdate(docId, { slots_booked: doctorData.slots_booked });
+    const doctor = await doctorModel.findById(appointment.docId);
+    const slot = doctor.slots.id(appointment.slotId);
+    if (slot) {
+      slot.status = "Active"; // Immediately set slot to Active
+      await doctor.save();
+    }
 
-    const sendCancellationNotificationEmail = async () => {
-      const userData = await userModel.findById(userId).select("-password");
-      const doctor = await doctorModel.findById(docId);
+    const userData = await userModel.findById(userId).select("-password");
+    const doctorData = await doctorModel.findById(appointment.docId);
 
-      const userMailOptions = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: userData.email,
-        subject: "Appointment Cancellation",
-        html: generateEmailTemplate(
-          "Appointment Cancellation",
-          `Dear ${userData.name},<br><br>
-            Your appointment with ${doctor.name} scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
-            ${
-              appointmentData.payment
-                ? "Our team will discuss your refund within 3-7 business days."
-                : "No further action is required."
-            }`
-        ),
-      };
-
-      const doctorMailOptions = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: doctor.email,
-        subject: "Appointment Cancellation",
-        html: generateEmailTemplate(
-          "Appointment Cancellation",
-          `Dear ${doctor.name},<br><br>
-            The appointment with ${userData.name} scheduled for ${slotDate} at ${slotTime} has been cancelled.<br><br>
-            ${
-              appointmentData.payment
-                ? "Our team will discuss the refund process with the user within 3-7 business days."
-                : "No further action is required."
-            }`
-        ),
-      };
-
-      const adminMailOptions = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: process.env.NODEMAILER_EMAIL,
-        subject: "Appointment Cancellation Notification",
-        html: generateEmailTemplate(
-          "Appointment Cancellation Notification",
-          `An appointment has been cancelled:<br><br>
-            User: ${userData.name}<br>
-            Doctor: ${doctor.name}<br>
-            Date & Time: ${slotDate} at ${slotTime}<br><br>
-            ${
-              appointmentData.payment
-                ? "Payment: Online - Refund discussion pending"
-                : "Payment: Cash - No refund required"
-            }`
-        ),
-      };
-
-      await Promise.all([
-        transporter.sendMail(userMailOptions),
-        transporter.sendMail(doctorMailOptions),
-        transporter.sendMail(adminMailOptions),
-      ]);
+    const userMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: userData.email,
+      subject: "Appointment Cancellation Confirmation",
+      html: `
+        <p>Dear ${userData.name},</p>
+        <p>Your appointment with Dr. ${doctorData.name} on ${appointment.slotDate} at ${appointment.slotTime} has been cancelled.</p>
+        <p>No refund is issued as per our policy for user cancellations.</p>
+        <p>Best regards,<br>Savayas Heal Team</p>
+      `,
     };
 
-    await sendCancellationNotificationEmail();
+    const doctorMailOptions = {
+      from: process.env.NODEMAILER_EMAIL,
+      to: doctorData.email,
+      subject: "Appointment Cancelled by User",
+      html: `
+        <p>Dear Dr. ${doctorData.name},</p>
+        <p>The appointment with ${userData.name} on ${appointment.slotDate} at ${appointment.slotTime} has been cancelled by the user.</p>
+        <p>The slot is now active again in your schedule.</p>
+        <p>Best regards,<br>Savayas Heal Team</p>
+      `,
+    };
 
-    res.json({ success: true, message: "Appointment Cancelled" });
+    await Promise.all([
+      transporter.sendMail(userMailOptions),
+      transporter.sendMail(doctorMailOptions),
+    ]);
+
+    res.json({ success: true, message: "Appointment cancelled successfully" });
   } catch (error) {
     console.error("Cancel Appointment Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// Generate email template
-function generateEmailTemplate(title, body) {
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Savayas Heal</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #fff5f7;">
-        <div style="max-width: 600px; margin: 30px auto; border: 1px solid #ffe0e6; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-            <div style="background-color: #ff5e8e; padding: 20px; text-align: center;">
-                <h1 style="margin: 0; color: #ffffff; font-size: 28px;">SAVAYAS HEALS</h1>
-            </div>
-            <div style="padding: 30px; color: #333;">
-                <h2 style="color: #ff5e8e; margin-top: 0; font-size: 24px;">${title}</h2>
-                <p style="font-size: 16px; line-height: 1.5;">${body}</p>
-                <div style="background-color: #ffe0e6; padding: 15px; border-radius: 5px; margin: 20px 0; color: #ff5e8e; font-style: italic;">
-                    "${body}"
-                </div>
-                <p style="font-size: 16px; line-height: 1.5;">
-                    If you have any urgent queries, please call us at <strong>(91) 8468938745</strong>.
-                </p>
-                <p style="font-size: 16px; line-height: 1.5; margin: 30px 0 0;">
-                    Best Regards,<br />SAVAYAS HEALS Team
-                </p>
-            </div>
-            <div style="background-color: #ff5e8e; padding: 10px; text-align: center;">
-                <p style="color: #ffffff; margin: 0; font-size: 12px;">© ${new Date().getFullYear()} SAVAYAS HEALS. All rights reserved.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-  `;
-}
+// Respond to slot update (new)
+const respondToSlotUpdate = async (req, res) => {
+  try {
+    const { userId, appointmentId, consent } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
 
-// List user appointments
+    if (!appointment || appointment.userId.toString() !== userId || !appointment.awaitingUserConsent) {
+      return res.json({ success: false, message: "Invalid request or no pending update" });
+    }
+
+    if (consent) {
+      appointment.userConsent = true;
+      appointment.awaitingUserConsent = false;
+      const doctor = await doctorModel.findById(appointment.docId);
+      const slot = doctor.slots.id(appointment.slotId);
+      if (slot) {
+        slot.status = "Booked";
+        await doctor.save();
+      }
+    } else {
+      appointment.userConsent = false;
+      appointment.awaitingUserConsent = false;
+      appointment.cancelled = true;
+      appointment.cancelledBy = "doctor";
+      if (appointment.payment) {
+        await refundUser(userId, appointment.discountedAmount || appointment.originalAmount, appointmentId);
+        appointment.refundIssued = true;
+      }
+      const doctor = await doctorModel.findById(appointment.docId);
+      const slot = doctor.slots.id(appointment.slotId);
+      if (slot) {
+        slot.status = "Active";
+        await doctor.save();
+      }
+    }
+
+    await appointment.save();
+
+    const userData = await userModel.findById(userId).select("-password");
+    const doctorData = await doctorModel.findById(appointment.docId);
+
+    const userMessage = consent
+      ? `Your new appointment slot on ${appointment.slotDate} at ${appointment.slotTime} has been confirmed.`
+      : `The appointment update was rejected, and it has been cancelled. ${appointment.payment ? "A refund has been issued." : ""}`;
+    const doctorMessage = consent
+      ? `${userData.name} has accepted the new slot on ${appointment.slotDate} at ${appointment.slotTime}.`
+      : `${userData.name} has rejected the new slot, and the appointment has been cancelled. The slot is now active.`;
+
+    await Promise.all([
+      transporter.sendMail({
+        from: process.env.NODEMAILER_EMAIL,
+        to: userData.email,
+        subject: consent ? "Slot Update Accepted" : "Slot Update Rejected",
+        html: `<p>Dear ${userData.name},</p><p>${userMessage}</p><p>Best regards,<br>Savayas Heal Team</p>`,
+      }),
+      transporter.sendMail({
+        from: process.env.NODEMAILER_EMAIL,
+        to: doctorData.email,
+        subject: consent ? "Slot Update Accepted by User" : "Slot Update Rejected by User",
+        html: `<p>Dear Dr. ${doctorData.name},</p><p>${doctorMessage}</p><p>Best regards,<br>Savayas Heal Team</p>`,
+      }),
+    ]);
+
+    res.json({ success: true, message: "Response recorded successfully" });
+  } catch (error) {
+    console.error("Respond To Slot Update Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// List user appointments (unchanged)
 const listAppointment = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -598,7 +596,7 @@ const listAppointment = async (req, res) => {
   }
 };
 
-// Initiate Razorpay payment
+// Initiate Razorpay payment (unchanged)
 const paymentRazorpay = async (req, res) => {
   try {
     const { appointmentId } = req.body;
@@ -647,7 +645,7 @@ const paymentRazorpay = async (req, res) => {
   }
 };
 
-// Verify Razorpay payment (updated: no meeting link sent here)
+// Verify Razorpay payment (unchanged)
 const verifyRazorpay = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
@@ -745,7 +743,7 @@ const verifyRazorpay = async (req, res) => {
   }
 };
 
-// Submit a test
+// Submit a test (unchanged)
 const submitTest = async (req, res) => {
   try {
     const { name, email, mobile, testId, answers } = req.body;
@@ -813,7 +811,7 @@ const submitTest = async (req, res) => {
   }
 };
 
-// Add a review
+// Add a review (unchanged)
 const addReview = async (req, res) => {
   try {
     const { userId, doctorId, appointmentId, rating, comment } = req.body;
@@ -861,7 +859,7 @@ const addReview = async (req, res) => {
   }
 };
 
-// Get doctor reviews
+// Get doctor reviews (unchanged)
 const getDoctorReviews = async (req, res) => {
   try {
     const { doctorId } = req.params;
@@ -877,7 +875,7 @@ const getDoctorReviews = async (req, res) => {
   }
 };
 
-// Get all tests
+// Get all tests (unchanged)
 const getTests = async (req, res) => {
   try {
     const tests = await Test.find({});
@@ -888,7 +886,7 @@ const getTests = async (req, res) => {
   }
 };
 
-// Get test by ID
+// Get test by ID (unchanged)
 const getTestById = async (req, res) => {
   try {
     const { testId } = req.params;
@@ -905,7 +903,7 @@ const getTestById = async (req, res) => {
   }
 };
 
-// Validate a coupon
+// Validate a coupon (unchanged)
 const validateCoupon = async (req, res) => {
   try {
     const { code } = req.body;
@@ -931,7 +929,7 @@ const validateCoupon = async (req, res) => {
   }
 };
 
-// Get user transactions
+// Get user transactions (unchanged)
 const getUserTransactions = async (req, res) => {
   try {
     const userId = req.body.userId;
@@ -980,4 +978,5 @@ export {
   getTestById,
   validateCoupon,
   getUserTransactions,
+  respondToSlotUpdate,
 };

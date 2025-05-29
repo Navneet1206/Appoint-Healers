@@ -18,7 +18,7 @@ const transactionSchema = new mongoose.Schema({
   },
   amount: {
     type: Number,
-    required: true,
+    required: true, // Can be negative for refunds
   },
   status: {
     type: String,
@@ -27,7 +27,7 @@ const transactionSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ["credit_card", "debit_card", "paypal", "wallet", "razorpay"],
+    enum: ["credit_card", "debit_card", "paypal", "wallet", "razorpay", "refund", "razorpay_payout"],
     required: true,
   },
   transactionId: {
@@ -38,9 +38,12 @@ const transactionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  type: { type: String, enum: ["payment", "payout"], required: true },
+  type: {
+    type: String,
+    enum: ["payment", "refund", "payout"],
+    required: true,
+  },
 });
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
-
 export default Transaction;

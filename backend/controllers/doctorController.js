@@ -10,6 +10,7 @@ import validator from "validator";
 import professionalRequestModel from "../models/professionalRequestModel.js";
 import reviewModel from "../models/reviewModel.js";
 import transactionModel from "../models/transactionModel.js";
+import { refundUser } from "../utils/refund.js";
 
 dotenv.config();
 
@@ -263,31 +264,121 @@ const appointmentsDoctor = async (req, res) => {
   }
 };
 
-// Cancel an appointment (doctor)
+// Cancel an appointment
 const appointmentCancel = async (req, res) => {
   try {
     const { docId, appointmentId } = req.body;
-    const appointmentData = await appointmentModel.findById(appointmentId);
+    const appointment = await appointmentModel.findById(appointmentId);
 
-    if (!appointmentData || appointmentData.docId.toString() !== docId) {
-      return res.json({
-        success: false,
-        message: "Unauthorized or invalid appointment",
-      });
+    if (!appointment || appointment.docId.toString() !== docId) {
+      return res.json({ success: false, message: "Unauthorized or invalid appointment" });
     }
 
-    await appointmentModel.findByIdAndUpdate(appointmentId, {
-      cancelled: true,
+    if (appointment.cancelled) {
+      return res.json({ success: false, message: "Appointment already cancelled" });
+    }
+
+    appointment.cancelled = true;
+    appointment.cancelledBy = "doctor";
+    let refundMessage = "";
+    if (appointment.payment) {
+      try {
+        await refundUser(appointment.userId, appointment.discountedAmount || appointment.originalAmount, appointmentId);
+        appointment.refundIssued = true;
+        refundMessage = " A refund has been issued to your account.";
+      } catch (refundError) {
+        console.error("Refund failed:", refundError.message);
+        refundMessage = " Refund could not be processed at this time. Our team has been notified.";
+        // Proceed with cancellation even if refund fails
+      }
+    }
+    await appointment.save();
+
+    const doctor = await doctorModel.findById(docId);
+    const slot = doctor.slots.id(appointment.slotId);
+    if (slot) {
+      slot.status = "Active";
+      await doctor.save();
+    }
+
+    const userData = await userModel.findById(appointment.userId).select("-password");
+    await transporter.sendMail({
+      from: process.env.NODEMAILER_EMAIL,
+      to: userData.email,
+      subject: "Appointment Cancelled by Doctor",
+      html: `
+        <p>Dear ${userData.name},</p>
+        <p>Your appointment with Dr. ${doctor.name} on ${appointment.slotDate} at ${appointment.slotTime} has been cancelled by the doctor.</p>
+        <p>${refundMessage}</p>
+        <p>Best regards,<br>Savayas Heal Team</p>
+      `,
     });
 
-    res.json({ success: true, message: "Appointment Cancelled" });
+    res.json({ success: true, message: `Appointment cancelled successfully.${refundMessage}` });
   } catch (error) {
-    console.log(error);
+    console.error("Appointment Cancel Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// Complete an appointment (doctor)
+// Update appointment slot
+const updateAppointmentSlot = async (req, res) => {
+  try {
+    const { docId, appointmentId, newSlotId } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
+
+    if (!appointment || appointment.docId.toString() !== docId) {
+      return res.json({ success: false, message: "Unauthorized or invalid appointment" });
+    }
+
+    if (appointment.cancelled || appointment.isCompleted) {
+      return res.json({ success: false, message: "Cannot update cancelled or completed appointment" });
+    }
+
+    const doctor = await doctorModel.findById(docId);
+    const newSlot = doctor.slots.id(newSlotId);
+
+    if (!newSlot || newSlot.status !== "Active") {
+      return res.json({ success: false, message: "New slot not available" });
+    }
+
+    const oldSlotId = appointment.slotId;
+    appointment.slotId = newSlotId;
+    appointment.slotDate = newSlot.slotDate;
+    appointment.slotTime = newSlot.slotTime;
+    appointment.updatedByDoctor = true;
+    appointment.awaitingUserConsent = true;
+    appointment.userConsent = null;
+    await appointment.save();
+
+    const oldSlot = doctor.slots.id(oldSlotId);
+    if (oldSlot) {
+      oldSlot.status = "Active";
+    }
+    newSlot.status = "Pending";
+    await doctor.save();
+
+    const userData = await userModel.findById(appointment.userId).select("-password");
+    await transporter.sendMail({
+      from: process.env.NODEMAILER_EMAIL,
+      to: userData.email,
+      subject: "Appointment Slot Update Request",
+      html: `
+        <p>Dear ${userData.name},</p>
+        <p>Dr. ${doctor.name} has requested to update your appointment slot from ${appointment.slotDate} at ${appointment.slotTime} to ${newSlot.slotDate} at ${newSlot.slotTime}.</p>
+        <p>Please respond to accept or reject this change.</p>
+        <p>Best regards,<br>Savayas Heal Team</p>
+      `,
+    });
+
+    res.json({ success: true, message: "Slot updated, awaiting user consent" });
+  } catch (error) {
+    console.error("Update Appointment Slot Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Complete an appointment
 const appointmentComplete = async (req, res) => {
   try {
     const { docId, appointmentId } = req.body;
@@ -410,7 +501,7 @@ const doctorDashboard = async (req, res) => {
     let earnings = 0;
     appointments.forEach((item) => {
       if (item.isCompleted || item.payment) {
-        earnings += item.originalAmount || item.amount; // Adjust based on your schema
+        earnings += item.originalAmount || item.amount;
       }
     });
 
@@ -651,15 +742,15 @@ const getOwnReviews = async (req, res) => {
 // Get doctor transactions
 const getDoctorTransactions = async (req, res) => {
   try {
-    const doctorId = req.body.docId; // Set by authDoctor middleware
+    const doctorId = req.body.docId;
     const transactions = await transactionModel
-      .find({ doctorId }) // Filter by doctorId
-      .populate("userId", "name email") // Populate user details
+      .find({ doctorId })
+      .populate("userId", "name email")
       .populate(
         "appointmentId",
         "slotDate slotTime couponCode originalAmount discountedAmount"
-      ) // Populate appointment details
-      .sort({ timestamp: -1 }); // Sort by timestamp, newest first
+      )
+      .sort({ timestamp: -1 });
 
     if (!transactions || transactions.length === 0) {
       return res.json({
@@ -679,6 +770,7 @@ const getDoctorTransactions = async (req, res) => {
   }
 };
 
+// Update payment details
 const updatePaymentDetails = async (req, res) => {
   try {
     const { docId, paymentDetails } = req.body;
@@ -716,4 +808,5 @@ export {
   getOwnReviews,
   getDoctorTransactions,
   updatePaymentDetails,
+  updateAppointmentSlot,
 };

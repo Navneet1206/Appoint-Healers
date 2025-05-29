@@ -19,6 +19,7 @@ import {
   getOwnReviews,
   getDoctorTransactions,
   updatePaymentDetails,
+  updateAppointmentSlot, // New import
 } from "../controllers/doctorController.js";
 import authDoctor from "../middleware/authDoctor.js";
 import upload from "../middleware/multer.js";
@@ -39,9 +40,10 @@ doctorRouter.post("/update-profile", authDoctor, upload.single("bannerImage"), u
 doctorRouter.post("/create-slot", authDoctor, createSlot);
 doctorRouter.post("/update-slot", authDoctor, updateSlot);
 doctorRouter.post("/slots", authDoctor, getSlots);
-doctorRouter.post("/request-professional", upload.single('image'), submitProfessionalRequest);
+doctorRouter.post("/request-professional", upload.single("image"), submitProfessionalRequest);
 doctorRouter.get("/reviews", authDoctor, getOwnReviews);
-doctorRouter.get('/transactions', authDoctor, getDoctorTransactions);
+doctorRouter.get("/transactions", authDoctor, getDoctorTransactions);
 doctorRouter.post("/update-payment-details", authDoctor, updatePaymentDetails);
+doctorRouter.post("/update-appointment-slot", authDoctor, updateAppointmentSlot); // New route
 
 export default doctorRouter;

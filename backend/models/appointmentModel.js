@@ -19,6 +19,11 @@ const appointmentSchema = new mongoose.Schema({
   paymentToDoctor: { type: Boolean, default: false },
   meetingLink: { type: String },
   meetingPassword: { type: String },
+  cancelledBy: { type: String, enum: ["user", "doctor", "admin"], default: null },
+  refundIssued: { type: Boolean, default: false },
+  updatedByDoctor: { type: Boolean, default: false },
+  awaitingUserConsent: { type: Boolean, default: false },
+  userConsent: { type: Boolean, default: null },
 });
 
 const appointmentModel = mongoose.models.appointment || mongoose.model("appointment", appointmentSchema);

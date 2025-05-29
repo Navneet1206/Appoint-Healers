@@ -10,6 +10,7 @@ import Test from "../models/testModel.js";
 import Coupon from "../models/couponModel.js";
 import reviewModel from "../models/reviewModel.js";
 import transactionModel from "../models/transactionModel.js";
+import { refundUser } from "../utils/refund.js";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -23,7 +24,7 @@ const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString()
 
 const otpStore = new Map();
 
-// Admin login
+// Admin login (unchanged)
 const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -95,7 +96,7 @@ const loginAdmin = async (req, res) => {
   }
 };
 
-// Verify admin login OTP
+// Verify admin login OTP (unchanged)
 const verifyLoginOtpAdmin = async (req, res) => {
   try {
     const { otp } = req.body;
@@ -118,7 +119,7 @@ const verifyLoginOtpAdmin = async (req, res) => {
   }
 };
 
-// Get all appointments (admin)
+// Get all appointments (unchanged)
 const appointmentsAdmin = async (req, res) => {
   try {
     const appointments = await appointmentModel.find({});
@@ -129,19 +130,207 @@ const appointmentsAdmin = async (req, res) => {
   }
 };
 
-// Cancel an appointment (admin)
+// Cancel an appointment (updated)
 const appointmentCancel = async (req, res) => {
   try {
-    const { appointmentId } = req.body;
-    await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
-    res.json({ success: true, message: "Appointment Cancelled" });
+    const { appointmentId, cancelledBy } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
+
+    if (!appointment) {
+      return res.json({ success: false, message: "Appointment not found" });
+    }
+
+    if (appointment.cancelled) {
+      return res.json({ success: false, message: "Appointment already cancelled" });
+    }
+
+    appointment.cancelled = true;
+    appointment.cancelledBy = cancelledBy;
+
+    if (cancelledBy === "doctor" || cancelledBy === "admin") {
+      if (appointment.payment) {
+        await refundUser(appointment.userId, appointment.discountedAmount || appointment.originalAmount, appointmentId);
+        appointment.refundIssued = true;
+      }
+    }
+    await appointment.save();
+
+    const doctor = await doctorModel.findById(appointment.docId);
+    const slot = doctor.slots.id(appointment.slotId);
+    if (slot) {
+      slot.status = "Active";
+      await doctor.save();
+    }
+
+    const userData = await userModel.findById(appointment.userId).select("-password");
+    const doctorData = await doctorModel.findById(appointment.docId);
+
+    await transporter.sendMail({
+      from: process.env.NODEMAILER_EMAIL,
+      to: userData.email,
+      subject: "Appointment Cancelled",
+      html: `
+        <p>Dear ${userData.name},</p>
+        <p>Your appointment with Dr. ${doctorData.name} on ${appointment.slotDate} at ${appointment.slotTime} has been cancelled by ${cancelledBy}.</p>
+        ${appointment.payment && cancelledBy !== "user" ? "<p>A refund has been issued.</p>" : ""}
+        <p>Best regards,<br>Savayas Heal Team</p>
+      `,
+    });
+
+    res.json({ success: true, message: "Appointment cancelled successfully" });
   } catch (error) {
-    console.log(error);
+    console.error("Appointment Cancel Error:", error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// Add a doctor
+// Force refund (new)
+const forceRefund = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
+
+    if (!appointment || !appointment.payment || appointment.refundIssued) {
+      return res.json({ success: false, message: "No payment to refund or already refunded" });
+    }
+
+    await refundUser(appointment.userId, appointment.discountedAmount || appointment.originalAmount, appointmentId);
+    appointment.refundIssued = true;
+    await appointment.save();
+
+    const userData = await userModel.findById(appointment.userId).select("-password");
+    await transporter.sendMail({
+      from: process.env.NODEMAILER_EMAIL,
+      to: userData.email,
+      subject: "Refund Issued",
+      html: `
+        <p>Dear ${userData.name},</p>
+        <p>A refund of ₹${appointment.discountedAmount || appointment.originalAmount} has been issued for your appointment on ${appointment.slotDate} at ${appointment.slotTime}.</p>
+        <p>Best regards,<br>Savayas Heal Team</p>
+      `,
+    });
+
+    res.json({ success: true, message: "Refund issued successfully" });
+  } catch (error) {
+    console.error("Force Refund Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Change slot on behalf of doctor (new)
+const adminUpdateAppointmentSlot = async (req, res) => {
+  try {
+    const { appointmentId, newSlotId } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
+
+    if (!appointment) {
+      return res.json({ success: false, message: "Appointment not found" });
+    }
+
+    const doctor = await doctorModel.findById(appointment.docId);
+    const newSlot = doctor.slots.id(newSlotId);
+
+    if (!newSlot || newSlot.status !== "Active") {
+      return res.json({ success: false, message: "New slot not available" });
+    }
+
+    const oldSlotId = appointment.slotId;
+    appointment.slotId = newSlotId;
+    appointment.slotDate = newSlot.slotDate;
+    appointment.slotTime = newSlot.slotTime;
+    appointment.updatedByDoctor = true;
+    appointment.awaitingUserConsent = true;
+    appointment.userConsent = null;
+    await appointment.save();
+
+    const oldSlot = doctor.slots.id(oldSlotId);
+    if (oldSlot) {
+      oldSlot.status = "Active";
+    }
+    newSlot.status = "Pending";
+    await doctor.save();
+
+    const userData = await userModel.findById(appointment.userId).select("-password");
+    await transporter.sendMail({
+      from: process.env.NODEMAILER_EMAIL,
+      to: userData.email,
+      subject: "Appointment Slot Update Request",
+      html: `
+        <p>Dear ${userData.name},</p>
+        <p>The admin has updated your appointment slot with Dr. ${doctor.name} to ${newSlot.slotDate} at ${newSlot.slotTime}.</p>
+        <p>Please respond to accept or reject this change.</p>
+        <p>Best regards,<br>Savayas Heal Team</p>
+      `,
+    });
+
+    res.json({ success: true, message: "Slot updated, awaiting user consent" });
+  } catch (error) {
+    console.error("Admin Update Appointment Slot Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Force accept/reject slot update (new)
+const adminRespondToSlotUpdate = async (req, res) => {
+  try {
+    const { appointmentId, consent } = req.body;
+    const appointment = await appointmentModel.findById(appointmentId);
+
+    if (!appointment || !appointment.awaitingUserConsent) {
+      return res.json({ success: false, message: "Invalid request or no pending update" });
+    }
+
+    if (consent) {
+      appointment.userConsent = true;
+      appointment.awaitingUserConsent = false;
+      const doctor = await doctorModel.findById(appointment.docId);
+      const slot = doctor.slots.id(appointment.slotId);
+      if (slot) {
+        slot.status = "Booked";
+        await doctor.save();
+      }
+    } else {
+      appointment.userConsent = false;
+      appointment.awaitingUserConsent = false;
+      appointment.cancelled = true;
+      appointment.cancelledBy = "admin";
+      if (appointment.payment) {
+        await refundUser(appointment.userId, appointment.discountedAmount || appointment.originalAmount, appointmentId);
+        appointment.refundIssued = true;
+      }
+      const doctor = await doctorModel.findById(appointment.docId);
+      const slot = doctor.slots.id(appointment.slotId);
+      if (slot) {
+        slot.status = "Active";
+        await doctor.save();
+      }
+    }
+
+    await appointment.save();
+
+    const userData = await userModel.findById(appointment.userId).select("-password");
+    const doctorData = await doctorModel.findById(appointment.docId);
+
+    await transporter.sendMail({
+      from: process.env.NODEMAILER_EMAIL,
+      to: userData.email,
+      subject: consent ? "Slot Update Forced Accepted" : "Slot Update Forced Rejected",
+      html: `
+        <p>Dear ${userData.name},</p>
+        <p>The admin has ${consent ? "accepted" : "rejected"} the slot update for your appointment with Dr. ${doctorData.name} on ${appointment.slotDate} at ${appointment.slotTime}.</p>
+        ${!consent && appointment.payment ? "<p>A refund has been issued.</p>" : ""}
+        <p>Best regards,<br>Savayas Heal Team</p>
+      `,
+    });
+
+    res.json({ success: true, message: "Response recorded successfully" });
+  } catch (error) {
+    console.error("Admin Respond To Slot Update Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Add a doctor (unchanged)
 const addDoctor = async (req, res) => {
   try {
     const {
@@ -219,7 +408,7 @@ const addDoctor = async (req, res) => {
   }
 };
 
-// Get all doctors
+// Get all doctors (unchanged)
 const allDoctors = async (req, res) => {
   try {
     const doctors = await doctorModel.find({}).select("-password");
@@ -230,7 +419,7 @@ const allDoctors = async (req, res) => {
   }
 };
 
-// Admin dashboard data
+// Admin dashboard data (unchanged)
 const adminDashboard = async (req, res) => {
   try {
     const doctors = await doctorModel.find({});
@@ -251,7 +440,7 @@ const adminDashboard = async (req, res) => {
   }
 };
 
-// Complete an appointment
+// Complete an appointment (unchanged)
 const completeAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.body;
@@ -272,7 +461,7 @@ const completeAppointment = async (req, res) => {
   }
 };
 
-// Add a test
+// Add a test (unchanged)
 const addTest = async (req, res) => {
   try {
     const { title, description, category, subCategory, questions, resultRanges } = req.body;
@@ -291,7 +480,7 @@ const addTest = async (req, res) => {
   }
 };
 
-// Get all tests
+// Get all tests (unchanged)
 const getTests = async (req, res) => {
   try {
     const tests = await Test.find({});
@@ -302,7 +491,7 @@ const getTests = async (req, res) => {
   }
 };
 
-// Update a test
+// Update a test (unchanged)
 const updateTest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -320,7 +509,7 @@ const updateTest = async (req, res) => {
   }
 };
 
-// Delete a test
+// Delete a test (unchanged)
 const deleteTest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -337,7 +526,7 @@ const deleteTest = async (req, res) => {
   }
 };
 
-// Create a coupon
+// Create a coupon (unchanged)
 const createCoupon = async (req, res) => {
   try {
     const { code, discountPercentage, expirationDate } = req.body;
@@ -356,7 +545,7 @@ const createCoupon = async (req, res) => {
   }
 };
 
-// Get all coupons
+// Get all coupons (unchanged)
 const getAllCoupons = async (req, res) => {
   try {
     const coupons = await Coupon.find({});
@@ -367,7 +556,7 @@ const getAllCoupons = async (req, res) => {
   }
 };
 
-// Get coupon by ID
+// Get coupon by ID (unchanged)
 const getCouponById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -384,7 +573,7 @@ const getCouponById = async (req, res) => {
   }
 };
 
-// Update a coupon
+// Update a coupon (unchanged)
 const updateCoupon = async (req, res) => {
   try {
     const { id } = req.params;
@@ -407,7 +596,7 @@ const updateCoupon = async (req, res) => {
   }
 };
 
-// Delete a coupon
+// Delete a coupon (unchanged)
 const deleteCoupon = async (req, res) => {
   try {
     const { id } = req.params;
@@ -424,7 +613,7 @@ const deleteCoupon = async (req, res) => {
   }
 };
 
-// Post a fake review
+// Post a fake review (unchanged)
 const postFakeReview = async (req, res) => {
   try {
     const { doctorId, rating, comment, userName } = req.body;
@@ -460,7 +649,7 @@ const postFakeReview = async (req, res) => {
   }
 };
 
-// Get all transactions (admin)
+// Get all transactions (unchanged)
 const getAllTransactions = async (req, res) => {
   try {
     const transactions = await transactionModel
@@ -488,7 +677,7 @@ const getAllTransactions = async (req, res) => {
   }
 };
 
-// Send meeting link (new function)
+// Send meeting link (unchanged)
 const sendMeetingLink = async (req, res) => {
   try {
     const { appointmentId, meetingLink, meetingPassword } = req.body;
@@ -596,4 +785,7 @@ export {
   postFakeReview,
   getAllTransactions,
   sendMeetingLink,
+  forceRefund,               
+  adminUpdateAppointmentSlot, 
+  adminRespondToSlotUpdate,   
 };
