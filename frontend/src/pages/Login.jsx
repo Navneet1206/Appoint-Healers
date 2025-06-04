@@ -474,7 +474,7 @@ const Login = () => {
                         />
                         <label className="ml-2 text-sm text-gray-600">
                           I accept the{' '}
-                          <Link to="/terms" className="text-[#D20424] hover:underline font-medium">
+                          <Link to="/terms-and-conditions" className="text-[#D20424] hover:underline font-medium">
                             Terms & Services
                           </Link>
                         </label>

@@ -86,7 +86,7 @@ const Footer = () => {
             <span>© 2025 Savayas Heal. All rights reserved.</span>
             <div className="flex flex-wrap gap-4">
               <a href="/privacy" className="hover:text-[#D20424]">Privacy Policy</a>
-              <a href="/terms" className="hover:text-[#D20424]">Terms & Conditions</a>
+              <a href="/terms-and-conditions" className="hover:text-[#D20424]">Terms & Conditions</a>
               <a href="/cancellation" className="hover:text-[#D20424]">Cancellation & Refund Policy</a>
               <a href="/sitemap" className="hover:text-[#D20424]">Sitemap</a>
             </div>

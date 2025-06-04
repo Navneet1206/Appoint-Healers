@@ -1,6 +1,6 @@
 {
   "name": "SavayasHeal.com",
-  "short_name": "SavayasHeal",
+  "short_name": "Savayas",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
@@ -15,7 +15,7 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#000000",
-  "background_color": "#3d3636",
+  "theme_color": "#d20424",
+  "background_color": "#d20424",
   "display": "standalone"
 }
