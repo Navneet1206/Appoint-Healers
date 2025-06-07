@@ -18,7 +18,7 @@ const FullScreenLoader = ({ isOpen }) => {
           className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center"
         >
           <div className="relative">
-            <div className="w-16 h-16 border-4 border-t-sky-500 border-gray-300 rounded-full animate-spin"></div>
+            <div className="w-16 h-16 border-4 border-t-red-500 border-gray-300 rounded-full animate-spin"></div>
             <p className="mt-4 text-white text-lg font-medium">Processing Payment...</p>
           </div>
         </motion.div>
@@ -36,7 +36,7 @@ const CustomPopup = ({ isOpen, onClose, type, title, message }) => {
       case 'error':
         return <XCircle className="w-12 h-12 text-red-500" />;
       case 'info':
-        return <AlertCircle className="w-12 h-12 text-blue-500" />;
+        return <AlertCircle className="w-12 h-12 text-red-500" />;
       default:
         return <AlertCircle className="w-12 h-12 text-gray-500" />;
     }
@@ -49,7 +49,7 @@ const CustomPopup = ({ isOpen, onClose, type, title, message }) => {
       case 'error':
         return 'bg-red-50 border-red-200';
       case 'info':
-        return 'bg-blue-50 border-blue-200';
+        return 'bg-red-50 border-red-200';
       default:
         return 'bg-gray-50 border-gray-200';
     }
@@ -345,7 +345,7 @@ const Appointment = () => {
   }, [docInfo]);
 
   return docInfo ? (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-sky-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50 to-red-50">
       <FullScreenLoader isOpen={isPaymentLoading} />
       <CustomPopup
         isOpen={popup.isOpen}
@@ -366,7 +366,7 @@ const Appointment = () => {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <span className="text-sky-600 font-medium">{docInfo.name}</span>
+            <span className="text-red-600 font-medium">{docInfo.name}</span>
           </div>
         </div>
       </div>
@@ -382,14 +382,14 @@ const Appointment = () => {
                   {/* Doctor Image */}
                   <div className="md:w-64 flex-shrink-0">
                     <div className="relative">
-                      <div className="w-64 h-64 rounded-2xl overflow-hidden border-4 border-sky-100 mx-auto">
+                      <div className="w-64 h-64 rounded-2xl overflow-hidden border-4 border-red-100 mx-auto">
                         <img
                           src={docInfo.image || assets.default_doctor}
                           alt={docInfo.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div className="absolute -bottom-2 -right-2 bg-sky-500 text-white rounded-full p-3 shadow-lg">
+                      <div className="absolute -bottom-2 -right-2 bg-red-500 text-white rounded-full p-3 shadow-lg">
                         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                         </svg>
@@ -400,7 +400,7 @@ const Appointment = () => {
                   {/* Doctor Details */}
                   <div className="flex-1">
                     <div className="mb-4">
-                      <span className="bg-gradient-to-r from-sky-100 to-blue-100 text-sky-700 px-4 py-2 rounded-full text-sm font-medium">
+                      <span className="bg-gradient-to-r from-red-100 to-red-100 text-red-700 px-4 py-2 rounded-full text-sm font-medium">
                         {docInfo.speciality || 'Healthcare Professional'}
                       </span>
                     </div>
@@ -431,8 +431,8 @@ const Appointment = () => {
 
                     {/* Quick Stats */}
                     <div className="grid grid-cols-2 gap-6">
-                      <div className="text-center p-4 bg-gradient-to-br from-sky-50 to-blue-50 rounded-xl border border-sky-100">
-                        <div className="text-2xl font-bold text-sky-600">{docInfo.experience || '5+'}</div>
+                      <div className="text-center p-4 bg-gradient-to-br from-red-50 to-red-50 rounded-xl border border-red-100">
+                        <div className="text-2xl font-bold text-red-600">{docInfo.experience || '5+'}</div>
                         <div className="text-sm text-gray-600">Years Experience</div>
                       </div>
                       <div className="text-center p-4 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl border border-emerald-100">
@@ -449,8 +449,8 @@ const Appointment = () => {
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
               <div className="p-8">
                 <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-sky-600" fill="currentColor" viewBox="0 0 24 24">
+                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                     </svg>
                   </div>
@@ -472,15 +472,15 @@ const Appointment = () => {
                     <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-100">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3 text-gray-700">
-                          <div className="w-2 h-2 bg-sky-500 rounded-full"></div>
+                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                           <span>{docInfo.degree || 'Medical Degree'}</span>
                         </div>
                         <div className="flex items-center gap-3 text-gray-700">
-                          <div className="w-2 h-2 bg-sky-500 rounded-full"></div>
+                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                           <span>Specialized in {docInfo.speciality || 'Healthcare'}</span>
                         </div>
                         <div className="flex items-center gap-3 text-gray-700">
-                          <div className="w-2 h-2 bg-sky-500 rounded-full"></div>
+                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                           <span>{docInfo.experience || '5+'} years of clinical experience</span>
                         </div>
                       </div>
@@ -490,9 +490,9 @@ const Appointment = () => {
                   {/* Location */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-800 mb-4">Practice Location</h3>
-                    <div className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-xl p-6 border border-blue-100">
+                    <div className="bg-gradient-to-r from-red-50 to-red-50 rounded-xl p-6 border border-red-100">
                       <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-sky-600 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-red-600 mt-1" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                         </svg>
                         <div>
@@ -538,22 +538,22 @@ const Appointment = () => {
             <div ref={bookSectionRef} className="sticky top-6">
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-sky-500 via-blue-500 to-sky-600 text-white p-6">
+                <div className="bg-gradient-to-r from-red-500 via-red-500 to-red-600 text-white p-6">
                   <h2 className="text-2xl font-bold mb-2">Book Your Session</h2>
-                  <p className="text-sky-100">Choose your preferred consultation type</p>
+                  <p className="text-red-100">Choose your preferred consultation type</p>
                   <div className="mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
                     <div className="text-center">
                       <div className="text-3xl font-bold">
                         {currencySymbol}
                         {finalPrice}
                         {discount > 0 && (
-                          <span className="text-lg text-sky-200 line-through ml-2">
+                          <span className="text-lg text-red-200 line-through ml-2">
                             {currencySymbol}
                             {docInfo.fees}
                           </span>
                         )}
                       </div>
-                      <div className="text-sky-100 text-sm">per session</div>
+                      <div className="text-red-100 text-sm">per session</div>
                     </div>
                   </div>
                 </div>
@@ -567,13 +567,13 @@ const Appointment = () => {
                         onClick={() => handleSessionTypeChange('video')}
                         className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all border-2 ${
                           selectedSessionType === 'video'
-                            ? 'bg-sky-50 border-sky-300 text-sky-700'
+                            ? 'bg-red-50 border-red-300 text-red-700'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                         }`}
                       >
                         <div
                           className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            selectedSessionType === 'video' ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
+                            selectedSessionType === 'video' ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-600'
                           }`}
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -595,13 +595,13 @@ const Appointment = () => {
                         onClick={() => handleSessionTypeChange('phone')}
                         className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all border-2 ${
                           selectedSessionType === 'phone'
-                            ? 'bg-sky-50 border-sky-300 text-sky-700'
+                            ? 'bg-red-50 border-red-300 text-red-700'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                         }`}
                       >
                         <div
                           className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            selectedSessionType === 'phone' ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
+                            selectedSessionType === 'phone' ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-600'
                           }`}
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -623,13 +623,13 @@ const Appointment = () => {
                         onClick={() => handleSessionTypeChange('in-person')}
                         className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all border-2 ${
                           selectedSessionType === 'in-person'
-                            ? 'bg-sky-50 border-sky-300 text-sky-700'
+                            ? 'bg-red-50 border-red-300 text-red-700'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                         }`}
                       >
                         <div
                           className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            selectedSessionType === 'in-person' ? 'bg-sky-500 text-white' : 'bg-gray-300 text-gray-600'
+                            selectedSessionType === 'in-person' ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-600'
                           }`}
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -666,7 +666,7 @@ const Appointment = () => {
                             onClick={() => setSelectedGroupIndex(index)}
                             className={`p-3 rounded-xl text-center transition-all border-2 ${
                               selectedGroupIndex === index
-                                ? 'bg-sky-50 border-sky-300 text-sky-700'
+                                ? 'bg-red-50 border-red-300 text-red-700'
                                 : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                             }`}
                           >
@@ -692,7 +692,7 @@ const Appointment = () => {
                               onClick={() => handleSlotSelect(slot)}
                               className={`p-3 rounded-xl text-center transition-all border-2 ${
                                 selectedSlotId === slot._id
-                                  ? 'bg-sky-50 border-sky-300 text-sky-700'
+                                  ? 'bg-red-50 border-red-300 text-red-700'
                                   : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                               }`}
                             >
@@ -732,13 +732,13 @@ const Appointment = () => {
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value)}
                         placeholder="Enter coupon code"
-                        className="flex-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        className="flex-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                         disabled={isCouponApplied}
                       />
                       <button
                         onClick={applyCoupon}
                         className={`px-4 py-2 rounded-xl ${
-                          isCouponApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-sky-500 text-white hover:bg-sky-600'
+                          isCouponApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'
                         }`}
                         disabled={isCouponApplied}
                       >
@@ -756,7 +756,7 @@ const Appointment = () => {
                   {/* Pay Button */}
                   <button
                     onClick={bookAppointment}
-                    className="w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white text-lg font-semibold py-4 rounded-xl hover:from-sky-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-gradient-to-r from-red-500 to-red-500 text-white text-lg font-semibold py-4 rounded-xl hover:from-red-600 hover:to-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!selectedSlotId || isLoading || isPaymentLoading}
                   >
                     {isLoading ? 'Processing...' : `Pay ${currencySymbol}${finalPrice} Now`}
